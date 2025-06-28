@@ -7,8 +7,8 @@ import { storage } from './storage';
 const gmail = google.gmail('v1');
 
 // Gmail OAuth credentials from environment variables
-export const OAUTH_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || """";
-export const OAUTH_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || """";
+export const OAUTH_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+export const OAUTH_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 // Using redirect URI from environment to match Google Console configuration
 export const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'http://127.0.0.1:5500/auth/callback';
 

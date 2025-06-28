@@ -56,6 +56,19 @@ Thumbs.db
 *.swp
 *~
 
+# === Security & Credentials ===
+# Firebase credentials
+firebase-service-account*.json
+service-account*.json
+**/firebase-adminsdk-*.json
+
+# Google OAuth credentials  
+client_secret_*.json
+**/client_secret*.json
+
+# Attached assets with potential secrets
+attached_assets/
+
 # === Misc ===
 # compiled or output assets
 staticfiles/
