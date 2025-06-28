@@ -77,6 +77,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Handle OAuth callback on /auth/callback path
+  app.get('/auth/callback', async (req: Request, res: Response) => {
+    console.log("OAuth callback received at /auth/callback:", req.query);
+    
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || typeof code !== 'string') {
+        return res.redirect('/?error=No authorization code received');
+      }
+      
+      console.log(`Processing OAuth code for state: ${state}`);
+      
+      // Create OAuth client for Gmail with the configured credentials
+      const oauth2Client = new google.auth.OAuth2(
+        OAUTH_CLIENT_ID,
+        OAUTH_CLIENT_SECRET,
+        OAUTH_REDIRECT_URI
+      );
+      
+      console.log('Exchanging authorization code for tokens...');
+      
+      // Exchange authorization code for tokens
+      const { tokens } = await oauth2Client.getToken(code);
+      console.log('Received tokens from Google');
+      
+      // Set the credentials on the auth client
+      oauth2Client.setCredentials(tokens);
+      
+      // Get user info to extract email and uid
+      const oauth2 = google.oauth2({
+        auth: oauth2Client,
+        version: 'v2'
+      });
+      
+      const userInfo = await oauth2.userinfo.get();
+      const email = userInfo.data.email;
+      const uid = userInfo.data.id;
+      
+      if (!email || !uid) {
+        throw new Error('Failed to get user email or ID from Google');
+      }
+      
+      console.log(`Got user info: ${email}, uid: ${uid}`);
+      
+      // Store the OAuth tokens in the database
+      const tokenData = {
+        uid: uid,
+        email: email,
+        accessToken: tokens.access_token!,
+        refreshToken: tokens.refresh_token || null,
+        expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null
+      };
+      
+      await storage.storeOAuthToken(tokenData);
+      console.log('OAuth tokens stored successfully');
+      
+      // Redirect back to the app with success
+      return res.redirect('/?connected=gmail');
+    } catch (error: any) {
+      console.error('Error in OAuth callback:', error);
+      return res.redirect(`/?error=${encodeURIComponent('Failed to authenticate with Gmail: ' + error.message)}`);
+    }
+  });
+  
   // Handle OAuth callback on root path
   app.get('/', async (req: Request, res: Response, next: NextFunction) => {
     // Check if this is an OAuth callback
