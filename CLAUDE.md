@@ -75,3 +75,19 @@ This is a full-stack email digest application built with TypeScript, Express, Re
 - **Database**: PostgreSQL with Drizzle ORM
 - **Build**: Vite (client), esbuild (server), tsx (development)
 - **Scheduling**: node-cron for automated digest generation
+
+### Environment Configuration
+
+**All sensitive credentials are managed via environment variables:**
+
+- Development: `npm run dev` (uses `.env.dev`)
+- Production: `npm run start:prod` (uses `.env.prod`)
+- See `SECURITY.md` for complete credential setup guide
+
+**Required Environment Variables:**
+- `OPENAI_API_KEY` - OpenAI API access
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Gmail OAuth
+- `FIREBASE_*` - Firebase server credentials
+- `VITE_FIREBASE_*` - Firebase client credentials
+
+**Never commit `.env.dev` or `.env.prod` files to version control.**

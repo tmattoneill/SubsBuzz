@@ -9,7 +9,10 @@ yarn-error.log*
 pnpm-debug.log*
 
 # local env files
-.env*
+.env
+.env.local
+.env.dev
+.env.prod
 !.env.example
 
 # === TypeScript ===

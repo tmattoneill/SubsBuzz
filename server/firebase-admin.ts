@@ -1,30 +1,35 @@
 import { initializeApp, cert } from 'firebase-admin/app';
-import * as fs from 'fs';
-import * as path from 'path';
 
 let firebaseAdmin;
 
-// Initialize Firebase Admin with service account JSON file
+// Initialize Firebase Admin with environment variables
 try {
-  // Load the service account file
-  const serviceAccountPath = path.join(process.cwd(), 'firebase-service-account.json');
-  const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-  
-  // Initialize Firebase Admin
-  firebaseAdmin = initializeApp({
-    credential: cert(serviceAccount),
-    projectId: "mymaildigest-120bf"
-  });
-  
-  console.log('Firebase Admin SDK initialized successfully');
+  // Check if Firebase credentials are provided via environment variables
+  const firebaseConfig = {
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  };
+
+  // Only initialize if all required credentials are present
+  if (firebaseConfig.projectId && firebaseConfig.privateKey && firebaseConfig.clientEmail) {
+    firebaseAdmin = initializeApp({
+      credential: cert(firebaseConfig),
+      projectId: firebaseConfig.projectId
+    });
+    
+    console.log('Firebase Admin SDK initialized successfully');
+  } else {
+    throw new Error('Firebase credentials not found in environment variables');
+  }
 } catch (error) {
-  console.error('Error initializing Firebase Admin SDK:', error);
+  console.warn('Firebase Admin SDK not configured:', error.message);
   
   // Mock Firebase Admin for development purposes
   console.log('Using mock Firebase Admin SDK for development');
   firebaseAdmin = initializeApp(
     {
-      projectId: "mymaildigest-120bf"
+      projectId: process.env.FIREBASE_PROJECT_ID || "dev-project"
     }, 
     'mock-app'
   );
