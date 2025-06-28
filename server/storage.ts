@@ -395,7 +395,7 @@ async function initializeSettings() {
 }
 
 // Initialize the database with default values (only for DatabaseStorage)
-if (process.env.DATABASE_URL && process.env.NODE_ENV !== 'development') {
+if (process.env.DATABASE_URL) {
   initializeDefaultMonitoredEmails().catch(console.error);
   initializeSettings().catch(console.error);
 }
