@@ -1,0 +1,82 @@
+# === Node (Vite, TS frontend) ===
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# local env files
+.env*
+!.env.example
+
+# === TypeScript ===
+*.tsbuildinfo
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+*.manifest
+*.spec
+
+# Python virtual environments
+.venv/
+env/
+venv/
+ENV/
+*.env/
+*.venv/
+.env
+
+# Python IDE configs
+.mypy_cache/
+.pytest_cache/
+.dmypy.json
+.pyre/
+coverage.*
+htmlcov/
+
+# === OS & Editor ===
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# === Misc ===
+# compiled or output assets
+staticfiles/
+public/build/
+frontend/build/
+frontend/node_modules/
+backend/__pycache__/
+
+# local SQLite or other dev DBs
+*.sqlite3
+*.db
+
+# logs, temp files
+*.log
+*.tmp
+*.bak
+*.pid
+
+# === Docker (if used) ===
+*.container
+*.log
+*.pid
+*.tar
+docker-compose.override.yml
