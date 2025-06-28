@@ -127,9 +127,8 @@ export default function Dashboard() {
   // Refresh digest mutation
   const refreshDigestMutation = useMutation({
     mutationFn: async () => {
-      // If user is logged in, include their ID token
-      const payload = user ? { idToken: await user.getIdToken() } : {};
-      await apiRequest('POST', '/api/digest/generate', payload);
+      // Session-based auth - no need for ID token
+      await apiRequest('POST', '/api/digest/generate', {});
     },
     onSuccess: () => {
       toast({
@@ -150,12 +149,11 @@ export default function Dashboard() {
   const connectGmailMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("You must be logged in");
-      const idToken = await user.getIdToken();
       
       const response = await fetch('/api/auth/gmail-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken })
+        body: JSON.stringify({ idToken: 'session-auth' })
       });
       
       if (!response.ok) {
@@ -202,6 +200,11 @@ export default function Dashboard() {
     emails: []
   };
   const digest: EmailDigest = digestData ? digestData as EmailDigest : defaultDigest;
+  
+  // Ensure emails array exists
+  if (!digest.emails) {
+    digest.emails = [];
+  }
 
   // Extract monitored emails with proper type handling
   const defaultEmails: MonitoredEmail[] = [];

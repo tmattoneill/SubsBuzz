@@ -6,16 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development Server
 ```bash
-npm run dev
+npm run dev              # Development server on port 5500 with hot reload
+npm run dev:load-env     # Development with explicit .env.dev file loading
 ```
-Runs the development server on port 5000, serving both API and client using tsx and Vite hot reloading.
+Both commands serve API and client using tsx and Vite hot reloading. The second variant explicitly loads `.env.dev`.
 
 ### Build and Production
 ```bash
-npm run build
-npm start
+npm run build       # Production build (client + server bundle)
+npm run start       # Start production server from built files
+npm run start:prod  # Start with production environment (.env.prod)
 ```
-Build creates production bundle using Vite for client and esbuild for server. Start runs the production server.
+Build creates production bundle using Vite for client and esbuild for server.
 
 ### Type Checking and Database
 ```bash
@@ -60,8 +62,27 @@ This is a full-stack email digest application built with TypeScript, Express, Re
 
 **Development Mode**:
 - `DEV_MODE = true` in `AuthContext.tsx` bypasses Firebase auth with mock user
-- Development server serves at `localhost:5000` with API at `/api/*`
-- OAuth redirects configured for `https://mymaildigest.replit.app`
+- Development server serves at `127.0.0.1:5500` with API at `/api/*`
+- OAuth redirects configured for `http://127.0.0.1:5500/auth/callback` in development
+- **Requires PostgreSQL**: Uses persistent PostgreSQL storage for development
+- Comes with pre-configured monitored emails for testing
+
+**PostgreSQL Setup**:
+1. Start PostgreSQL service:
+```bash
+brew services start postgresql          # Using Homebrew
+# OR
+pg_ctl -D /usr/local/var/postgres start # Using pg_ctl
+# OR  
+docker run --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres # Using Docker
+```
+
+2. Create database and user (first time only):
+```bash
+createuser -s postgres                  # Create postgres superuser
+createdb subsbuzz_dev -O postgres      # Create development database
+npm run db:push                        # Initialize database schema
+```
 
 **Configuration**:
 - Firebase credentials in `firebase-service-account.json` and `service-account.json`
@@ -87,7 +108,13 @@ This is a full-stack email digest application built with TypeScript, Express, Re
 **Required Environment Variables:**
 - `OPENAI_API_KEY` - OpenAI API access
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Gmail OAuth
-- `FIREBASE_*` - Firebase server credentials
+- `FIREBASE_*` - Firebase server credentials  
 - `VITE_FIREBASE_*` - Firebase client credentials
+- `DATABASE_URL` - PostgreSQL connection string (production only)
+
+**Pre-configured Monitored Emails** (for testing):
+- `daily@pivot5.ai` - Tech industry updates
+- `eletters@om.adexchanger.com` - Digital advertising news  
+- `email@washingtonpost.com` - News updates
 
 **Never commit `.env.dev` or `.env.prod` files to version control.**

@@ -19,11 +19,13 @@ export type User = typeof users.$inferSelect;
 // Schema for monitored email addresses
 export const monitoredEmails = pgTable("monitored_emails", {
   id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
+  userId: text("user_id").notNull(),
+  email: text("email").notNull(),
   active: boolean("active").notNull().default(true),
 });
 
 export const insertMonitoredEmailSchema = createInsertSchema(monitoredEmails).pick({
+  userId: true,
   email: true,
   active: true,
 });
@@ -34,12 +36,14 @@ export type MonitoredEmail = typeof monitoredEmails.$inferSelect;
 // Schema for email digests
 export const emailDigests = pgTable("email_digests", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   date: timestamp("date").notNull().defaultNow(),
   emailsProcessed: integer("emails_processed").notNull(),
   topicsIdentified: integer("topics_identified").notNull(),
 });
 
 export const insertEmailDigestSchema = createInsertSchema(emailDigests).pick({
+  userId: true,
   date: true,
   emailsProcessed: true,
   topicsIdentified: true,
@@ -72,12 +76,14 @@ export type DigestEmail = typeof digestEmails.$inferSelect;
 // Schema for user settings
 export const userSettings = pgTable("user_settings", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().unique(),
   dailyDigestEnabled: boolean("daily_digest_enabled").notNull().default(true),
   topicClusteringEnabled: boolean("topic_clustering_enabled").notNull().default(true),
   emailNotificationsEnabled: boolean("email_notifications_enabled").notNull().default(false),
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
+  userId: true,
   dailyDigestEnabled: true,
   topicClusteringEnabled: true,
   emailNotificationsEnabled: true,

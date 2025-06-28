@@ -17,18 +17,24 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
+import { createHash } from "crypto";
+
+// Helper function to generate userId from email
+export function getUserId(email: string): string {
+  return createHash('sha256').update(email.toLowerCase()).digest('hex');
+}
 
 export interface IStorage {
   // Monitored emails
-  getMonitoredEmails(): Promise<MonitoredEmail[]>;
-  getMonitoredEmail(id: number): Promise<MonitoredEmail | undefined>;
+  getMonitoredEmails(userId: string): Promise<MonitoredEmail[]>;
+  getMonitoredEmail(userId: string, id: number): Promise<MonitoredEmail | undefined>;
   addMonitoredEmail(email: InsertMonitoredEmail): Promise<MonitoredEmail>;
-  removeMonitoredEmail(id: number): Promise<void>;
+  removeMonitoredEmail(userId: string, id: number): Promise<void>;
   
   // Email digests
-  getEmailDigests(): Promise<EmailDigest[]>;
-  getEmailDigest(id: number): Promise<EmailDigest | undefined>;
-  getLatestEmailDigest(): Promise<EmailDigest | undefined>;
+  getEmailDigests(userId: string): Promise<EmailDigest[]>;
+  getEmailDigest(userId: string, id: number): Promise<EmailDigest | undefined>;
+  getLatestEmailDigest(userId: string): Promise<EmailDigest | undefined>;
   createEmailDigest(digest: InsertEmailDigest): Promise<EmailDigest>;
   
   // Digest emails
@@ -36,8 +42,8 @@ export interface IStorage {
   addDigestEmail(email: InsertDigestEmail): Promise<DigestEmail>;
   
   // User settings
-  getUserSettings(): Promise<UserSettings>;
-  updateUserSettings(settings: Partial<UserSettings>): Promise<UserSettings>;
+  getUserSettings(userId: string): Promise<UserSettings>;
+  updateUserSettings(userId: string, settings: Partial<UserSettings>): Promise<UserSettings>;
   
   // OAuth tokens
   storeOAuthToken(token: InsertOAuthToken): Promise<OAuthToken>;
@@ -212,9 +218,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Monitored emails methods
-  async getMonitoredEmails(): Promise<MonitoredEmail[]> {
+  async getMonitoredEmails(userId: string): Promise<MonitoredEmail[]> {
     const database = this.ensureDb();
-    return await database.select().from(monitoredEmails);
+    return await database.select().from(monitoredEmails).where(eq(monitoredEmails.userId, userId));
   }
   
   async getMonitoredEmail(id: number): Promise<MonitoredEmail | undefined> {
@@ -247,8 +253,11 @@ export class DatabaseStorage implements IStorage {
     return results.length > 0 ? results[0] : undefined;
   }
   
-  async getLatestEmailDigest(): Promise<EmailDigest | undefined> {
-    const results = await db.select().from(emailDigests).orderBy(desc(emailDigests.date)).limit(1);
+  async getLatestEmailDigest(userId: string): Promise<EmailDigest | undefined> {
+    const results = await db.select().from(emailDigests)
+      .where(eq(emailDigests.userId, userId))
+      .orderBy(desc(emailDigests.date))
+      .limit(1);
     return results.length > 0 ? results[0] : undefined;
   }
   
@@ -280,12 +289,13 @@ export class DatabaseStorage implements IStorage {
   }
   
   // User settings methods
-  async getUserSettings(): Promise<UserSettings> {
-    const results = await db.select().from(userSettings).limit(1);
+  async getUserSettings(userId: string): Promise<UserSettings> {
+    const results = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
     
     if (results.length === 0) {
       // Create default settings if none exist
       const defaultSettings: InsertUserSettings = {
+        userId,
         dailyDigestEnabled: true,
         topicClusteringEnabled: true,
         emailNotificationsEnabled: false
@@ -394,11 +404,11 @@ async function initializeSettings() {
   await storage.getUserSettings(); // Will create default settings if none exist
 }
 
-// Initialize the database with default values (only for DatabaseStorage)
-if (process.env.DATABASE_URL) {
-  initializeDefaultMonitoredEmails().catch(console.error);
-  initializeSettings().catch(console.error);
-}
+// Skip global initialization - user-specific data is created per user during OAuth
+// if (process.env.DATABASE_URL) {
+//   initializeDefaultMonitoredEmails().catch(console.error);
+//   initializeSettings().catch(console.error);
+// }
 
 // Export the storage implementation
 // Use memory storage in development for quick setup

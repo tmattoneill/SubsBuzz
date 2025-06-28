@@ -1,5 +1,6 @@
 import 'dotenv/config'; // Load environment variables first
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import './firebase-admin'; // Initialize Firebase Admin
@@ -7,6 +8,20 @@ import './firebase-admin'; // Initialize Firebase Admin
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Configure sessions
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'dev-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: true, // Changed to true for debugging
+  name: 'sessionId', // Explicit session name
+  cookie: {
+    secure: false, // Set to true in production with HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax' // Allow same-site requests
+  }
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -42,9 +42,10 @@ export function setupCronJobs() {
         return;
       }
       
-      // Generate digest
-      console.log(`Generating digest from ${emails.length} emails...`);
-      const digest = await generateDigest(emails);
+      // Generate digest - TODO: Fix for per-user digests
+      console.log(`Skipping digest generation - needs user context`);
+      return; // Temporarily disabled
+      // const digest = await generateDigest(emails);
       
       console.log(`Digest generation complete. Processed ${digest.emailsProcessed} emails with ${digest.topicsIdentified} topics.`);
       

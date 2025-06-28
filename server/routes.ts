@@ -8,32 +8,56 @@ import { setupCronJobs } from "./cron";
 import { verifyToken, mockGmailAccess, exchangeTokenForGmail } from "./auth";
 import { getAuth } from "firebase-admin/auth";
 import { google } from "googleapis";
+import { getUserId } from "./storage";
 
 // Import OAuth credentials from auth module
 import { OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI } from './auth';
+
+// Middleware to get userId from session
+function requireAuth(req: any, res: any, next: any) {
+  const session = req.session;
+  if (!session || !session.user) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+  req.userId = getUserId(session.user.email);
+  next();
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth Routes
   app.post('/api/auth/verify-token', async (req: Request, res: Response) => {
     try {
-      const { idToken } = req.body;
+      // Check if user has a valid session
+      const session = (req as any).session;
+      console.log('Session check - ID:', session?.id, 'User:', session?.user?.email);
       
-      if (!idToken) {
-        return res.status(400).json({ message: 'ID token is required' });
+      if (session && session.user) {
+        return res.status(200).json({
+          user: session.user
+        });
       }
       
-      // For development, return a mock user
-      return res.status(200).json({
-        user: {
-          uid: 'development_user_id',
-          email: 'tmattoneill@gmail.com',
-          displayName: 'Tom O\'Neill',
-          photoURL: null
-        }
-      });
+      return res.status(401).json({ message: 'Not authenticated' });
     } catch (error: any) {
       console.error('Error verifying token:', error);
       return res.status(401).json({ message: 'Invalid token' });
+    }
+  });
+  
+  app.post('/api/auth/logout', async (req: Request, res: Response) => {
+    try {
+      // Clear the session
+      (req as any).session.destroy((err: any) => {
+        if (err) {
+          console.error('Error destroying session:', err);
+          return res.status(500).json({ message: 'Failed to logout' });
+        }
+        res.clearCookie('connect.sid'); // Clear session cookie
+        return res.status(200).json({ message: 'Logged out successfully' });
+      });
+    } catch (error: any) {
+      console.error('Error logging out:', error);
+      return res.status(500).json({ message: 'Failed to logout' });
     }
   });
   
@@ -123,6 +147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Got user info: ${email}, uid: ${uid}`);
       
       // Store the OAuth tokens in the database
+      const userId = getUserId(email);
       const tokenData = {
         uid: uid,
         email: email,
@@ -132,10 +157,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       await storage.storeOAuthToken(tokenData);
+      
+      // Initialize default monitored emails for new user
+      const existingEmails = await storage.getMonitoredEmails(userId);
+      if (existingEmails.length === 0) {
+        const defaultEmails = [
+          'daily@pivot5.ai',
+          'eletters@om.adexchanger.com', 
+          'email@washingtonpost.com'
+        ];
+        
+        for (const emailAddr of defaultEmails) {
+          await storage.addMonitoredEmail({ userId, email: emailAddr, active: true });
+        }
+      }
       console.log('OAuth tokens stored successfully');
       
-      // Redirect back to the app with success
-      return res.redirect('/?connected=gmail');
+      // Store user session
+      (req as any).session.user = {
+        uid: uid,
+        email: email,
+        displayName: userInfo.data.name,
+        photoURL: userInfo.data.picture
+      };
+      
+      console.log('Storing user in session:', email);
+      
+      // Save session before redirect
+      (req as any).session.save((err: any) => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.redirect(`/?error=${encodeURIComponent('Session save failed')}`);
+        }
+        console.log('Session saved successfully');
+        // Redirect back to the app with success
+        return res.redirect('/?connected=gmail');
+      });
     } catch (error: any) {
       console.error('Error in OAuth callback:', error);
       return res.redirect(`/?error=${encodeURIComponent('Failed to authenticate with Gmail: ' + error.message)}`);
@@ -263,10 +320,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes (these should be protected with verifyToken middleware in production)
   
   // Manual trigger for digest generation
-  app.post('/api/digest/generate', async (req, res) => {
+  app.post('/api/digest/generate', requireAuth, async (req: any, res) => {
     try {
-      // Get monitored emails
-      const monitoredEmails = await storage.getMonitoredEmails();
+      // Get monitored emails for this user
+      const monitoredEmails = await storage.getMonitoredEmails(req.userId);
       
       // Only get active monitored emails
       const activeEmails = monitoredEmails
@@ -294,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Generate digest
       console.log(`Generating digest from ${emails.length} emails...`);
-      const digest = await generateDigest(emails);
+      const digest = await generateDigest(req.userId, emails);
       
       console.log(`Digest generation complete. Processed ${digest.emailsProcessed} emails with ${digest.topicsIdentified} topics.`);
       
@@ -308,11 +365,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get('/api/monitored-emails', async (req, res) => {
+  app.get('/api/monitored-emails', requireAuth, async (req: any, res) => {
     try {
-      const monitoredEmails = await storage.getMonitoredEmails();
+      const monitoredEmails = await storage.getMonitoredEmails(req.userId);
       res.json(monitoredEmails);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to get monitored emails: ${error.message}` });
     }
   });
@@ -343,11 +400,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/settings', async (req, res) => {
+  app.get('/api/settings', requireAuth, async (req: any, res) => {
     try {
-      const settings = await storage.getUserSettings();
+      const settings = await storage.getUserSettings(req.userId);
       res.json(settings);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to get user settings: ${error.message}` });
     }
   });
@@ -375,11 +432,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/digest/latest', async (req, res) => {
+  app.get('/api/digest/latest', requireAuth, async (req: any, res) => {
     try {
-      const latestDigest = await getLatestDigest();
+      const latestDigest = await getLatestDigest(req.userId);
       res.json(latestDigest);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to get latest digest: ${error.message}` });
     }
   });

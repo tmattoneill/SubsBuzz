@@ -77,7 +77,7 @@ export function Sidebar({ monitoredEmails, onAddSourceClick }: SidebarProps) {
               <polyline points="22,6 12,13 2,6" />
             </svg>
           </div>
-          <h1 className="ml-2 text-xl font-semibold text-gray-800">MailDigest</h1>
+          <h1 className="ml-2 text-xl font-semibold text-gray-800">SubsBuzz</h1>
         </div>
         {isMobile && (
           <Button 
@@ -191,7 +191,7 @@ export function Sidebar({ monitoredEmails, onAddSourceClick }: SidebarProps) {
                 <polyline points="22,6 12,13 2,6" />
               </svg>
             </div>
-            <h1 className="ml-2 text-xl font-semibold text-gray-800">MailDigest</h1>
+            <h1 className="ml-2 text-xl font-semibold text-gray-800">SubsBuzz</h1>
           </div>
           <Button variant="ghost" size="icon" onClick={toggleMobileMenu}>
             <Menu className="h-5 w-5" />
