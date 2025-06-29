@@ -74,9 +74,10 @@ This is a full-stack email digest application built with TypeScript, Express, Re
 5. **Dual digest generation**: Individual email summaries + thematic meta-digest
 
 **Storage Architecture**:
-- **DatabaseStorage**: Required for all functionality including thematic digests
-- **PostgreSQL**: Always required for development and production
-- Uses Drizzle ORM with persistent PostgreSQL storage
+- **PostgreSQL Only**: Exclusively uses PostgreSQL database for all data storage
+- **No In-Memory Storage**: All data persisted to database for reliability and consistency
+- **Drizzle ORM**: Modern TypeScript-first ORM for database operations
+- **Required for All Features**: Database connection mandatory for application startup
 
 ### Development Configuration
 
