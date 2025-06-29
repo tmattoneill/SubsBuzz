@@ -32,22 +32,24 @@ This is a full-stack email digest application built with TypeScript, Express, Re
 ### Core Components
 
 **Server Architecture** (`server/`):
-- `index.ts` - Main Express server with request logging and error handling
-- `routes.ts` - API routes for auth, digest generation, monitored emails, and settings
+- `index.ts` - Main Express server with request logging and automatic database initialization
+- `db-init.ts` - **Automatic database setup**: checks PostgreSQL status, creates DB/tables if missing
+- `routes.ts` - API routes for auth, digest generation, monitored emails, settings, and history
 - `cron.ts` - Scheduled jobs for daily digest generation at 7:00 AM
 - `gmail.ts` - Gmail API integration for fetching emails (24-hour lookback, unlimited results)
 - `openai.ts` - OpenAI integration for email analysis and digest generation
 - `thematic-processor.ts` - **Core thematic digest processor** with 3-stage pipeline
-- `storage.ts` - Database operations using Drizzle ORM with dual storage support
+- `storage.ts` - Database operations using Drizzle ORM (PostgreSQL only)
 - `auth.ts` - Firebase Admin authentication and OAuth token management
 
 **Client Architecture** (`client/src/`):
 - React SPA using Wouter for routing and TanStack Query for data fetching
 - `App.tsx` - Main app with providers (QueryClient, ThemeProvider, AuthProvider)
 - `pages/dashboard.tsx` - **Intelligent digest switching** between thematic and individual email views
+- `pages/history.tsx` - **Digest history browser** with calendar selection and date-specific digest retrieval
 - `components/ui/thematic-digest.tsx` - **Thematic summary display component**
-- `components/ui/` - Shadcn/ui component library
-- `lib/AuthContext.tsx` - Firebase auth with development mode bypass
+- `components/ui/` - Shadcn/ui component library with accessibility fixes
+- `lib/AuthContext.tsx` - Firebase OAuth authentication (no bypass modes)
 
 **Database Schema** (`shared/schema.ts`):
 - **Dual-tier architecture**: Regular digests + thematic meta-digests
@@ -65,6 +67,12 @@ This is a full-stack email digest application built with TypeScript, Express, Re
 2. **Intelligent Theme Discovery**: Hybrid NLP + LLM approach for topic clustering
 3. **Journalistic Summaries**: Narrative-style thematic sections, not individual email descriptions
 4. **Source Traceability**: Each thematic section links back to contributing source emails
+
+**Digest History System**:
+1. **One digest per user per day** stored persistently in PostgreSQL
+2. **Calendar-based browsing** with smart date filtering (disables dates without digests)
+3. **Historical digest retrieval** via `/api/digest/history` and `/api/digest/date/:date` endpoints
+4. **Seamless digest display** supporting both thematic and individual email digest formats
 
 **Email Processing Pipeline**:
 1. Gmail OAuth integration for accessing user emails
@@ -84,12 +92,14 @@ This is a full-stack email digest application built with TypeScript, Express, Re
 **PostgreSQL Always Required**:
 The application requires PostgreSQL for all functionality including thematic digests, user data, and email processing.
 
-**Automatic Database Setup**:
-The application now automatically:
-1. Checks if PostgreSQL is running and starts it if needed
-2. Creates the database if it doesn't exist
-3. Initializes all required tables and schema
-4. Handles database migrations automatically
+**Automatic Database Setup** (`server/db-init.ts`):
+The application automatically on startup:
+1. **Validates DATABASE_URL** - fails fast if not provided (PostgreSQL always required)
+2. **Tests database connection** - attempts to connect and execute simple query
+3. **Auto-starts PostgreSQL** - uses Homebrew to start service if connection fails
+4. **Creates missing database** - runs `createdb` if database doesn't exist
+5. **Initializes schema** - runs `npm run db:push` to create/update tables
+6. **Comprehensive error handling** - provides clear instructions for manual fixes
 
 **Manual PostgreSQL Setup** (if automatic setup fails):
 1. Start PostgreSQL service:
@@ -112,6 +122,8 @@ npm run db:push                        # Initialize database schema
 - Development server serves at `127.0.0.1:5500` with API at `/api/*`
 - OAuth redirects configured for `http://127.0.0.1:5500/auth/callback` in development
 - **Database required**: Always uses PostgreSQL with DATABASE_URL configuration
+- **Automatic initialization**: Database setup handled automatically on first run
+- **Session-based auth**: Uses Express sessions with PostgreSQL storage (no in-memory fallbacks)
 
 ### Technology Stack
 
@@ -158,8 +170,14 @@ npm run db:push                        # Initialize database schema
 
 **Thematic Digest Priority**: The `/api/digest/latest` endpoint prioritizes thematic digests when available, falling back to regular digests for compatibility.
 
-**Database Requirement**: The system requires PostgreSQL with DATABASE_URL configuration for all functionality.
+**Database Requirement**: The system requires PostgreSQL with DATABASE_URL configuration for all functionality. No in-memory storage fallbacks exist.
 
 **Email Fetching Strategy**: Gmail integration uses a 24-hour sliding window to ensure fresh content while avoiding overwhelming the API.
 
 **Error Handling**: Thematic digest generation is fault-tolerant - failures don't prevent basic digest functionality.
+
+**Digest History**: System stores exactly one digest per user per day. Historical digests accessible via calendar interface and REST API endpoints.
+
+**Authentication Flow**: Uses Gmail OAuth with Express sessions. No development bypasses or mock authentication modes exist.
+
+**Automatic Setup**: Database initialization is fully automated. System will attempt to start PostgreSQL, create databases, and initialize schema automatically on first run.
