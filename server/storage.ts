@@ -78,25 +78,13 @@ export class MemStorage implements IStorage {
     // Initialize with default settings
     this.userSettingsStore = {
       id: 1,
+      userId: 'memory-storage-default',
       dailyDigestEnabled: true,
       topicClusteringEnabled: true,
       emailNotificationsEnabled: false
     };
     
-    // Initialize with default monitored emails
-    this.initializeDefaultMonitoredEmails();
-  }
-  
-  private initializeDefaultMonitoredEmails() {
-    const defaultEmails = [
-      'daily@pivot5.ai',
-      'eletters@om.adexchanger.com',
-      'email@washingtonpost.com'
-    ];
-    
-    defaultEmails.forEach(email => {
-      this.addMonitoredEmail({ email, active: true });
-    });
+    // New users start with no monitored emails
   }
   
   // Monitored emails methods
@@ -308,9 +296,9 @@ export class DatabaseStorage implements IStorage {
     return results[0];
   }
   
-  async updateUserSettings(settings: Partial<UserSettings>): Promise<UserSettings> {
+  async updateUserSettings(userId: string, settings: Partial<UserSettings>): Promise<UserSettings> {
     // Get current settings first
-    const currentSettings = await this.getUserSettings();
+    const currentSettings = await this.getUserSettings(userId);
     
     // Update settings
     const results = await db

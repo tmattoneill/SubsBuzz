@@ -112,9 +112,9 @@ npm run db:push                        # Initialize database schema
 - `VITE_FIREBASE_*` - Firebase client credentials
 - `DATABASE_URL` - PostgreSQL connection string (production only)
 
-**Pre-configured Monitored Emails** (for testing):
-- `daily@pivot5.ai` - Tech industry updates
-- `eletters@om.adexchanger.com` - Digital advertising news  
-- `email@washingtonpost.com` - News updates
+**New User Setup**:
+- New users start with no monitored emails
+- Users must manually add email addresses they want to monitor
+- This ensures clean user onboarding and intentional email selection
 
 **Never commit `.env.dev` or `.env.prod` files to version control.**

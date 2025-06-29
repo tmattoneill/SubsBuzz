@@ -52,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Error destroying session:', err);
           return res.status(500).json({ message: 'Failed to logout' });
         }
-        res.clearCookie('connect.sid'); // Clear session cookie
+        res.clearCookie('sessionId'); // Clear session cookie
         return res.status(200).json({ message: 'Logged out successfully' });
       });
     } catch (error: any) {
@@ -157,21 +157,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       await storage.storeOAuthToken(tokenData);
-      
-      // Initialize default monitored emails for new user
-      const existingEmails = await storage.getMonitoredEmails(userId);
-      if (existingEmails.length === 0) {
-        const defaultEmails = [
-          'daily@pivot5.ai',
-          'eletters@om.adexchanger.com', 
-          'email@washingtonpost.com'
-        ];
-        
-        for (const emailAddr of defaultEmails) {
-          await storage.addMonitoredEmail({ userId, email: emailAddr, active: true });
-        }
-      }
       console.log('OAuth tokens stored successfully');
+      
+      // New users start with no monitored emails - they must add their own
       
       // Store user session
       (req as any).session.user = {
@@ -336,16 +324,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get user token if provided
-      const { idToken } = req.body;
+      // Get stored OAuth token for this user
+      const session = (req as any).session;
+      const userUid = session?.user?.uid;
       
-      // Fetch emails from monitored sources
+      if (!userUid) {
+        return res.status(401).json({ message: 'User session not found' });
+      }
+      
+      // Fetch emails from monitored sources using stored OAuth token
       console.log(`Manually triggering email fetch from ${activeEmails.length} sources...`);
-      const emails = await fetchEmails(activeEmails, idToken);
+      const emails = await fetchEmails(activeEmails, userUid);
       
       if (emails.length === 0) {
-        return res.status(404).json({ 
-          message: 'No new emails found from monitored sources'
+        return res.status(200).json({ 
+          message: 'No new emails from sender found in inbox'
         });
       }
       
@@ -374,26 +367,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/monitored-emails', async (req, res) => {
+  app.post('/api/monitored-emails', requireAuth, async (req: any, res) => {
     try {
       const { email } = req.body;
       if (!email) {
         return res.status(400).json({ message: 'Email is required' });
       }
-      const newEmail = await storage.addMonitoredEmail({ email, active: true });
+      const newEmail = await storage.addMonitoredEmail({ userId: req.userId, email, active: true });
       res.status(201).json(newEmail);
     } catch (error) {
       res.status(500).json({ message: `Failed to add monitored email: ${error.message}` });
     }
   });
 
-  app.delete('/api/monitored-emails/:id', async (req, res) => {
+  app.delete('/api/monitored-emails/:id', requireAuth, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: 'Invalid ID' });
       }
-      await storage.removeMonitoredEmail(id);
+      await storage.removeMonitoredEmail(req.userId, id);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: `Failed to remove monitored email: ${error.message}` });
@@ -409,9 +402,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/settings', async (req, res) => {
+  app.patch('/api/settings', requireAuth, async (req: any, res) => {
     try {
-      const updatedSettings = await storage.updateUserSettings(req.body);
+      const updatedSettings = await storage.updateUserSettings(req.userId, req.body);
       res.json(updatedSettings);
     } catch (error) {
       res.status(500).json({ message: `Failed to update user settings: ${error.message}` });

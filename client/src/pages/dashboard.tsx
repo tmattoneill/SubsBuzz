@@ -128,12 +128,20 @@ export default function Dashboard() {
   const refreshDigestMutation = useMutation({
     mutationFn: async () => {
       // Session-based auth - no need for ID token
-      await apiRequest('POST', '/api/digest/generate', {});
+      const response = await apiRequest('POST', '/api/digest/generate', {});
+      return await response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Digest refreshed successfully",
-      });
+    onSuccess: (data) => {
+      if (data.message === "No new emails from sender found in inbox") {
+        toast({
+          title: data.message,
+          variant: "info",
+        });
+      } else {
+        toast({
+          title: "Digest refreshed successfully",
+        });
+      }
       refetchDigest();
     },
     onError: (error) => {
