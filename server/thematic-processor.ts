@@ -68,80 +68,225 @@ export class ThematicProcessor {
   }
 
   /**
-   * Stage 1: Perform NLP analysis to discover themes and cluster emails
+   * Stage 1: Classify emails into predefined categories using best-fit algorithm
    */
   private async performNLPAnalysis(emails: DigestEmail[]): Promise<NLPResult> {
-    console.log('Starting NLP analysis...');
+    console.log('Starting category classification...');
     
-    // For now, implement a hybrid approach using existing topics + simple clustering
-    // TODO: Enhance with proper topic modeling (LDA) and semantic clustering
+    // Predefined categories for consistent theming
+    const predefinedCategories = [
+      'Media + Advertising',
+      'Politics', 
+      'Programming and Computer Engineering',
+      'Business + Finance',
+      'Entertainment + Arts',
+      'Science + Technology',
+      'Sports',
+      'Food, Drink, Dining',
+      'Opinion + Thought',
+      'Other'
+    ];
     
     try {
-      // Extract all existing topics from emails
-      const allTopics = new Set<string>();
-      emails.forEach(email => {
-        email.topics.forEach(topic => allTopics.add(topic));
-      });
-      
-      // Simple clustering based on existing topics
       const clusters: EmailCluster[] = [];
-      const processedEmails = new Set<number>();
       
-      // Group emails by their primary topics
-      for (const topic of Array.from(allTopics)) {
-        const topicEmails = emails.filter(email => 
-          email.topics.includes(topic) && !processedEmails.has(email.id)
-        );
+      // For each predefined category, find best-fit emails
+      for (const category of predefinedCategories) {
+        const categoryEmails = this.classifyEmailsToCategory(emails, category);
         
-        if (topicEmails.length > 0) {
-          // Extract keywords for this cluster
-          const keywords = this.extractClusterKeywords(topicEmails);
-          
+        if (categoryEmails.length > 0) {
           clusters.push({
-            emails: topicEmails,
-            theme: this.normalizeThemeName(topic),
-            keywords,
-            confidence: this.calculateClusterConfidence(topicEmails, topic)
+            emails: categoryEmails,
+            theme: category,
+            keywords: this.extractClusterKeywords(categoryEmails),
+            confidence: this.calculateCategoryConfidence(categoryEmails, category)
           });
-          
-          // Mark emails as processed
-          topicEmails.forEach(email => processedEmails.add(email.id));
         }
       }
       
-      // Handle remaining emails that don't fit into clear themes
-      const unclusteredEmails = emails.filter(email => !processedEmails.has(email.id));
-      if (unclusteredEmails.length > 0) {
-        clusters.push({
-          emails: unclusteredEmails,
-          theme: "Miscellaneous & Other News",
-          keywords: this.extractClusterKeywords(unclusteredEmails),
-          confidence: 50 // Lower confidence for miscellaneous
-        });
+      // Handle any unclassified emails
+      const classifiedIds = new Set(clusters.flatMap(c => c.emails.map(e => e.id)));
+      const unclassifiedEmails = emails.filter(email => !classifiedIds.has(email.id));
+      
+      if (unclassifiedEmails.length > 0) {
+        // Add them to "Other" category or create it if it doesn't exist
+        const otherCluster = clusters.find(c => c.theme === 'Other');
+        if (otherCluster) {
+          otherCluster.emails.push(...unclassifiedEmails);
+          otherCluster.keywords = this.extractClusterKeywords(otherCluster.emails);
+        } else {
+          clusters.push({
+            emails: unclassifiedEmails,
+            theme: 'Other',
+            keywords: this.extractClusterKeywords(unclassifiedEmails),
+            confidence: 60
+          });
+        }
       }
       
-      // Sort clusters by email count (most significant first)
-      clusters.sort((a, b) => b.emails.length - a.emails.length);
+      // Sort clusters by relevance (email count and quality)
+      clusters.sort((a, b) => (b.emails.length * b.confidence) - (a.emails.length * a.confidence));
       
-      console.log(`NLP analysis complete: ${clusters.length} themes discovered`);
+      console.log(`Category classification complete: ${clusters.length} categories with emails`);
       return {
         clusters,
-        processingMethod: 'hybrid' // Using hybrid approach for now
+        processingMethod: 'category-classification'
       };
       
     } catch (error) {
-      console.error('Error in NLP analysis:', error);
-      // Fallback: single cluster with all emails
+      console.error('Error in category classification:', error);
+      // Fallback: put all emails in "Other"
       return {
         clusters: [{
           emails,
-          theme: "Daily Summary",
+          theme: "Other",
           keywords: this.extractClusterKeywords(emails),
           confidence: 70
         }],
-        processingMethod: 'llm' // Fallback to LLM-only processing
+        processingMethod: 'fallback'
       };
     }
+  }
+
+  /**
+   * Classify emails to a specific category using best-fit algorithm
+   */
+  private classifyEmailsToCategory(emails: DigestEmail[], category: string): DigestEmail[] {
+    const categoryKeywords = this.getCategoryKeywords(category);
+    const emailScores: Array<{email: DigestEmail, score: number}> = [];
+    
+    for (const email of emails) {
+      const score = this.calculateCategoryFitScore(email, categoryKeywords);
+      if (score > 30) { // Minimum threshold for category fit
+        emailScores.push({email, score});
+      }
+    }
+    
+    // Sort by score and return emails that fit this category
+    return emailScores
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.email);
+  }
+
+  /**
+   * Calculate how well an email fits a category based on keywords and topics
+   */
+  private calculateCategoryFitScore(email: DigestEmail, categoryKeywords: string[]): number {
+    let score = 0;
+    const emailText = `${email.subject} ${email.summary} ${email.topics.join(' ')} ${email.keywords.join(' ')}`.toLowerCase();
+    
+    // Check for keyword matches
+    for (const keyword of categoryKeywords) {
+      if (emailText.includes(keyword.toLowerCase())) {
+        score += 10; // Base score for keyword match
+        
+        // Bonus for matches in subject (more important)
+        if (email.subject.toLowerCase().includes(keyword.toLowerCase())) {
+          score += 15;
+        }
+        
+        // Bonus for matches in topics
+        if (email.topics.some(topic => topic.toLowerCase().includes(keyword.toLowerCase()))) {
+          score += 10;
+        }
+      }
+    }
+    
+    // Check sender patterns for certain categories
+    const senderBonus = this.getSenderCategoryBonus(email.sender, categoryKeywords);
+    score += senderBonus;
+    
+    return Math.min(100, score); // Cap at 100
+  }
+
+  /**
+   * Get keywords associated with each category
+   */
+  private getCategoryKeywords(category: string): string[] {
+    const keywordMap: Record<string, string[]> = {
+      'Media + Advertising': [
+        'media', 'advertising', 'marketing', 'television', 'streaming', 'netflix', 'disney', 'rtl', 'tf1', 
+        'broadcast', 'ad', 'campaign', 'brand', 'publisher', 'journalism', 'news', 'magazine', 'radio'
+      ],
+      'Politics': [
+        'politics', 'government', 'policy', 'election', 'vote', 'congress', 'senate', 'president', 
+        'democratic', 'republican', 'biden', 'trump', 'supreme court', 'legislation', 'political'
+      ],
+      'Programming and Computer Engineering': [
+        'programming', 'software', 'code', 'development', 'engineering', 'tech', 'api', 'javascript', 
+        'python', 'react', 'ai', 'machine learning', 'data', 'algorithm', 'computing', 'developer'
+      ],
+      'Business + Finance': [
+        'business', 'finance', 'stock', 'market', 'investment', 'economy', 'financial', 'revenue', 
+        'profit', 'startup', 'vc', 'funding', 'ipo', 'acquisition', 'merger', 'corporate', 'earnings'
+      ],
+      'Entertainment + Arts': [
+        'entertainment', 'movie', 'film', 'music', 'art', 'culture', 'celebrity', 'concert', 'album', 
+        'artist', 'performance', 'theater', 'gallery', 'creative', 'design', 'fashion'
+      ],
+      'Science + Technology': [
+        'science', 'research', 'study', 'technology', 'innovation', 'discovery', 'experiment', 
+        'medical', 'health', 'climate', 'environment', 'space', 'physics', 'biology', 'chemistry'
+      ],
+      'Sports': [
+        'sports', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf', 'olympics', 
+        'athlete', 'team', 'game', 'match', 'tournament', 'championship', 'league'
+      ],
+      'Food, Drink, Dining': [
+        'food', 'restaurant', 'dining', 'recipe', 'cooking', 'drink', 'wine', 'beer', 'coffee', 
+        'chef', 'cuisine', 'meal', 'nutrition', 'taste', 'flavor', 'culinary'
+      ],
+      'Opinion + Thought': [
+        'opinion', 'editorial', 'commentary', 'analysis', 'perspective', 'viewpoint', 'thought', 
+        'philosophy', 'reflection', 'insight', 'argument', 'debate', 'discussion', 'critique'
+      ],
+      'Other': [
+        'other', 'miscellaneous', 'general', 'various', 'mixed', 'diverse'
+      ]
+    };
+    
+    return keywordMap[category] || [];
+  }
+
+  /**
+   * Get bonus score based on sender patterns
+   */
+  private getSenderCategoryBonus(sender: string, categoryKeywords: string[]): number {
+    const senderLower = sender.toLowerCase();
+    
+    // Media outlets
+    if (senderLower.includes('washingtonpost') || senderLower.includes('newyorker') || 
+        senderLower.includes('media') || senderLower.includes('news')) {
+      if (categoryKeywords.includes('media') || categoryKeywords.includes('politics')) {
+        return 20;
+      }
+    }
+    
+    // Tech/Business sources
+    if (senderLower.includes('substack') || senderLower.includes('pitchbook')) {
+      if (categoryKeywords.includes('business') || categoryKeywords.includes('tech')) {
+        return 15;
+      }
+    }
+    
+    return 0;
+  }
+
+  /**
+   * Calculate confidence for category-based clustering
+   */
+  private calculateCategoryConfidence(emails: DigestEmail[], category: string): number {
+    if (emails.length === 0) return 70;
+    
+    const categoryKeywords = this.getCategoryKeywords(category);
+    let totalScore = 0;
+    
+    for (const email of emails) {
+      totalScore += this.calculateCategoryFitScore(email, categoryKeywords);
+    }
+    
+    const averageScore = totalScore / emails.length;
+    return Math.round(Math.max(60, Math.min(95, averageScore)));
   }
 
   /**
@@ -302,46 +447,22 @@ export class ThematicProcessor {
       .map(([keyword]) => keyword);
   }
 
-  /**
-   * Helper: Normalize theme names for consistency
-   */
-  private normalizeThemeName(topic: string): string {
-    // Simple theme name normalization
-    const themeMap: Record<string, string> = {
-      'politics': 'Politics & Government',
-      'technology': 'Technology & Innovation',
-      'entertainment': 'Entertainment & Culture',
-      'business': 'Business & Economy',
-      'health': 'Health & Science',
-      'sports': 'Sports & Recreation',
-      'environment': 'Environment & Climate',
-      'education': 'Education & Society'
-    };
-    
-    const normalized = topic.toLowerCase().trim();
-    return themeMap[normalized] || this.capitalizeWords(topic);
-  }
-
-  /**
-   * Helper: Capitalize words in a theme name
-   */
-  private capitalizeWords(str: string): string {
-    return str.split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  }
 
   /**
    * Helper: Calculate confidence score for a cluster
    */
   private calculateClusterConfidence(emails: DigestEmail[], topic: string): number {
     // Simple confidence calculation based on topic consistency
+    if (emails.length === 0) {
+      return 70; // Default confidence for empty clusters
+    }
+    
     const topicMatches = emails.filter(email => 
       email.topics.some(t => t.toLowerCase().includes(topic.toLowerCase()))
     ).length;
     
     const confidence = Math.round((topicMatches / emails.length) * 100);
-    return Math.max(50, Math.min(95, confidence)); // Clamp between 50-95
+    return isNaN(confidence) ? 70 : Math.max(50, Math.min(95, confidence)); // Clamp between 50-95
   }
 
   /**
@@ -369,7 +490,13 @@ export class ThematicProcessor {
     const overlap = Array.from(emailKeywords).filter(k => themeKeywords.has(k)).length;
     const total = Math.max(emailKeywords.size, themeKeywords.size);
     
-    return Math.round((overlap / total) * 100);
+    // Avoid division by zero and NaN
+    if (total === 0) {
+      return 50; // Default relevance score when no keywords are available
+    }
+    
+    const score = Math.round((overlap / total) * 100);
+    return isNaN(score) ? 50 : Math.max(0, Math.min(100, score)); // Clamp between 0-100
   }
 }
 

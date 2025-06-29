@@ -38,26 +38,46 @@ export async function generateDigest(userId: string, emails: any[]): Promise<Ema
     
     // Process each email with OpenAI
     for (const email of emails) {
-      const analysis = await analyzeEmail(email.content);
-      
-      // Add topics to the set of all topics
-      analysis.topics.forEach(topic => allTopics.add(topic));
-      
-      // Create a digest email entry
-      const digestEmail: InsertDigestEmail = {
-        digestId: emailDigest.id,
-        sender: email.sender,
-        subject: email.subject,
-        receivedAt: typeof email.receivedAt === 'string' ? new Date(email.receivedAt) : email.receivedAt,
-        summary: analysis.summary,
-        fullContent: email.content,
-        topics: analysis.topics,
-        keywords: analysis.keywords,
-        originalLink: email.originalLink
-      };
-      
-      const createdEmail = await storage.addDigestEmail(digestEmail);
-      processedEmails.push(createdEmail);
+      try {
+        // Skip emails with insufficient content
+        if (!email.content || email.content.trim().length < 50) {
+          console.log(`Skipping email from ${email.sender}: insufficient content (${email.content?.length || 0} chars)`);
+          continue;
+        }
+        
+        const analysis = await analyzeEmail(email.content);
+        
+        // Validate analysis response
+        if (!analysis || !analysis.topics || !Array.isArray(analysis.topics)) {
+          console.warn(`Invalid analysis response for email from ${email.sender}, using fallback`);
+          analysis.topics = ['Miscellaneous'];
+          analysis.keywords = analysis.keywords || [];
+          analysis.summary = analysis.summary || `Email from ${email.sender} about ${email.subject}`;
+        }
+        
+        // Add topics to the set of all topics
+        analysis.topics.forEach(topic => allTopics.add(topic));
+        
+        // Create a digest email entry
+        const digestEmail: InsertDigestEmail = {
+          digestId: emailDigest.id,
+          sender: email.sender,
+          subject: email.subject,
+          receivedAt: typeof email.receivedAt === 'string' ? new Date(email.receivedAt) : email.receivedAt,
+          summary: analysis.summary,
+          fullContent: email.content,
+          topics: analysis.topics,
+          keywords: analysis.keywords,
+          originalLink: email.originalLink
+        };
+        
+        const createdEmail = await storage.addDigestEmail(digestEmail);
+        processedEmails.push(createdEmail);
+      } catch (error) {
+        console.error(`Error processing email from ${email.sender}:`, error);
+        // Continue processing other emails
+        continue;
+      }
     }
     
     // Update the digest with the total number of unique topics
@@ -87,6 +107,15 @@ export async function generateDigest(userId: string, emails: any[]): Promise<Ema
 
 async function analyzeEmail(content: string): Promise<OpenAIEmailAnalysis> {
   try {
+    // Skip analysis for very short content
+    if (content.trim().length < 50) {
+      return {
+        summary: "Content too short for analysis.",
+        topics: ["Miscellaneous"],
+        keywords: ["short-content"]
+      };
+    }
+    
     // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -94,23 +123,36 @@ async function analyzeEmail(content: string): Promise<OpenAIEmailAnalysis> {
         {
           role: "system",
           content: 
-            "You are an expert newsletter content extractor. Your job is to extract the actual substantive content from newsletters, not describe what the newsletter is about. For each newsletter:\n\n1. EXTRACT the key articles, stories, and content pieces within the newsletter\n2. SUMMARIZE the actual content/findings/insights of each piece, not just what topics they cover\n3. Focus on the information readers would want to know, not meta-descriptions\n\nFor example:\n- Instead of: 'The newsletter covers Supreme Court rulings and vaccine skepticism'\n- Provide: 'Supreme Court ruled that birthright citizenship applies to [specific details]. New research shows vaccine skepticism increases mortality by [specific findings]'\n\nRespond in JSON format: { 'summary': string, 'topics': string[], 'keywords': string[] }"
+            "You are an expert newsletter content extractor. Your job is to extract the actual substantive content from newsletters, not describe what the newsletter is about. For each newsletter:\n\n1. EXTRACT the key articles, stories, and content pieces within the newsletter\n2. SUMMARIZE the actual content/findings/insights of each piece, not just what topics they cover\n3. Focus on the information readers would want to know, not meta-descriptions\n\nFor example:\n- Instead of: 'The newsletter covers Supreme Court rulings and vaccine skepticism'\n- Provide: 'Supreme Court ruled that birthright citizenship applies to [specific details]. New research shows vaccine skepticism increases mortality by [specific findings]'\n\nRespond in JSON format: { 'summary': string, 'topics': string[], 'keywords': string[] }\n\nIMPORTANT: Always return valid JSON with all three fields. If content is minimal, return appropriate fallback values."
         },
         {
           role: "user",
-          content: content
+          content: content.length > 8000 ? content.substring(0, 8000) + "..." : content
         }
       ],
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    const responseContent = response.choices[0].message.content;
+    if (!responseContent) {
+      throw new Error("Empty response from OpenAI");
+    }
     
-    return {
-      summary: result.summary,
-      topics: result.topics,
-      keywords: result.keywords
+    const result = JSON.parse(responseContent);
+    
+    // Validate the response structure
+    const analysis = {
+      summary: result.summary || "No summary available.",
+      topics: Array.isArray(result.topics) ? result.topics : ["Miscellaneous"],
+      keywords: Array.isArray(result.keywords) ? result.keywords : []
     };
+    
+    // Ensure we have at least one topic
+    if (analysis.topics.length === 0) {
+      analysis.topics = ["Miscellaneous"];
+    }
+    
+    return analysis;
   } catch (error) {
     console.error('Error analyzing email with OpenAI:', error);
     

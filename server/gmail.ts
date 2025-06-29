@@ -112,7 +112,7 @@ export async function fetchEmails(monitoredSenders: string[], userUid?: string):
             
             if (messageData && messageData.data) {
               // Parse the raw email into our ParsedEmail format
-              const parsedEmail = parseGmailMessage(messageData.data as RawEmail);
+              const parsedEmail = await parseGmailMessage(messageData.data as RawEmail);
               
               // Only include emails from our monitored senders
               if (validSenders.some(sender => parsedEmail.sender.includes(sender))) {
@@ -139,7 +139,7 @@ export async function fetchEmails(monitoredSenders: string[], userUid?: string):
 }
 
 // Parse a Gmail API message into our ParsedEmail format
-function parseGmailMessage(message: RawEmail): ParsedEmail {
+async function parseGmailMessage(message: RawEmail): Promise<ParsedEmail> {
   const headers = message.payload.headers;
   
   // Extract email metadata from headers
@@ -171,8 +171,10 @@ function parseGmailMessage(message: RawEmail): ParsedEmail {
     }
   }
   
-  // Extract clean content from HTML newsletters
-  content = extractNewsletterContent(rawContent);
+  // Extract clean content from HTML newsletters with advanced pre-processing
+  const originalLength = rawContent.length;
+  content = await extractNewsletterContent(rawContent);
+  console.log(`Content extraction: ${originalLength} chars → ${content.length} chars (${Math.round((1 - content.length/originalLength) * 100)}% reduction)`);
   
   // Parse the received date
   const receivedAt = new Date(date).toISOString();
@@ -191,85 +193,262 @@ function parseGmailMessage(message: RawEmail): ParsedEmail {
 }
 
 // Extract clean newsletter content from raw email HTML/text
-function extractNewsletterContent(rawContent: string): string {
+async function extractNewsletterContent(rawContent: string): Promise<string> {
   if (!rawContent) return '';
   
   // If it's already plain text, return as-is with basic cleanup
   if (!rawContent.includes('<html') && !rawContent.includes('<HTML')) {
-    return rawContent.trim().replace(/\s+/g, ' ');
+    return cleanTextContent(rawContent);
   }
   
   try {
     // Load HTML content with Cheerio
     const $ = cheerio.load(rawContent);
     
-    // Remove common newsletter cruft that doesn't contain useful content
-    $('script, style, noscript').remove();
-    $('.unsubscribe, .footer, .social-links, .header-logo').remove();
-    $('[id*="unsubscribe"], [class*="unsubscribe"]').remove();
-    $('[id*="footer"], [class*="footer"]').remove();
-    $('[href*="unsubscribe"]').parent().remove();
-    
-    // Target main content areas (common newsletter patterns)
-    let mainContent = '';
-    
-    // Try common newsletter content selectors
-    const contentSelectors = [
-      '.content', '.main', '.newsletter-content', '.email-content',
-      'article', '.article', '.post', '.story',
-      '[role="main"]', '.wrapper .content', 
-      'table[role="presentation"] td', // Many newsletters use tables
-      '.body', '.email-body'
-    ];
-    
-    for (const selector of contentSelectors) {
-      const element = $(selector);
-      if (element.length > 0 && element.text().trim().length > 100) {
-        mainContent = element.html() || '';
-        break;
-      }
+    // First, try to find and use "view online" link for better content
+    const onlineContent = await tryExtractFromOnlineVersion($);
+    if (onlineContent) {
+      console.log('Successfully extracted content from online version');
+      return onlineContent;
     }
     
-    // Fallback: if no specific content area found, use body but remove common cruft
-    if (!mainContent && $('body').length > 0) {
-      $('body').find('.header, .footer, .unsubscribe, .social, .ad, .advertisement').remove();
-      mainContent = $('body').html() || '';
-    }
+    // Fall back to aggressive email HTML cleaning
+    return await extractFromEmailHTML($, rawContent);
     
-    // Final fallback: use all content
-    if (!mainContent) {
-      mainContent = rawContent;
-    }
-    
-    // Convert HTML to clean text
-    const cleanText = convert(mainContent, {
-      wordwrap: false,
-      preserveNewlines: true,
-      selectors: [
-        { selector: 'img', options: { ignoreHref: true } },
-        { selector: 'a', options: { hideLinkHrefIfSameAsText: true } },
-        { selector: 'h1', options: { uppercase: false } },
-        { selector: 'h2', options: { uppercase: false } },
-        { selector: 'h3', options: { uppercase: false } },
-        { selector: 'h4', options: { uppercase: false } },
-        { selector: 'h5', options: { uppercase: false } },
-        { selector: 'h6', options: { uppercase: false } }
-      ]
-    });
-    
-    // Clean up extra whitespace while preserving structure
-    return cleanText
-      .replace(/\n\s*\n\s*\n/g, '\n\n') // Reduce multiple newlines to double
-      .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs
-      .trim();
-      
   } catch (error) {
     console.warn('Error parsing HTML content, falling back to raw content:', error);
     // Fallback to basic text cleanup if HTML parsing fails
-    return rawContent
-      .replace(/<[^>]*>/g, ' ') // Strip HTML tags
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .trim();
+    return cleanTextContent(rawContent.replace(/<[^>]*>/g, ' '));
   }
+}
+
+// Try to find "view online" links and scrape better content
+async function tryExtractFromOnlineVersion($: any): Promise<string | null> {
+  try {
+    // Common patterns for "view online" links
+    const onlinePatterns = [
+      'a[href*="view"]:contains("online")',
+      'a[href*="browser"]:contains("view")',
+      'a[href*="web"]:contains("view")',
+      'a:contains("View in browser")',
+      'a:contains("Read online")',
+      'a:contains("Open in browser")',
+      'a:contains("View this email in your browser")',
+      'a:contains("Having trouble viewing")',
+      'a[href*="newsletter"]:contains("view")',
+      'a[href*="email"]:contains("view")'
+    ];
+    
+    let onlineUrl: string | null = null;
+    
+    for (const pattern of onlinePatterns) {
+      const link = $(pattern).first();
+      if (link.length > 0) {
+        const href = link.attr('href');
+        if (href && (href.startsWith('http') || href.startsWith('https'))) {
+          onlineUrl = href;
+          console.log(`Found online version link: ${onlineUrl}`);
+          break;
+        }
+      }
+    }
+    
+    if (!onlineUrl) return null;
+    
+    // Fetch and extract content from online version with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    const response = await fetch(onlineUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; SubsBuzz/1.0; +https://subsbuzz.com)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) return null;
+    
+    const html = await response.text();
+    const $online = cheerio.load(html);
+    
+    // Extract content from the online version
+    return await extractFromEmailHTML($online, html);
+    
+  } catch (error) {
+    console.warn('Failed to extract from online version:', error);
+    return null;
+  }
+}
+
+// Advanced email HTML content extraction
+async function extractFromEmailHTML($: any, rawContent: string): Promise<string> {
+  // Step 1: Aggressively remove all non-content elements
+  $('script, style, noscript, meta, link[rel="stylesheet"]').remove();
+  $('img[width="1"], img[height="1"]').remove(); // Tracking pixels
+  $('[style*="display:none"], [style*="display: none"]').remove();
+  $('[style*="visibility:hidden"], [style*="visibility: hidden"]').remove();
+  $('.tracking, .pixel, .beacon').remove();
+  
+  // Step 2: Remove newsletter cruft more comprehensively
+  const cruftySelectors = [
+    '.unsubscribe', '.footer', '.social-links', '.header-logo', '.nav', '.navigation',
+    '.sidebar', '.advertisement', '.ad', '.promo', '.sponsor', '.banner',
+    '[id*="unsubscribe"]', '[class*="unsubscribe"]', '[class*="footer"]', '[id*="footer"]',
+    '[class*="social"]', '[class*="share"]', '[class*="follow"]',
+    '[href*="unsubscribe"]', '[href*="preferences"]', '[href*="manage"]',
+    '.header-image', '.logo-container', '.email-header', '.email-footer',
+    '[class*="tracking"]', '[id*="tracking"]', '[class*="pixel"]'
+  ];
+  
+  cruftySelectors.forEach(selector => {
+    try {
+      $(selector).remove();
+    } catch (e) {
+      // Continue if selector is invalid
+    }
+  });
+  
+  // Step 3: Remove elements that are likely navigation or cruft based on content
+  $('a').each((_i: number, elem: any) => {
+    const text = $(elem).text().toLowerCase().trim();
+    const cruftyTexts = [
+      'unsubscribe', 'manage preferences', 'view in browser', 'forward to a friend',
+      'add to address book', 'whitelist', 'privacy policy', 'terms', 'contact us',
+      'follow us', 'like us', 'tweet', 'share', 'facebook', 'twitter', 'linkedin',
+      'instagram', 'youtube', 'update preferences', 'email preferences'
+    ];
+    
+    if (cruftyTexts.some(crufty => text.includes(crufty))) {
+      $(elem).parent().remove();
+    }
+  });
+  
+  // Step 4: Target main content areas with improved selectors
+  let mainContent = '';
+  
+  const contentSelectors = [
+    // Newsletter-specific selectors (high priority)
+    '[role="article"]', 'article', '.article-content', '.newsletter-content',
+    '.email-content', '.main-content', '.content-wrapper', '.email-body',
+    
+    // Generic content selectors
+    '.content', '.main', '.body', '.wrapper .content',
+    '[role="main"]', 'main', '#content', '#main',
+    
+    // Table-based newsletters (improved selectors)
+    'table[role="presentation"] td', // More general table cell selector
+    'table td[style*="padding"]', // Table cells with padding (common in newsletters)
+    'table.email-container td', 'table.newsletter td',
+    'table[width] td', // Tables with explicit width
+    
+    // Container patterns
+    '.container .content', '.email-container .content',
+    '.newsletter-container', '.email-wrapper .content'
+  ];
+  
+  for (const selector of contentSelectors) {
+    try {
+      const element = $(selector);
+      if (element.length > 0) {
+        const text = element.text().trim();
+        // More lenient content requirements - newsletters vary widely in length
+        if (text.length > 100 && text.split(' ').length > 15) {
+          mainContent = element.html() || '';
+          console.log(`Found content using selector: ${selector} (${text.length} chars)`);
+          break;
+        }
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  
+  // Step 5: Fallback with more aggressive body cleaning
+  if (!mainContent && $('body').length > 0) {
+    // Remove everything that's typically not content
+    const bodyCleaners = [
+      'header', 'footer', 'nav', 'aside', '.sidebar', '.nav', '.navigation',
+      '.header', '.footer', '.social', '.share', '.follow', '.ad', '.advertisement',
+      '.unsubscribe', '.preferences', '.manage', '.contact', '.about'
+    ];
+    
+    bodyCleaners.forEach(selector => $('body').find(selector).remove());
+    mainContent = $('body').html() || '';
+  }
+  
+  // Step 6: Final fallback
+  if (!mainContent) {
+    mainContent = rawContent;
+  }
+  
+  // Step 7: Convert to clean text with aggressive options
+  const cleanText = convert(mainContent, {
+    wordwrap: false,
+    preserveNewlines: true,
+    baseElements: { 
+      selectors: ['p', 'div', 'article', 'section', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+      returnDomByDefault: false 
+    },
+    selectors: [
+      { selector: 'img', format: 'skip' },
+      { selector: 'script', format: 'skip' },
+      { selector: 'style', format: 'skip' },
+      { selector: 'iframe', format: 'skip' },
+      { selector: 'video', format: 'skip' },
+      { selector: 'audio', format: 'skip' },
+      { selector: 'canvas', format: 'skip' },
+      { selector: 'svg', format: 'skip' },
+      { selector: 'table', options: { uppercaseHeaderCells: false } },
+      { selector: 'a', options: { 
+        hideLinkHrefIfSameAsText: true,
+        ignoreHref: true // Don't include URLs in text
+      }},
+      { selector: 'h1', options: { uppercase: false } },
+      { selector: 'h2', options: { uppercase: false } },
+      { selector: 'h3', options: { uppercase: false } },
+      { selector: 'h4', options: { uppercase: false } },
+      { selector: 'h5', options: { uppercase: false } },
+      { selector: 'h6', options: { uppercase: false } }
+    ]
+  });
+  
+  const finalContent = cleanTextContent(cleanText);
+  
+  // If the extracted content is too short, fall back to basic text extraction
+  if (finalContent.length < 200) {
+    console.log('Extracted content too short, falling back to basic HTML stripping');
+    const basicText = cleanTextContent(rawContent.replace(/<[^>]*>/g, ' '));
+    // Only use basic text if it's significantly longer than extracted content
+    return basicText.length > (finalContent.length * 1.5) ? basicText : finalContent;
+  }
+  
+  return finalContent;
+}
+
+// Clean and normalize text content
+function cleanTextContent(text: string): string {
+  return text
+    // Remove multiple consecutive whitespace
+    .replace(/\s+/g, ' ')
+    // Remove excessive newlines (more than 2)
+    .replace(/\n\s*\n\s*\n+/g, '\n\n')
+    // Remove leading/trailing whitespace per line
+    .split('\n').map(line => line.trim()).join('\n')
+    // Remove empty lines at start/end
+    .replace(/^\n+|\n+$/g, '')
+    // Remove common email artifacts
+    .replace(/\[.*?\]/g, '') // Remove [brackets] content
+    .replace(/\|.*?\|/g, '') // Remove |pipe| content  
+    .replace(/^>.*$/gm, '') // Remove quoted text lines
+    .replace(/Click here to view.*$/gm, '') // Remove "click here" lines
+    .replace(/This email was sent to.*$/gm, '') // Remove email footer text
+    .replace(/You received this.*$/gm, '') // Remove subscription text
+    .replace(/To unsubscribe.*$/gm, '') // Remove unsubscribe text
+    .replace(/^\s*[\*\-\_\=]{3,}\s*$/gm, '') // Remove separator lines
+    // Final cleanup
+    .trim();
 }
 
