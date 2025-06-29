@@ -113,3 +113,66 @@ export const insertOAuthTokenSchema = createInsertSchema(oauthTokens).omit({
 
 export type InsertOAuthToken = z.infer<typeof insertOAuthTokenSchema>;
 export type OAuthToken = typeof oauthTokens.$inferSelect;
+
+// Schema for thematic digests (daily meta-summaries)
+export const thematicDigests = pgTable("thematic_digests", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  emailDigestId: integer("email_digest_id").notNull(), // Links to the detailed digest
+  sectionsCount: integer("sections_count").notNull(),
+  totalSourceEmails: integer("total_source_emails").notNull(),
+  processingMethod: text("processing_method").notNull(), // "nlp", "llm", "hybrid"
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertThematicDigestSchema = createInsertSchema(thematicDigests).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertThematicDigest = z.infer<typeof insertThematicDigestSchema>;
+export type ThematicDigest = typeof thematicDigests.$inferSelect;
+
+// Schema for thematic sections (individual themes within a digest)
+export const thematicSections = pgTable("thematic_sections", {
+  id: serial("id").primaryKey(),
+  thematicDigestId: integer("thematic_digest_id").notNull(),
+  theme: text("theme").notNull(), // e.g., "Politics & Legal", "Technology", "Entertainment"
+  summary: text("summary").notNull(), // AI-generated narrative summary
+  confidence: integer("confidence"), // Confidence score from NLP clustering (0-100)
+  keywords: text("keywords").array(), // Extracted keywords for this theme
+  entities: jsonb("entities"), // Named entities (people, orgs, places)
+  order: integer("order").notNull(), // Display order within the digest
+});
+
+export const insertThematicSectionSchema = createInsertSchema(thematicSections).omit({
+  id: true,
+});
+
+export type InsertThematicSection = z.infer<typeof insertThematicSectionSchema>;
+export type ThematicSection = typeof thematicSections.$inferSelect;
+
+// Junction table linking thematic sections to source emails
+export const themeSourceEmails = pgTable("theme_source_emails", {
+  id: serial("id").primaryKey(),
+  thematicSectionId: integer("thematic_section_id").notNull(),
+  digestEmailId: integer("digest_email_id").notNull(), // References digestEmails table
+  relevanceScore: integer("relevance_score"), // How relevant this email is to the theme (0-100)
+});
+
+export const insertThemeSourceEmailSchema = createInsertSchema(themeSourceEmails).omit({
+  id: true,
+});
+
+export type InsertThemeSourceEmail = z.infer<typeof insertThemeSourceEmailSchema>;
+export type ThemeSourceEmail = typeof themeSourceEmails.$inferSelect;
+
+// Composite types for thematic digest with related data
+export type ThematicSectionWithSourceEmails = ThematicSection & {
+  sourceEmails: (ThemeSourceEmail & { email: DigestEmail })[];
+};
+
+export type FullThematicDigest = ThematicDigest & {
+  sections: ThematicSectionWithSourceEmails[];
+};

@@ -4,6 +4,9 @@ import {
   digestEmails,
   userSettings,
   oauthTokens,
+  thematicDigests,
+  thematicSections,
+  themeSourceEmails,
   type MonitoredEmail,
   type InsertMonitoredEmail,
   type EmailDigest,
@@ -13,10 +16,17 @@ import {
   type UserSettings,
   type InsertUserSettings,
   type OAuthToken,
-  type InsertOAuthToken
+  type InsertOAuthToken,
+  type ThematicDigest,
+  type InsertThematicDigest,
+  type ThematicSection,
+  type InsertThematicSection,
+  type ThemeSourceEmail,
+  type InsertThemeSourceEmail,
+  type FullThematicDigest
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { createHash } from "crypto";
 
 // Helper function to generate userId from email
@@ -50,6 +60,20 @@ export interface IStorage {
   getOAuthTokenByUid(uid: string): Promise<OAuthToken | undefined>;
   getOAuthTokenByEmail(email: string): Promise<OAuthToken | undefined>;
   updateOAuthToken(uid: string, updates: Partial<OAuthToken>): Promise<OAuthToken | undefined>;
+  
+  // Thematic digests
+  getThematicDigests(userId: string): Promise<ThematicDigest[]>;
+  getThematicDigest(userId: string, id: number): Promise<FullThematicDigest | undefined>;
+  getLatestThematicDigest(userId: string): Promise<FullThematicDigest | undefined>;
+  createThematicDigest(digest: InsertThematicDigest): Promise<ThematicDigest>;
+  
+  // Thematic sections
+  createThematicSection(section: InsertThematicSection): Promise<ThematicSection>;
+  getThematicSections(thematicDigestId: number): Promise<ThematicSection[]>;
+  
+  // Theme source emails
+  createThemeSourceEmail(link: InsertThemeSourceEmail): Promise<ThemeSourceEmail>;
+  getThemeSourceEmails(thematicSectionId: number): Promise<ThemeSourceEmail[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -193,6 +217,47 @@ export class MemStorage implements IStorage {
     
     this.oauthTokensStore.set(uid, updatedToken);
     return updatedToken;
+  }
+
+  // Thematic digest methods (placeholder implementations for MemStorage)
+  async getThematicDigests(userId: string): Promise<ThematicDigest[]> {
+    // TODO: Implement in-memory storage for thematic digests
+    return [];
+  }
+
+  async getThematicDigest(userId: string, id: number): Promise<FullThematicDigest | undefined> {
+    // TODO: Implement in-memory storage for thematic digests
+    return undefined;
+  }
+
+  async getLatestThematicDigest(userId: string): Promise<FullThematicDigest | undefined> {
+    // TODO: Implement in-memory storage for thematic digests
+    return undefined;
+  }
+
+  async createThematicDigest(digest: InsertThematicDigest): Promise<ThematicDigest> {
+    // TODO: Implement in-memory storage for thematic digests
+    throw new Error("Thematic digests not implemented for MemStorage");
+  }
+
+  async createThematicSection(section: InsertThematicSection): Promise<ThematicSection> {
+    // TODO: Implement in-memory storage for thematic sections
+    throw new Error("Thematic sections not implemented for MemStorage");
+  }
+
+  async getThematicSections(thematicDigestId: number): Promise<ThematicSection[]> {
+    // TODO: Implement in-memory storage for thematic sections
+    return [];
+  }
+
+  async createThemeSourceEmail(link: InsertThemeSourceEmail): Promise<ThemeSourceEmail> {
+    // TODO: Implement in-memory storage for theme source emails
+    throw new Error("Theme source emails not implemented for MemStorage");
+  }
+
+  async getThemeSourceEmails(thematicSectionId: number): Promise<ThemeSourceEmail[]> {
+    // TODO: Implement in-memory storage for theme source emails
+    return [];
   }
 }
 
@@ -364,6 +429,130 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return results.length > 0 ? results[0] : undefined;
+  }
+
+  // Thematic digest methods
+  async getThematicDigests(userId: string): Promise<ThematicDigest[]> {
+    const database = this.ensureDb();
+    return await database.select()
+      .from(thematicDigests)
+      .where(eq(thematicDigests.userId, userId))
+      .orderBy(desc(thematicDigests.date));
+  }
+
+  async getThematicDigest(userId: string, id: number): Promise<FullThematicDigest | undefined> {
+    const database = this.ensureDb();
+    
+    // Get the main digest
+    const digestResults = await database.select()
+      .from(thematicDigests)
+      .where(and(eq(thematicDigests.id, id), eq(thematicDigests.userId, userId)));
+    
+    if (digestResults.length === 0) return undefined;
+    const digest = digestResults[0];
+    
+    // Get the sections
+    const sections = await this.getThematicSections(id);
+    
+    // Get source emails for each section
+    const sectionsWithEmails = await Promise.all(
+      sections.map(async (section) => {
+        const sourceEmailLinks = await this.getThemeSourceEmails(section.id);
+        
+        // Get the actual email data
+        const sourceEmails = await Promise.all(
+          sourceEmailLinks.map(async (link) => {
+            const emailResults = await database.select()
+              .from(digestEmails)
+              .where(eq(digestEmails.id, link.digestEmailId));
+            
+            if (emailResults.length === 0) {
+              console.warn(`Referenced digest email ${link.digestEmailId} not found`);
+              return null;
+            }
+            
+            return {
+              ...link,
+              email: emailResults[0]
+            };
+          })
+        );
+        
+        // Filter out any null results
+        const validSourceEmails = sourceEmails.filter(email => email !== null);
+        
+        return {
+          ...section,
+          sourceEmails: validSourceEmails
+        };
+      })
+    );
+    
+    return {
+      ...digest,
+      sections: sectionsWithEmails
+    };
+  }
+
+  async getLatestThematicDigest(userId: string): Promise<FullThematicDigest | undefined> {
+    const database = this.ensureDb();
+    
+    const results = await database.select()
+      .from(thematicDigests)
+      .where(eq(thematicDigests.userId, userId))
+      .orderBy(desc(thematicDigests.date))
+      .limit(1);
+    
+    if (results.length === 0) return undefined;
+    
+    return this.getThematicDigest(userId, results[0].id);
+  }
+
+  async createThematicDigest(digest: InsertThematicDigest): Promise<ThematicDigest> {
+    const database = this.ensureDb();
+    
+    const results = await database.insert(thematicDigests)
+      .values(digest)
+      .returning();
+    
+    return results[0];
+  }
+
+  async createThematicSection(section: InsertThematicSection): Promise<ThematicSection> {
+    const database = this.ensureDb();
+    
+    const results = await database.insert(thematicSections)
+      .values(section)
+      .returning();
+    
+    return results[0];
+  }
+
+  async getThematicSections(thematicDigestId: number): Promise<ThematicSection[]> {
+    const database = this.ensureDb();
+    
+    return await database.select()
+      .from(thematicSections)
+      .where(eq(thematicSections.thematicDigestId, thematicDigestId))
+      .orderBy(thematicSections.order);
+  }
+
+  async createThemeSourceEmail(link: InsertThemeSourceEmail): Promise<ThemeSourceEmail> {
+    const database = this.ensureDb();
+    
+    const results = await database.insert(themeSourceEmails)
+      .values(link)
+      .returning();
+    
+    return results[0];
+  }
+
+  async getThemeSourceEmails(thematicSectionId: number): Promise<ThemeSourceEmail[]> {
+    const database = this.ensureDb();
+    
+    return await database.select()
+      .from(themeSourceEmails)
+      .where(eq(themeSourceEmails.thematicSectionId, thematicSectionId));
   }
 }
 

@@ -43,3 +43,41 @@ export interface UserSettings {
   topicClusteringEnabled: boolean;
   emailNotificationsEnabled: boolean;
 }
+
+// Thematic digest types for new meta-summary system
+export interface ThematicSection {
+  id: number;
+  thematicDigestId: number;
+  theme: string;
+  summary: string;
+  confidence?: number;
+  keywords?: string[];
+  entities?: any; // JSON object for named entities
+  order: number;
+}
+
+export interface ThemeSourceEmail {
+  id: number;
+  thematicSectionId: number;
+  digestEmailId: number;
+  relevanceScore?: number;
+}
+
+export interface ThematicSectionWithSourceEmails extends ThematicSection {
+  sourceEmails: (ThemeSourceEmail & { email: DigestEmail })[];
+}
+
+export interface ThematicDigest {
+  id: number;
+  userId: string;
+  date: string;
+  emailDigestId: number;
+  sectionsCount: number;
+  totalSourceEmails: number;
+  processingMethod: string;
+  createdAt?: string;
+}
+
+export interface FullThematicDigest extends ThematicDigest {
+  sections: ThematicSectionWithSourceEmails[];
+}
