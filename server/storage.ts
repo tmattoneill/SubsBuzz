@@ -127,7 +127,8 @@ export class MemStorage implements IStorage {
     return newEmail;
   }
   
-  async removeMonitoredEmail(id: number): Promise<void> {
+  async removeMonitoredEmail(userId: string, id: number): Promise<void> {
+    // For MemStorage, we'll just remove by id since it's development-only
     this.monitoredEmailsStore.delete(id);
   }
   
@@ -292,8 +293,10 @@ export class DatabaseStorage implements IStorage {
     return results[0];
   }
   
-  async removeMonitoredEmail(id: number): Promise<void> {
-    await db.delete(monitoredEmails).where(eq(monitoredEmails.id, id));
+  async removeMonitoredEmail(userId: string, id: number): Promise<void> {
+    const database = this.ensureDb();
+    await database.delete(monitoredEmails)
+      .where(and(eq(monitoredEmails.id, id), eq(monitoredEmails.userId, userId)));
   }
   
   // Email digests methods

@@ -69,10 +69,10 @@ export async function fetchEmails(monitoredSenders: string[], userUid?: string):
         console.log('OAuth client obtained, attempting to fetch real emails');
         
         // Create a search query to find emails from the monitored senders
-        // Look back 72 hours to catch recent emails when adding new senders
-        const threeDaysAgo = new Date();
-        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-        const afterDate = threeDaysAgo.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        // Look back 24 hours for recent emails
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        const afterDate = oneDayAgo.toISOString().split('T')[0]; // Format as YYYY-MM-DD
         
         // Build the search query: from:(sender1 OR sender2) after:YYYY-MM-DD
         const fromQuery = validSenders.map(sender => `"${sender}"`).join(' OR ');
@@ -83,12 +83,12 @@ export async function fetchEmails(monitoredSenders: string[], userUid?: string):
         // Create Gmail API client
         const gmail = google.gmail('v1');
         
-        // List messages matching the search query
+        // List messages matching the search query (no limit - get all emails)
         const response = await gmail.users.messages.list({
           auth: oauth2Client,
           userId: 'me',
-          q: searchQuery,
-          maxResults: 10
+          q: searchQuery
+          // Removed maxResults to get all matching emails
         });
         
         const messages = response.data.messages || [];
