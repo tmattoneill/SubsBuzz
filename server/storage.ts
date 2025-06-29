@@ -45,6 +45,7 @@ export interface IStorage {
   getEmailDigests(userId: string): Promise<EmailDigest[]>;
   getEmailDigest(userId: string, id: number): Promise<EmailDigest | undefined>;
   getLatestEmailDigest(userId: string): Promise<EmailDigest | undefined>;
+  getDigestByDate(userId: string, date: string): Promise<EmailDigest | undefined>;
   createEmailDigest(digest: InsertEmailDigest): Promise<EmailDigest>;
   
   // Digest emails
@@ -133,19 +134,48 @@ export class MemStorage implements IStorage {
   }
   
   // Email digests methods
-  async getEmailDigests(): Promise<EmailDigest[]> {
-    return Array.from(this.emailDigestsStore.values());
+  async getEmailDigests(userId: string): Promise<EmailDigest[]> {
+    const digests = Array.from(this.emailDigestsStore.values())
+      .filter(digest => digest.userId === userId);
+    return digests.sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
   }
   
-  async getEmailDigest(id: number): Promise<EmailDigest | undefined> {
-    return this.emailDigestsStore.get(id);
+  async getEmailDigest(userId: string, id: number): Promise<EmailDigest | undefined> {
+    const digest = this.emailDigestsStore.get(id);
+    return digest && digest.userId === userId ? digest : undefined;
   }
   
-  async getLatestEmailDigest(): Promise<EmailDigest | undefined> {
-    const digests = Array.from(this.emailDigestsStore.values());
+  async getLatestEmailDigest(userId: string): Promise<EmailDigest | undefined> {
+    const digests = Array.from(this.emailDigestsStore.values())
+      .filter(digest => digest.userId === userId);
     if (digests.length === 0) return undefined;
     
     // Sort by date, most recent first
+    return digests.sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    )[0];
+  }
+
+  async getDigestByDate(userId: string, date: string): Promise<EmailDigest | undefined> {
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const digests = Array.from(this.emailDigestsStore.values())
+      .filter(digest => {
+        const digestDate = new Date(digest.date);
+        return digest.userId === userId && 
+               digestDate >= startOfDay && 
+               digestDate <= endOfDay;
+      });
+    
+    if (digests.length === 0) return undefined;
+    
+    // Return most recent if multiple found
     return digests.sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     )[0];
@@ -300,12 +330,15 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Email digests methods
-  async getEmailDigests(): Promise<EmailDigest[]> {
-    return await db.select().from(emailDigests).orderBy(desc(emailDigests.date));
+  async getEmailDigests(userId: string): Promise<EmailDigest[]> {
+    return await db.select().from(emailDigests)
+      .where(eq(emailDigests.userId, userId))
+      .orderBy(desc(emailDigests.date));
   }
   
-  async getEmailDigest(id: number): Promise<EmailDigest | undefined> {
-    const results = await db.select().from(emailDigests).where(eq(emailDigests.id, id));
+  async getEmailDigest(userId: string, id: number): Promise<EmailDigest | undefined> {
+    const results = await db.select().from(emailDigests)
+      .where(and(eq(emailDigests.id, id), eq(emailDigests.userId, userId)));
     return results.length > 0 ? results[0] : undefined;
   }
   
@@ -314,6 +347,26 @@ export class DatabaseStorage implements IStorage {
       .where(eq(emailDigests.userId, userId))
       .orderBy(desc(emailDigests.date))
       .limit(1);
+    return results.length > 0 ? results[0] : undefined;
+  }
+
+  async getDigestByDate(userId: string, date: string): Promise<EmailDigest | undefined> {
+    // Parse the date and create start/end of day boundaries
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const results = await db.select().from(emailDigests)
+      .where(and(
+        eq(emailDigests.userId, userId),
+        sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
+        sql`${emailDigests.date} <= ${endOfDay.toISOString()}`
+      ))
+      .orderBy(desc(emailDigests.date))
+      .limit(1);
+    
     return results.length > 0 ? results[0] : undefined;
   }
   

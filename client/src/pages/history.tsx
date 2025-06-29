@@ -1,17 +1,20 @@
 import { useState, useEffect } from "react";
 import { useLocation } from 'wouter';
+import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/ui/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { formatDate } from "@/lib/utils";
+import { ThematicDigest } from "@/components/ui/thematic-digest";
+import { DigestCard } from "@/components/ui/digest-card";
+import { EmailDigest, FullThematicDigest } from "@/lib/types";
 
 export default function History() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [monitoredEmails, setMonitoredEmails] = useState([]);
   
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -21,21 +24,23 @@ export default function History() {
   }, [user, authLoading, setLocation]);
 
   // Fetch monitored emails
-  useEffect(() => {
-    const fetchEmails = async () => {
-      try {
-        const response = await fetch('/api/monitored-emails');
-        if (response.ok) {
-          const data = await response.json();
-          setMonitoredEmails(data);
-        }
-      } catch (error) {
-        console.error('Error fetching monitored emails:', error);
-      }
-    };
-    
-    fetchEmails();
-  }, []);
+  const { data: monitoredEmails = [] } = useQuery({
+    queryKey: ['/api/monitored-emails'],
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch digest history
+  const { data: digestHistory = [] } = useQuery({
+    queryKey: ['/api/digest/history'],
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch digest for selected date
+  const { data: selectedDateDigest, isLoading: isLoadingDateDigest } = useQuery({
+    queryKey: ['/api/digest/date', date?.toISOString().split('T')[0]],
+    enabled: !!date,
+    refetchOnWindowFocus: false,
+  });
   
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -58,31 +63,78 @@ export default function History() {
               selected={date}
               onSelect={setDate}
               className="rounded-md border"
+              disabled={(date) => {
+                // Disable future dates and dates without digests
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+                if (date > today) return true;
+                
+                // Check if there's a digest for this date
+                const dateStr = date.toISOString().split('T')[0];
+                return !digestHistory.some((digest: EmailDigest) => {
+                  const digestDate = new Date(digest.date).toISOString().split('T')[0];
+                  return digestDate === dateStr;
+                });
+              }}
             />
           </div>
           
           {date && (
             <div className="mt-6 text-center">
               <p className="mb-3">Selected date: <strong>{formatDate(date)}</strong></p>
-              <Button onClick={() => alert('This feature is under development')}>
-                View Digest for {formatDate(date)}
-              </Button>
+              {isLoadingDateDigest ? (
+                <p className="text-gray-500">Loading digest...</p>
+              ) : selectedDateDigest ? (
+                <p className="text-green-600">✓ Digest available for this date</p>
+              ) : (
+                <p className="text-gray-500">No digest found for this date</p>
+              )}
             </div>
           )}
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="text-center py-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">History Feature Coming Soon</h3>
-            <p className="text-gray-500 max-w-md mx-auto mb-6">
-              We're working on implementing the ability to view and browse through your past digests.
-              In the future, you'll be able to access all previously generated email summaries.
-            </p>
-            <Button variant="outline" onClick={() => setLocation('/')}>
-              Back to Dashboard
-            </Button>
+        {selectedDateDigest ? (
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold">Digest for {formatDate(date!)}</h3>
+            {selectedDateDigest.type === 'thematic' ? (
+              <ThematicDigest digest={selectedDateDigest as FullThematicDigest} />
+            ) : (
+              <DigestCard digest={selectedDateDigest} />
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="text-center py-8">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Your Digest History</h3>
+              <p className="text-gray-500 max-w-md mx-auto mb-6">
+                You have {digestHistory.length} digest{digestHistory.length !== 1 ? 's' : ''} in your history. 
+                Select a date above to view a specific digest.
+              </p>
+              {digestHistory.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="font-medium mb-3">Recent Digests:</h4>
+                  <div className="space-y-2 max-w-md mx-auto">
+                    {digestHistory.slice(0, 5).map((digest: EmailDigest) => (
+                      <div 
+                        key={digest.id} 
+                        className="flex justify-between items-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100"
+                        onClick={() => setDate(new Date(digest.date))}
+                      >
+                        <span>{formatDate(new Date(digest.date))}</span>
+                        <span className="text-sm text-gray-500">
+                          {digest.emailsProcessed} emails, {digest.topicsIdentified} topics
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <Button variant="outline" onClick={() => setLocation('/')} className="mt-4">
+                Back to Dashboard
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

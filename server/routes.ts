@@ -467,6 +467,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get digest history for a user
+  app.get('/api/digest/history', requireAuth, async (req: any, res) => {
+    try {
+      const digests = await storage.getEmailDigests(req.userId);
+      res.json(digests);
+    } catch (error: any) {
+      res.status(500).json({ message: `Failed to get digest history: ${error.message}` });
+    }
+  });
+
+  // Get digest for a specific date
+  app.get('/api/digest/date/:date', requireAuth, async (req: any, res) => {
+    try {
+      const { date } = req.params;
+      const digest = await storage.getDigestByDate(req.userId, date);
+      if (!digest) {
+        return res.status(404).json({ message: 'No digest found for this date' });
+      }
+      res.json(digest);
+    } catch (error: any) {
+      res.status(500).json({ message: `Failed to get digest for date: ${error.message}` });
+    }
+  });
+
 
 
   // Setup cron jobs for automated tasks
