@@ -248,7 +248,12 @@ function extractNewsletterContent(rawContent: string): string {
       selectors: [
         { selector: 'img', options: { ignoreHref: true } },
         { selector: 'a', options: { hideLinkHrefIfSameAsText: true } },
-        { selector: 'h1,h2,h3,h4,h5,h6', options: { uppercase: false } }
+        { selector: 'h1', options: { uppercase: false } },
+        { selector: 'h2', options: { uppercase: false } },
+        { selector: 'h3', options: { uppercase: false } },
+        { selector: 'h4', options: { uppercase: false } },
+        { selector: 'h5', options: { uppercase: false } },
+        { selector: 'h6', options: { uppercase: false } }
       ]
     });
     

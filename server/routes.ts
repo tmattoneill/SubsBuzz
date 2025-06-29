@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
-import { generateDigest, getLatestDigest } from "./openai";
+import { generateDigest, getLatestDigest, getLatestThematicDigest } from "./openai";
 import { fetchEmails } from "./gmail";
 import { setupCronJobs } from "./cron";
 import { verifyToken, mockGmailAccess, exchangeTokenForGmail } from "./auth";
@@ -427,10 +427,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/digest/latest', requireAuth, async (req: any, res) => {
     try {
-      const latestDigest = await getLatestDigest(req.userId);
+      const latestDigest = await getLatestThematicDigest(req.userId);
       res.json(latestDigest);
     } catch (error: any) {
       res.status(500).json({ message: `Failed to get latest digest: ${error.message}` });
+    }
+  });
+
+  // Keep the detailed view available as a separate endpoint
+  app.get('/api/digest/detailed', requireAuth, async (req: any, res) => {
+    try {
+      const latestDigest = await getLatestDigest(req.userId);
+      res.json(latestDigest);
+    } catch (error: any) {
+      res.status(500).json({ message: `Failed to get detailed digest: ${error.message}` });
     }
   });
 

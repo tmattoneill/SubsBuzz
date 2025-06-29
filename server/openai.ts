@@ -7,6 +7,7 @@ import {
   EmailDigest, 
   DigestEmail 
 } from "@shared/schema";
+import { thematicProcessor } from "./thematic-processor";
 
 // Initialize OpenAI with API key from environment variable
 const openai = new OpenAI({ 
@@ -66,6 +67,17 @@ export async function generateDigest(userId: string, emails: any[]): Promise<Ema
       emails: processedEmails
     };
     
+    // Generate thematic digest from processed emails
+    try {
+      console.log(`Generating thematic digest from processed emails... (${processedEmails.length} emails)`);
+      const thematicDigestId = await thematicProcessor.processEmailsIntoThemes(userId, processedEmails);
+      console.log(`Successfully created thematic digest ${thematicDigestId} for email digest ${emailDigest.id}`);
+    } catch (error) {
+      console.error('Error generating thematic digest:', error);
+      console.error('Full error details:', JSON.stringify(error, null, 2));
+      // Don't fail the main digest if thematic processing fails
+    }
+    
     return updatedDigest;
   } catch (error) {
     console.error('Error generating digest:', error);
@@ -108,6 +120,35 @@ async function analyzeEmail(content: string): Promise<OpenAIEmailAnalysis> {
       topics: ["Miscellaneous"],
       keywords: ["error"]
     };
+  }
+}
+
+export async function getLatestThematicDigest(userId: string): Promise<any | null> {
+  try {
+    console.log(`Getting latest thematic digest for userId: ${userId}`);
+    
+    // Get the latest thematic digest for this user
+    const latestThematicDigest = await storage.getLatestThematicDigest(userId);
+    
+    if (!latestThematicDigest) {
+      console.log("No thematic digest found, falling back to regular digest");
+      // Fall back to regular digest if no thematic digest exists
+      return await getLatestDigest(userId);
+    }
+    
+    console.log(`Found thematic digest with ID: ${latestThematicDigest.id}, sections: ${latestThematicDigest.sectionsCount}`);
+    
+    return {
+      ...latestThematicDigest,
+      date: latestThematicDigest.date instanceof Date ? latestThematicDigest.date.toISOString() : latestThematicDigest.date,
+      emailsProcessed: latestThematicDigest.totalSourceEmails,
+      topicsIdentified: latestThematicDigest.sectionsCount
+    };
+    
+  } catch (error: any) {
+    console.error('Error getting latest thematic digest:', error);
+    // Fall back to regular digest on error
+    return await getLatestDigest(userId);
   }
 }
 

@@ -7,10 +7,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatsRow } from "@/components/ui/stats-card";
 import { TopicFilter } from "@/components/ui/topic-filter";
 import { DigestCard } from "@/components/ui/digest-card";
+import { ThematicDigest } from "@/components/ui/thematic-digest";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfigModal } from "@/components/ui/config-modal";
 import { Sidebar } from "@/components/ui/sidebar";
-import { DigestStats, Topic, DigestEmail, EmailDigest, MonitoredEmail, UserSettings } from "@/lib/types";
+import { DigestStats, Topic, DigestEmail, EmailDigest, MonitoredEmail, UserSettings, FullThematicDigest } from "@/lib/types";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 
@@ -199,6 +200,9 @@ export default function Dashboard() {
     },
   });
 
+  // Check if we have a thematic digest or regular digest
+  const isThematicDigest = digestData && 'sections' in digestData;
+  
   // Extract digest data with proper type handling
   const defaultDigest: EmailDigest = {
     id: 0,
@@ -207,11 +211,28 @@ export default function Dashboard() {
     topicsIdentified: 0,
     emails: []
   };
-  const digest: EmailDigest = digestData ? digestData as EmailDigest : defaultDigest;
   
-  // Ensure emails array exists
-  if (!digest.emails) {
-    digest.emails = [];
+  let digest: EmailDigest;
+  let thematicDigest: FullThematicDigest | null = null;
+  
+  if (isThematicDigest) {
+    // We have a thematic digest
+    thematicDigest = digestData as FullThematicDigest;
+    // Create a compatible digest object for stats
+    digest = {
+      id: thematicDigest.id,
+      date: thematicDigest.date,
+      emailsProcessed: thematicDigest.totalSourceEmails,
+      topicsIdentified: thematicDigest.sectionsCount,
+      emails: [] // No individual emails in thematic view
+    };
+  } else {
+    // Regular digest
+    digest = digestData ? digestData as EmailDigest : defaultDigest;
+    // Ensure emails array exists
+    if (!digest.emails) {
+      digest.emails = [];
+    }
   }
 
   // Extract monitored emails with proper type handling
@@ -234,23 +255,32 @@ export default function Dashboard() {
     sourcesMonitored: monitoredEmails.length
   };
 
-  // Extract all unique topics from emails
+  // Extract all unique topics from emails or thematic sections
   const extractTopics = (): Topic[] => {
-    if (!digest.emails || digest.emails.length === 0) return [];
-    
-    const topicCounts: Record<string, number> = {};
-    digest.emails.forEach(email => {
-      email.topics.forEach(topic => {
-        topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-      });
-    });
-
-    return Object.entries(topicCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name]) => ({
-        name,
-        isSelected: selectedTopics.includes(name)
+    if (isThematicDigest && thematicDigest) {
+      // Extract topics from thematic sections
+      return thematicDigest.sections.map(section => ({
+        name: section.theme,
+        isSelected: selectedTopics.includes(section.theme)
       }));
+    } else if (digest.emails && digest.emails.length > 0) {
+      // Extract topics from individual emails
+      const topicCounts: Record<string, number> = {};
+      digest.emails.forEach(email => {
+        email.topics.forEach(topic => {
+          topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+        });
+      });
+
+      return Object.entries(topicCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name]) => ({
+          name,
+          isSelected: selectedTopics.includes(name)
+        }));
+    }
+    
+    return [];
   };
 
   // Filter emails by selected topics
@@ -385,7 +415,11 @@ export default function Dashboard() {
         />
         
         <div className="space-y-6">
-          {paginatedEmails.length > 0 ? (
+          {isThematicDigest && thematicDigest ? (
+            // Render thematic digest
+            <ThematicDigest digest={thematicDigest} />
+          ) : paginatedEmails.length > 0 ? (
+            // Render individual email cards
             paginatedEmails.map(email => (
               <DigestCard 
                 key={email.id} 
@@ -394,8 +428,9 @@ export default function Dashboard() {
               />
             ))
           ) : (
+            // No content to display
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">No emails to display</h3>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">No digest to display</h3>
               <p className="text-gray-500 dark:text-gray-400">
                 {selectedTopics.length > 0 
                   ? "Try selecting different topics or clearing your filters."
@@ -405,7 +440,7 @@ export default function Dashboard() {
           )}
         </div>
         
-        {paginatedEmails.length > 0 && (
+        {!isThematicDigest && paginatedEmails.length > 0 && (
           <Pagination 
             currentPage={currentPage}
             totalPages={totalPages}

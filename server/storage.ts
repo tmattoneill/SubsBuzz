@@ -589,6 +589,6 @@ async function initializeSettings() {
 
 // Export the storage implementation
 // Use memory storage in development for quick setup
-export const storage = process.env.NODE_ENV === 'development' && !process.env.DATABASE_URL
-  ? new MemStorage()
-  : new DatabaseStorage();
+const useMemStorage = process.env.NODE_ENV === 'development' && !process.env.DATABASE_URL;
+console.log(`Storage initialization: NODE_ENV=${process.env.NODE_ENV}, DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'not set'}, using ${useMemStorage ? 'MemStorage' : 'DatabaseStorage'}`);
+export const storage = useMemStorage ? new MemStorage() : new DatabaseStorage();
