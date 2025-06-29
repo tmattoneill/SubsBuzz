@@ -25,13 +25,13 @@ try {
 } catch (error) {
   console.warn('Firebase Admin SDK not configured:', error.message);
   
-  // Mock Firebase Admin for development purposes
-  console.log('Using mock Firebase Admin SDK for development');
+  // Create minimal Firebase Admin for development
+  console.log('Using minimal Firebase Admin SDK for development');
   firebaseAdmin = initializeApp(
     {
       projectId: process.env.FIREBASE_PROJECT_ID || "dev-project"
     }, 
-    'mock-app'
+    'dev-app'
   );
 }
 

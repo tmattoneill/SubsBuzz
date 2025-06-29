@@ -4,6 +4,7 @@ import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import './firebase-admin'; // Initialize Firebase Admin
+import { initializeDatabase } from './db-init';
 
 const app = express();
 app.use(express.json());
@@ -54,6 +55,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize database before starting server
+  try {
+    await initializeDatabase();
+  } catch (error) {
+    console.error('💥 Failed to initialize database:', error);
+    process.exit(1);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

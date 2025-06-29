@@ -16,10 +16,12 @@ import { OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI } from './auth
 // Middleware to get userId from session
 function requireAuth(req: any, res: any, next: any) {
   const session = req.session;
+  console.log('requireAuth - session:', session?.id, 'user:', session?.user?.email);
   if (!session || !session.user) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
   req.userId = getUserId(session.user.email);
+  console.log('requireAuth - userId:', req.userId);
   next();
 }
 
@@ -251,8 +253,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log('OAuth tokens stored successfully');
         
-        // Redirect back to the app with success
-        return res.redirect('/?connected=gmail');
+        // Store user session
+        (req as any).session.user = {
+          uid: uid,
+          email: email,
+          displayName: userInfo.data.name,
+          photoURL: userInfo.data.picture
+        };
+        
+        console.log('Storing user in session:', email);
+        
+        // Save session before redirect
+        (req as any).session.save((err: any) => {
+          if (err) {
+            console.error('Session save error:', err);
+            return res.redirect(`/?error=${encodeURIComponent('Session save failed')}`);
+          }
+          console.log('Session saved successfully');
+          // Redirect back to the app with success
+          return res.redirect('/?connected=gmail');
+        });
       } catch (error: any) {
         console.error('Error in OAuth callback:', error);
         return res.redirect(`/?error=${encodeURIComponent('Failed to authenticate with Gmail: ' + error.message)}`);
@@ -360,9 +380,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get('/api/monitored-emails', requireAuth, async (req: any, res) => {
     try {
+      console.log('Getting monitored emails for userId:', req.userId);
       const monitoredEmails = await storage.getMonitoredEmails(req.userId);
+      console.log('Found monitored emails:', monitoredEmails.length);
       res.json(monitoredEmails);
     } catch (error: any) {
+      console.error('Error in /api/monitored-emails:', error);
       res.status(500).json({ message: `Failed to get monitored emails: ${error.message}` });
     }
   });

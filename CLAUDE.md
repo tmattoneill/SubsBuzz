@@ -83,7 +83,14 @@ This is a full-stack email digest application built with TypeScript, Express, Re
 **PostgreSQL Always Required**:
 The application requires PostgreSQL for all functionality including thematic digests, user data, and email processing.
 
-**PostgreSQL Setup**:
+**Automatic Database Setup**:
+The application now automatically:
+1. Checks if PostgreSQL is running and starts it if needed
+2. Creates the database if it doesn't exist
+3. Initializes all required tables and schema
+4. Handles database migrations automatically
+
+**Manual PostgreSQL Setup** (if automatic setup fails):
 1. Start PostgreSQL service:
 ```bash
 brew services start postgresql          # Using Homebrew
@@ -100,8 +107,7 @@ createdb subsbuzz_dev -O postgres      # Create development database
 npm run db:push                        # Initialize database schema
 ```
 
-**Development Mode Features**:
-- `DEV_MODE = true` in `AuthContext.tsx` bypasses Firebase auth with mock user
+**Development Features**:
 - Development server serves at `127.0.0.1:5500` with API at `/api/*`
 - OAuth redirects configured for `http://127.0.0.1:5500/auth/callback` in development
 - **Database required**: Always uses PostgreSQL with DATABASE_URL configuration

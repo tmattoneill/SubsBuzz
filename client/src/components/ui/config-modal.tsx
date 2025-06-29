@@ -4,6 +4,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle,
+  DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
 import { 
@@ -67,6 +68,9 @@ export function ConfigModal({
       <DialogContent className="bg-white dark:bg-gray-800 rounded-xl shadow-lg sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">Configure Monitored Addresses</DialogTitle>
+          <DialogDescription className="text-gray-600 dark:text-gray-400">
+            Add email addresses to monitor for digest generation and configure your notification preferences.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="py-2">
