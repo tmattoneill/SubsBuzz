@@ -55,62 +55,65 @@ export const exchangeTokenForGmail = async (userUid: string): Promise<{oauth2Cli
     // Look up stored OAuth token by UID
     console.log(`Looking for OAuth token for UID: ${userUid}`);
     const storedToken = await storage.getOAuthTokenByUid(userUid);
+    
+    if (!storedToken) {
+      console.error(`No OAuth token found for UID: ${userUid}`);
+      return { oauth2Client: null };
+    }
       
-    if (storedToken) {
-      console.log(`Found stored Gmail OAuth token for ${storedToken.email}`);
+    console.log(`Found stored Gmail OAuth token for ${storedToken.email}`);
+    
+    // Check if token is expired
+    const now = new Date();
+    const isExpired = storedToken.expiresAt && now > storedToken.expiresAt;
+    
+    // Create OAuth client with Google credentials
+    const oauth2Client = new google.auth.OAuth2(
+      OAUTH_CLIENT_ID,
+      OAUTH_CLIENT_SECRET,
+      OAUTH_REDIRECT_URI
+    );
+    
+    if (isExpired && storedToken.refreshToken) {
+      // Token is expired, use refresh token to get a new one
+      console.log('Refreshing expired token');
+      oauth2Client.setCredentials({
+        refresh_token: storedToken.refreshToken
+      });
       
-      // Check if token is expired
-      const now = new Date();
-      const isExpired = storedToken.expiresAt && now > storedToken.expiresAt;
-      
-      // Create OAuth client with Google credentials
-      const oauth2Client = new google.auth.OAuth2(
-        OAUTH_CLIENT_ID,
-        OAUTH_CLIENT_SECRET,
-        OAUTH_REDIRECT_URI
-      );
-      
-      if (isExpired && storedToken.refreshToken) {
-        // Token is expired, use refresh token to get a new one
-        console.log('Refreshing expired token');
-        oauth2Client.setCredentials({
-          refresh_token: storedToken.refreshToken
-        });
+      // Refresh the token
+      try {
+        const { credentials } = await oauth2Client.refreshAccessToken();
         
-        // Refresh the token
-        try {
-          const { credentials } = await oauth2Client.refreshAccessToken();
-          
-          // Update token in database
-          if (credentials.access_token) {
-            const expiresAt = new Date();
-            if (credentials.expiry_date) {
-              expiresAt.setTime(credentials.expiry_date);
-            } else {
-              expiresAt.setHours(expiresAt.getHours() + 1);
-            }
-            
-            await storage.updateOAuthToken(storedToken.uid, {
-              accessToken: credentials.access_token,
-              refreshToken: credentials.refresh_token || storedToken.refreshToken,
-              expiresAt
-            });
-            
-            return { oauth2Client };
+        // Update token in database
+        if (credentials.access_token) {
+          const expiresAt = new Date();
+          if (credentials.expiry_date) {
+            expiresAt.setTime(credentials.expiry_date);
+          } else {
+            expiresAt.setHours(expiresAt.getHours() + 1);
           }
-        } catch (refreshError) {
-          console.error('Error refreshing token:', refreshError);
+          
+          await storage.updateOAuthToken(storedToken.uid, {
+            accessToken: credentials.access_token,
+            refreshToken: credentials.refresh_token || storedToken.refreshToken,
+            expiresAt
+          });
+          
+          return { oauth2Client };
         }
-      } else if (!isExpired) {
-        // Token is still valid
-        console.log('Using existing valid token');
-        oauth2Client.setCredentials({
-          access_token: storedToken.accessToken,
-          refresh_token: storedToken.refreshToken
-        });
-        
-        return { oauth2Client };
+      } catch (refreshError) {
+        console.error('Error refreshing token:', refreshError);
       }
+    } else if (!isExpired) {
+      // Token is still valid
+      console.log('Using existing valid token');
+      oauth2Client.setCredentials({
+        access_token: storedToken.accessToken,
+        refresh_token: storedToken.refreshToken
+      });
+      
+      return { oauth2Client };
     }
     
     // No valid tokens found

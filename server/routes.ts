@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { generateDigest, getLatestDigest, getLatestThematicDigest } from "./openai";
-import { fetchEmails } from "./gmail";
+import { fetchEmails, scanForNewsletters } from "./gmail";
 import { setupCronJobs } from "./cron";
 import { verifyToken, mockGmailAccess, exchangeTokenForGmail } from "./auth";
 import { getAuth } from "firebase-admin/auth";
@@ -345,7 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get stored OAuth token for this user
-      const session = (req as any).session;
+      const session = req.session;
       const userUid = session?.user?.uid;
       
       if (!userUid) {
@@ -413,6 +413,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: `Failed to remove monitored email: ${error.message}` });
+    }
+  });
+
+  // Scan Gmail for potential newsletters for onboarding
+  app.get('/api/onboarding/scan-newsletters', requireAuth, async (req: any, res) => {
+    try {
+      console.log('Scanning for newsletters for user:', req.userId);
+      
+      // Get user's email from session for OAuth lookup
+      const session = req.session;
+      if (!session || !session.user) {
+        console.error('Session missing or incomplete:', { 
+          hasSession: !!session, 
+          hasUser: !!session?.user,
+          userKeys: session?.user ? Object.keys(session.user) : []
+        });
+        return res.status(401).json({ message: 'Session not found' });
+      }
+      
+      // Use the user's UID from session for OAuth token lookup
+      const userUid = session.user.uid;
+      console.log(`Looking up OAuth token for UID: ${userUid}, email: ${session.user.email}`);
+      
+      if (!userUid) {
+        console.error('UID not found in session:', session.user);
+        return res.status(401).json({ message: 'User UID not found in session' });
+      }
+      
+      const newsletters = await scanForNewsletters(userUid);
+      console.log(`Found ${newsletters.length} potential newsletter senders`);
+      
+      res.json({ newsletters });
+    } catch (error: any) {
+      console.error('Error scanning for newsletters:', error);
+      res.status(500).json({ 
+        message: 'Failed to scan for newsletters', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Save onboarding selections
+  app.post('/api/onboarding/save-selections', requireAuth, async (req: any, res) => {
+    try {
+      const { emails, frequency, customDays } = req.body;
+      
+      if (!emails || !Array.isArray(emails) || emails.length === 0) {
+        return res.status(400).json({ message: 'At least one email is required' });
+      }
+      
+      if (!frequency || !['daily', 'weekly', 'custom'].includes(frequency)) {
+        return res.status(400).json({ message: 'Valid frequency is required' });
+      }
+      
+      console.log(`Saving onboarding selections for user ${req.userId}:`, {
+        emails: emails.length,
+        frequency,
+        customDays
+      });
+      
+      // Add all selected emails as monitored emails
+      const addedEmails = [];
+      for (const email of emails) {
+        try {
+          const monitoredEmail = await storage.addMonitoredEmail({
+            userId: req.userId,
+            email: email.trim(),
+            active: true
+          });
+          addedEmails.push(monitoredEmail);
+        } catch (error) {
+          console.warn(`Failed to add monitored email ${email}:`, error);
+        }
+      }
+      
+      // Update user settings with digest frequency
+      await storage.updateUserSettings(req.userId, {
+        dailyDigestEnabled: frequency === 'daily',
+        digestFrequency: frequency,
+        ...(frequency === 'custom' && { customDigestDays: customDays })
+      });
+      
+      // Mark user as onboarded (you might want to add this field to user settings)
+      console.log(`Successfully onboarded user ${req.userId} with ${addedEmails.length} monitored emails`);
+      
+      // Trigger first digest generation in background
+      try {
+        const session = req.session;
+        const userUid = session.user.uid;
+        const monitoredSenders = emails;
+        
+        // Don't await this - let it run in background
+        generateDigest(monitoredSenders, req.userId, userUid)
+          .then(() => console.log('First digest generated successfully for new user'))
+          .catch((error) => console.error('Failed to generate first digest:', error));
+      } catch (error) {
+        console.warn('Failed to trigger first digest generation:', error);
+      }
+      
+      res.json({ 
+        message: 'Onboarding completed successfully',
+        monitoredEmails: addedEmails.length,
+        firstDigestGenerating: true
+      });
+    } catch (error: any) {
+      console.error('Error saving onboarding selections:', error);
+      res.status(500).json({ 
+        message: 'Failed to save onboarding selections', 
+        error: error.message 
+      });
     }
   });
 

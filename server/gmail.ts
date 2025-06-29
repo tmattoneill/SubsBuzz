@@ -37,6 +37,170 @@ export interface ParsedEmail {
   originalLink?: string;
 }
 
+export interface NewsletterSender {
+  email: string;
+  name: string;
+  count: number;
+  latestSubject: string;
+  hasUnsubscribe: boolean;
+}
+
+// Scan Gmail for potential newsletter senders (looking for unsubscribe links)
+export async function scanForNewsletters(userUid: string): Promise<NewsletterSender[]> {
+  try {
+    console.log(`Scanning Gmail for potential newsletter senders, userUid: ${userUid}`);
+
+    // Get OAuth client
+    const result = await exchangeTokenForGmail(userUid);
+    if (!result || !result.oauth2Client) {
+      console.error(`No valid OAuth client for newsletter scanning. Result: ${JSON.stringify(result)}`);
+      throw new Error('Gmail authentication required. Please connect your Gmail account.');
+    }
+
+    const oauth2Client = result.oauth2Client;
+    const gmail = google.gmail('v1');
+
+    // Look back 72 hours for emails
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const afterDate = threeDaysAgo.toISOString().split('T')[0];
+
+    // Search for emails with unsubscribe links (newsletters typically have these)
+    const searchQuery = `after:${afterDate} unsubscribe`;
+    
+    console.log(`Newsletter search query: ${searchQuery}`);
+
+    // Get messages with unsubscribe mentions
+    const response = await gmail.users.messages.list({
+      auth: oauth2Client,
+      userId: 'me',
+      q: searchQuery,
+      maxResults: 100 // Limit to avoid overwhelming API
+    });
+
+    const messages = response.data.messages || [];
+    console.log(`Found ${messages.length} potential newsletter emails`);
+
+    if (messages.length === 0) {
+      return [];
+    }
+
+    // Group emails by sender
+    const senderMap = new Map<string, NewsletterSender>();
+
+    // Process each message
+    for (const message of messages) {
+      if (message.id) {
+        try {
+          const messageData = await gmail.users.messages.get({
+            auth: oauth2Client,
+            userId: 'me',
+            id: message.id
+          });
+
+          if (messageData && messageData.data) {
+            const rawEmail = messageData.data as RawEmail;
+            const headers = rawEmail.payload.headers;
+            
+            // Extract sender info
+            const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
+            const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+            
+            // Extract sender email and name
+            const senderMatch = from.match(/^(.+?)\s*<(.+?)>$/);
+            let senderEmail = '';
+            let senderName = '';
+            
+            if (senderMatch) {
+              senderName = senderMatch[1].trim().replace(/"/g, '');
+              senderEmail = senderMatch[2].trim();
+            } else {
+              senderEmail = from.split(' ').pop() || from;
+              senderName = from.replace(senderEmail, '').trim().replace(/[<>]/g, '');
+            }
+
+            if (!senderEmail || senderEmail.length === 0) continue;
+
+            // Check if this email actually has unsubscribe content
+            const hasUnsubscribe = await checkForUnsubscribeLink(rawEmail);
+
+            // Group by sender email
+            if (senderMap.has(senderEmail)) {
+              const existing = senderMap.get(senderEmail)!;
+              existing.count++;
+              if (hasUnsubscribe) existing.hasUnsubscribe = true;
+              // Update with latest subject if newer
+              existing.latestSubject = subject;
+            } else {
+              senderMap.set(senderEmail, {
+                email: senderEmail,
+                name: senderName || senderEmail,
+                count: 1,
+                latestSubject: subject,
+                hasUnsubscribe
+              });
+            }
+          }
+        } catch (error) {
+          console.warn(`Error processing message ${message.id}:`, error);
+          continue;
+        }
+      }
+    }
+
+    // Convert to array and sort by email count (most frequent first)
+    const newsletters = Array.from(senderMap.values())
+      .filter(sender => sender.hasUnsubscribe) // Only include emails with unsubscribe links
+      .sort((a, b) => b.count - a.count);
+
+    console.log(`Found ${newsletters.length} potential newsletter senders`);
+    return newsletters;
+
+  } catch (error: any) {
+    console.error('Error scanning for newsletters:', error);
+    return [];
+  }
+}
+
+// Check if an email contains unsubscribe links
+async function checkForUnsubscribeLink(message: RawEmail): Promise<boolean> {
+  try {
+    let content = '';
+    
+    // Get email content
+    if (message.payload.body && message.payload.body.data) {
+      content = Buffer.from(message.payload.body.data, 'base64').toString('utf8');
+    } else if (message.payload.parts) {
+      // Look for HTML part first, then text
+      const htmlPart = message.payload.parts.find(part => part.mimeType === 'text/html');
+      const textPart = message.payload.parts.find(part => part.mimeType === 'text/plain');
+      
+      const part = htmlPart || textPart;
+      if (part && part.body && part.body.data) {
+        content = Buffer.from(part.body.data, 'base64').toString('utf8');
+      }
+    }
+
+    if (!content) return false;
+
+    // Check for common unsubscribe patterns
+    const unsubscribePatterns = [
+      /unsubscribe/i,
+      /opt.out/i,
+      /manage.*preferences/i,
+      /email.*preferences/i,
+      /subscription.*settings/i,
+      /remove.*from.*list/i,
+      /list-unsubscribe/i, // Email header
+    ];
+
+    return unsubscribePatterns.some(pattern => pattern.test(content));
+  } catch (error) {
+    console.warn('Error checking for unsubscribe link:', error);
+    return false;
+  }
+}
+
 // Fetch emails from Gmail using the Gmail API
 export async function fetchEmails(monitoredSenders: string[], userUid?: string): Promise<ParsedEmail[]> {
   try {
