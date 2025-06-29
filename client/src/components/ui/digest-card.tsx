@@ -39,10 +39,10 @@ export function DigestCard({ email, onToggleFavorite }: DigestCardProps) {
   const receivedTime = formatTime(email.receivedAt);
 
   return (
-    <Card className="digest-card bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
+    <Card className="digest-card bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 w-full">
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center mb-3">
               <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-primary text-xs font-medium">
                 {getSenderInitials(email.sender)}
@@ -51,13 +51,13 @@ export function DigestCard({ email, onToggleFavorite }: DigestCardProps) {
               <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{receivedTime}</span>
             </div>
             <h3 
-              className="text-lg font-semibold cursor-pointer hover:text-primary dark:text-white"
+              className="text-lg font-semibold cursor-pointer hover:text-primary dark:text-white break-words"
               onClick={toggleExpanded}
             >
               {email.subject}
             </h3>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 flex-shrink-0">
             <Button 
               variant="ghost" 
               size="icon"
@@ -92,12 +92,12 @@ export function DigestCard({ email, onToggleFavorite }: DigestCardProps) {
           })}
         </div>
         
-        <div className="mt-4 text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+        <div className="mt-4 text-gray-600 dark:text-gray-300 text-sm leading-relaxed break-words">
           {email.summary}
         </div>
         
         <div className={`mt-4 border-t dark:border-gray-700 pt-4 text-sm text-gray-500 dark:text-gray-400 leading-relaxed overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[1000px]' : 'max-h-0 border-t-0 pt-0 mt-0'}`}>
-          <div dangerouslySetInnerHTML={{ __html: email.fullContent.replace(/\n/g, '<br/>') }} />
+          <div className="break-words" dangerouslySetInnerHTML={{ __html: email.fullContent.replace(/\n/g, '<br/>') }} />
           
           {email.originalLink && (
             <div className="mt-4">

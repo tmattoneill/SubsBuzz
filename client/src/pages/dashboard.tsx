@@ -317,7 +317,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 dark:bg-gray-900">
         <Sidebar monitoredEmails={[]} onAddSourceClick={() => setIsConfigModalOpen(true)} />
-        <div className="flex-1 p-4 md:p-8">
+        <div className="flex-1 p-4 md:p-8 max-w-4xl mx-auto">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4 w-1/3"></div>
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-8 w-1/5"></div>
@@ -351,7 +351,7 @@ export default function Dashboard() {
           monitoredEmails={monitoredEmails} 
           onAddSourceClick={() => setIsConfigModalOpen(true)} 
         />
-        <div className="flex-1 p-4 md:p-8 flex items-center justify-center">
+        <div className="flex-1 p-4 md:p-8 flex items-center justify-center max-w-4xl mx-auto">
           <div className="text-center">
             <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Failed to load digest</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">There was an error loading your email digest.</p>
@@ -369,27 +369,13 @@ export default function Dashboard() {
         onAddSourceClick={() => setIsConfigModalOpen(true)} 
       />
       
-      <div className="flex-1 p-4 md:p-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
-          <PageHeader 
-            title="Your Daily Digest" 
-            date={digest.date}
-            onRefresh={handleRefresh}
-            isRefreshing={refreshDigestMutation.isPending || isRefetching}
-          />
-          
-          <Button 
-            variant="outline"
-            className="mt-2 md:mt-0 flex items-center gap-2"
-            onClick={() => connectGmailMutation.mutate()}
-            disabled={connectGmailMutation.isPending}
-          >
-            {connectGmailMutation.isPending ? "Connecting..." : "Connect Gmail"}
-            {connectGmailMutation.isPending && (
-              <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
-            )}
-          </Button>
-        </div>
+      <div className="flex-1 p-4 md:p-8 max-w-4xl mx-auto">
+        <PageHeader 
+          title="Your Daily Digest" 
+          date={digest.date}
+          onRefresh={handleRefresh}
+          isRefreshing={refreshDigestMutation.isPending || isRefetching}
+        />
         
         <StatsRow stats={stats} />
         

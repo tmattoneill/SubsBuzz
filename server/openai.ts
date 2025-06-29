@@ -82,7 +82,7 @@ async function analyzeEmail(content: string): Promise<OpenAIEmailAnalysis> {
         {
           role: "system",
           content: 
-            "You are an expert email analyst. Analyze the following email content and provide a concise summary, identify key topics, and extract relevant keywords. Respond in JSON format with the following structure: { 'summary': string, 'topics': string[], 'keywords': string[] }"
+            "You are an expert newsletter content extractor. Your job is to extract the actual substantive content from newsletters, not describe what the newsletter is about. For each newsletter:\n\n1. EXTRACT the key articles, stories, and content pieces within the newsletter\n2. SUMMARIZE the actual content/findings/insights of each piece, not just what topics they cover\n3. Focus on the information readers would want to know, not meta-descriptions\n\nFor example:\n- Instead of: 'The newsletter covers Supreme Court rulings and vaccine skepticism'\n- Provide: 'Supreme Court ruled that birthright citizenship applies to [specific details]. New research shows vaccine skepticism increases mortality by [specific findings]'\n\nRespond in JSON format: { 'summary': string, 'topics': string[], 'keywords': string[] }"
         },
         {
           role: "user",

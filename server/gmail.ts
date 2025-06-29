@@ -1,6 +1,8 @@
 import { google } from 'googleapis';
 import { OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI, exchangeTokenForGmail } from './auth';
 import { getAuth } from 'firebase-admin/auth';
+import * as cheerio from 'cheerio';
+import { convert } from 'html-to-text';
 
 interface RawEmail {
   id: string;
@@ -26,7 +28,7 @@ interface RawEmail {
   sizeEstimate: number;
 }
 
-interface ParsedEmail {
+export interface ParsedEmail {
   id: string;
   sender: string;
   subject: string;
@@ -149,23 +151,28 @@ function parseGmailMessage(message: RawEmail): ParsedEmail {
   const senderMatch = from.match(/<(.+?)>/) || [null, from.split(' ').pop()];
   const sender = senderMatch[1] || '';
   
-  // Extract the email content
+  // Extract the email content with improved parsing
   let content = '';
+  let rawContent = '';
   
   // Check if the message has a body with data
   if (message.payload.body && message.payload.body.data) {
     // Decode the base64 encoded content
-    content = Buffer.from(message.payload.body.data, 'base64').toString('utf8');
+    rawContent = Buffer.from(message.payload.body.data, 'base64').toString('utf8');
   } else if (message.payload.parts) {
-    // If the message has parts, find the text/plain or text/html part
-    const textPart = message.payload.parts.find(part => 
-      part.mimeType === 'text/plain' || part.mimeType === 'text/html'
-    );
+    // If the message has parts, prefer HTML over plain text for newsletters
+    const htmlPart = message.payload.parts.find(part => part.mimeType === 'text/html');
+    const textPart = message.payload.parts.find(part => part.mimeType === 'text/plain');
     
-    if (textPart && textPart.body && textPart.body.data) {
-      content = Buffer.from(textPart.body.data, 'base64').toString('utf8');
+    const preferredPart = htmlPart || textPart;
+    
+    if (preferredPart && preferredPart.body && preferredPart.body.data) {
+      rawContent = Buffer.from(preferredPart.body.data, 'base64').toString('utf8');
     }
   }
+  
+  // Extract clean content from HTML newsletters
+  content = extractNewsletterContent(rawContent);
   
   // Parse the received date
   const receivedAt = new Date(date).toISOString();
@@ -181,5 +188,83 @@ function parseGmailMessage(message: RawEmail): ParsedEmail {
     content,
     originalLink
   };
+}
+
+// Extract clean newsletter content from raw email HTML/text
+function extractNewsletterContent(rawContent: string): string {
+  if (!rawContent) return '';
+  
+  // If it's already plain text, return as-is with basic cleanup
+  if (!rawContent.includes('<html') && !rawContent.includes('<HTML')) {
+    return rawContent.trim().replace(/\s+/g, ' ');
+  }
+  
+  try {
+    // Load HTML content with Cheerio
+    const $ = cheerio.load(rawContent);
+    
+    // Remove common newsletter cruft that doesn't contain useful content
+    $('script, style, noscript').remove();
+    $('.unsubscribe, .footer, .social-links, .header-logo').remove();
+    $('[id*="unsubscribe"], [class*="unsubscribe"]').remove();
+    $('[id*="footer"], [class*="footer"]').remove();
+    $('[href*="unsubscribe"]').parent().remove();
+    
+    // Target main content areas (common newsletter patterns)
+    let mainContent = '';
+    
+    // Try common newsletter content selectors
+    const contentSelectors = [
+      '.content', '.main', '.newsletter-content', '.email-content',
+      'article', '.article', '.post', '.story',
+      '[role="main"]', '.wrapper .content', 
+      'table[role="presentation"] td', // Many newsletters use tables
+      '.body', '.email-body'
+    ];
+    
+    for (const selector of contentSelectors) {
+      const element = $(selector);
+      if (element.length > 0 && element.text().trim().length > 100) {
+        mainContent = element.html() || '';
+        break;
+      }
+    }
+    
+    // Fallback: if no specific content area found, use body but remove common cruft
+    if (!mainContent && $('body').length > 0) {
+      $('body').find('.header, .footer, .unsubscribe, .social, .ad, .advertisement').remove();
+      mainContent = $('body').html() || '';
+    }
+    
+    // Final fallback: use all content
+    if (!mainContent) {
+      mainContent = rawContent;
+    }
+    
+    // Convert HTML to clean text
+    const cleanText = convert(mainContent, {
+      wordwrap: false,
+      preserveNewlines: true,
+      selectors: [
+        { selector: 'img', options: { ignoreHref: true } },
+        { selector: 'a', options: { hideLinkHrefIfSameAsText: true } },
+        { selector: 'h1,h2,h3,h4,h5,h6', options: { uppercase: false } }
+      ]
+    });
+    
+    // Clean up extra whitespace while preserving structure
+    return cleanText
+      .replace(/\n\s*\n\s*\n/g, '\n\n') // Reduce multiple newlines to double
+      .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs
+      .trim();
+      
+  } catch (error) {
+    console.warn('Error parsing HTML content, falling back to raw content:', error);
+    // Fallback to basic text cleanup if HTML parsing fails
+    return rawContent
+      .replace(/<[^>]*>/g, ' ') // Strip HTML tags
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+  }
 }
 

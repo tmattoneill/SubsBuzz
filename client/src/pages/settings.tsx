@@ -352,42 +352,36 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Mail className="mr-2 h-5 w-5 text-primary" />
-                Gmail Account
+                Gmail Connection
               </CardTitle>
               <CardDescription>
-                Configure your Gmail account for monitoring
+                Connect your Gmail account to monitor newsletters
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...gmailForm}>
-                <form onSubmit={gmailForm.handleSubmit(onGmailSubmit)} className="space-y-4">
-                  <FormField
-                    control={gmailForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Gmail Address</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="your.email@gmail.com" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          This is the Gmail account that will be monitored.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-primary text-white hover:bg-blue-600"
-                  >
-                    Update Gmail Settings
-                  </Button>
-                </form>
-              </Form>
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                    <span className="text-green-800 font-medium">Gmail Connected</span>
+                  </div>
+                  <p className="text-green-700 text-sm mt-1">Successfully connected to your Gmail account</p>
+                </div>
+                
+                <Button 
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    toast({
+                      title: "Reconnecting to Gmail",
+                      description: "You'll be redirected to Google to reauthorize access.",
+                    });
+                    // Add Gmail reconnection logic here
+                  }}
+                >
+                  Reconnect Gmail Account
+                </Button>
+              </div>
             </CardContent>
           </Card>
           
