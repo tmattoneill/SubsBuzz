@@ -4,6 +4,14 @@ export interface MonitoredEmail {
   active: boolean;
 }
 
+export interface NewsletterSender {
+  email: string;
+  name: string;
+  count: number;
+  latestSubject: string;
+  hasUnsubscribe: boolean;
+}
+
 export interface Topic {
   name: string;
   isSelected: boolean;

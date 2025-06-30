@@ -10,6 +10,7 @@ import { DigestCard } from "@/components/ui/digest-card";
 import { ThematicDigest } from "@/components/ui/thematic-digest";
 import { Pagination } from "@/components/ui/pagination";
 import { ConfigModal } from "@/components/ui/config-modal";
+import { OnboardingModal } from "@/components/ui/onboarding-modal";
 import { Sidebar } from "@/components/ui/sidebar";
 import { DigestStats, Topic, DigestEmail, EmailDigest, MonitoredEmail, UserSettings, FullThematicDigest } from "@/lib/types";
 import { apiRequest } from "@/lib/queryClient";
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const itemsPerPage = 5;
   
   // Redirect to login if not authenticated
@@ -62,6 +64,16 @@ export default function Dashboard() {
     queryKey: ['/api/settings'],
     refetchOnWindowFocus: false,
   });
+
+  // Check if user needs onboarding (no monitored emails)
+  useEffect(() => {
+    if (monitoredEmailsData && !isMonitoredEmailsLoading) {
+      const monitoredEmails: MonitoredEmail[] = (monitoredEmailsData as MonitoredEmail[]) || [];
+      if (monitoredEmails.length === 0) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [monitoredEmailsData, isMonitoredEmailsLoading]);
   
   // Add email mutation
   const addEmailMutation = useMutation({
@@ -459,6 +471,15 @@ export default function Dashboard() {
         onAddEmail={handleAddEmail}
         onRemoveEmail={handleRemoveEmail}
         onUpdateSettings={handleUpdateSettings}
+      />
+      
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onComplete={() => {
+          setShowOnboarding(false);
+          refetchMonitoredEmails();
+          refetchDigest();
+        }}
       />
     </div>
   );

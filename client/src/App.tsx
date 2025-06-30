@@ -11,11 +11,13 @@ import Favorites from "@/pages/favorites";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
+import Landing from "@/pages/landing";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={Landing} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/history" component={History} />
       <Route path="/favorites" component={Favorites} />
       <Route path="/settings" component={Settings} />

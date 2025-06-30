@@ -12,7 +12,7 @@ export default function Login() {
   // Redirect to dashboard if already logged in
   useEffect(() => {
     if (user && !isLoading) {
-      setLocation('/');
+      setLocation('/dashboard');
     }
   }, [user, isLoading, setLocation]);
 
