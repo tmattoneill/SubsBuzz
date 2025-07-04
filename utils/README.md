@@ -80,6 +80,77 @@ Date: 2025-06-24 | Emails: 5 | Topics: 3
 🎉 History generation complete!
 ```
 
+### sb-user-history.py
+
+**Purpose**: View digest summaries for a specific user on specific days from the database.
+
+**Usage**:
+```bash
+python sb-user-history.py --user [USERNAME] --days [NUM_DAYS] --from-date [DATE] --head [LINES_TO_DISPLAY]
+```
+
+**Parameters**:
+- `--user`: User email address to view summaries for (required)
+- `--days`: Number of days to look back (1-10, default: 1)
+- `--from-date`: Date to look back from in YYYY-MM-DD format (default: today)
+- `--head`: Number of lines to display per summary (default: 10)
+
+**Examples**:
+```bash
+# View today's digest for a user
+python sb-user-history.py --user tmattoneill@gmail.com
+
+# View last 7 days of digests
+python sb-user-history.py --user tmattoneill@gmail.com --days 7
+
+# View 3 days starting from a specific date
+python sb-user-history.py --user tmattoneill@gmail.com --days 3 --from-date 2025-07-01
+
+# View with more summary text (20 lines per digest)
+python sb-user-history.py --user tmattoneill@gmail.com --days 5 --head 20
+```
+
+**Output Example**:
+```
+User: tmattoneill@gmail.com
+==================================================
+Date: 2025-07-03
+Type: Thematic Digest
+Meta: Sections: 4, Source emails: 6
+Summary:
+
+## Media + Advertising
+The Washington Post highlighted new developments in streaming media, with Netflix announcing major changes to their content strategy...
+
+## Programming and Computer Engineering  
+Several updates in the tech world emerged this week, including new AI developments and software engineering practices...
+
+Keywords: media, streaming, technology, AI
+--------------------------------------------------
+Date: 2025-07-02
+Type: Regular Digest
+Meta: Emails processed: 4, Topics: 3
+Summary:
+
+### From: email@washingtonpost.com
+Subject: Morning Newsletter
+Political developments continue to shape the landscape as new legislation moves through Congress...
+
+Topics: politics, government, policy
+--------------------------------------------------
+
+Displayed 2 digest(s) for 2 days
+Summary text limited to first 10 lines per digest
+```
+
+**Features**:
+- **Smart Digest Detection**: Prioritizes thematic digests when available, falls back to regular email digests
+- **Flexible Date Ranges**: View single day or up to 10 days of history
+- **Text Truncation**: Control output length with `--head` parameter
+- **User Validation**: Checks if user exists in database before querying
+- **Multiple Digest Formats**: Handles both thematic and regular digest formats
+- **Error Handling**: Clear error messages for missing users or data
+
 ## Requirements
 
 - Python 3.12+
