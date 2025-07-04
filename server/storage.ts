@@ -26,7 +26,7 @@ import {
   type FullThematicDigest
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { createHash } from "crypto";
 
 // Helper function to generate userId from email
@@ -46,6 +46,9 @@ export interface IStorage {
   getEmailDigest(userId: string, id: number): Promise<EmailDigest | undefined>;
   getLatestEmailDigest(userId: string): Promise<EmailDigest | undefined>;
   getDigestByDate(userId: string, date: string): Promise<EmailDigest | undefined>;
+  getDigestByDateRange(userId: string, startDate: Date, endDate: Date): Promise<EmailDigest | undefined>;
+  hasDigestForDate(userId: string, date: Date): Promise<boolean>;
+  getAvailableDigestDates(userId: string): Promise<string[]>;
   createEmailDigest(digest: InsertEmailDigest): Promise<EmailDigest>;
   
   // Digest emails
@@ -66,6 +69,7 @@ export interface IStorage {
   getThematicDigests(userId: string): Promise<ThematicDigest[]>;
   getThematicDigest(userId: string, id: number): Promise<FullThematicDigest | undefined>;
   getLatestThematicDigest(userId: string): Promise<FullThematicDigest | undefined>;
+  hasThematicDigestForDate(userId: string, date: Date): Promise<boolean>;
   createThematicDigest(digest: InsertThematicDigest): Promise<ThematicDigest>;
   
   // Thematic sections
@@ -136,6 +140,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDigestByDate(userId: string, date: string): Promise<EmailDigest | undefined> {
+    console.log(`🔍 Storage.getDigestByDate - userId: ${userId}, date: ${date}`);
+    
     // Parse the date and create start/end of day boundaries
     const targetDate = new Date(date);
     const startOfDay = new Date(targetDate);
@@ -143,16 +149,94 @@ export class DatabaseStorage implements IStorage {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
+    console.log(`🔍 Date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
+
+    // Try a simpler DATE() approach first
+    const results = await db.select().from(emailDigests)
+      .where(and(
+        eq(emailDigests.userId, userId),
+        sql`DATE(${emailDigests.date}) = ${date}`
+      ))
+      .orderBy(desc(emailDigests.date))
+      .limit(1);
+    
+    // If that doesn't work, fall back to range query
+    if (results.length === 0) {
+      console.log(`🔍 No results with DATE() approach, trying range query...`);
+      const rangeResults = await db.select().from(emailDigests)
+        .where(and(
+          eq(emailDigests.userId, userId),
+          sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
+          sql`${emailDigests.date} <= ${endOfDay.toISOString()}`
+        ))
+        .orderBy(desc(emailDigests.date))
+        .limit(1);
+      
+      console.log(`🔍 Range query found ${rangeResults.length} result(s)`);
+      return rangeResults.length > 0 ? rangeResults[0] : undefined;
+    }
+    
+    console.log(`🔍 Found ${results.length} digest(s) in date range`);
+    if (results.length > 0) {
+      console.log(`🔍 Digest found: ID=${results[0].id}, date=${results[0].date}`);
+    }
+    
+    return results.length > 0 ? results[0] : undefined;
+  }
+
+  async getDigestByDateRange(userId: string, startDate: Date, endDate: Date): Promise<EmailDigest | undefined> {
+    const results = await db.select().from(emailDigests)
+      .where(and(
+        eq(emailDigests.userId, userId),
+        sql`${emailDigests.date} >= ${startDate.toISOString()}`,
+        sql`${emailDigests.date} <= ${endDate.toISOString()}`
+      ))
+      .orderBy(desc(emailDigests.date))
+      .limit(1);
+    
+    return results.length > 0 ? results[0] : undefined;
+  }
+
+  async hasDigestForDate(userId: string, date: Date): Promise<boolean> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
     const results = await db.select().from(emailDigests)
       .where(and(
         eq(emailDigests.userId, userId),
         sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
         sql`${emailDigests.date} <= ${endOfDay.toISOString()}`
       ))
-      .orderBy(desc(emailDigests.date))
       .limit(1);
     
-    return results.length > 0 ? results[0] : undefined;
+    return results.length > 0;
+  }
+
+  async getAvailableDigestDates(userId: string): Promise<string[]> {
+    // Get all dates with regular email digests
+    const emailDigestDates = await db.select({
+      date: sql<string>`DATE(${emailDigests.date})`
+    }).from(emailDigests)
+      .where(eq(emailDigests.userId, userId))
+      .groupBy(sql`DATE(${emailDigests.date})`)
+      .orderBy(desc(sql`DATE(${emailDigests.date})`));
+
+    // Get all dates with thematic digests  
+    const thematicDigestDates = await db.select({
+      date: sql<string>`DATE(${thematicDigests.date})`
+    }).from(thematicDigests)
+      .where(eq(thematicDigests.userId, userId))
+      .groupBy(sql`DATE(${thematicDigests.date})`)
+      .orderBy(desc(sql`DATE(${thematicDigests.date})`));
+
+    // Combine and deduplicate the dates
+    const allDates = new Set<string>();
+    emailDigestDates.forEach(row => allDates.add(row.date));
+    thematicDigestDates.forEach(row => allDates.add(row.date));
+
+    return Array.from(allDates).sort().reverse(); // Most recent first
   }
   
   async createEmailDigest(digest: InsertEmailDigest): Promise<EmailDigest> {
@@ -161,6 +245,16 @@ export class DatabaseStorage implements IStorage {
       ...digest,
       date: digest.date || new Date()
     };
+    
+    // Check if a digest already exists for this user and date
+    const targetDate = digestToInsert.date;
+    const existingDigest = await this.hasDigestForDate(digestToInsert.userId, targetDate);
+    
+    if (existingDigest) {
+      console.log(`Digest already exists for user ${digestToInsert.userId} on date ${targetDate.toISOString().split('T')[0]}`);
+      // Return the existing digest instead of creating a duplicate
+      return await this.getDigestByDate(digestToInsert.userId, targetDate.toISOString().split('T')[0]) as EmailDigest;
+    }
     
     const results = await db.insert(emailDigests).values(digestToInsert).returning();
     return results[0];
@@ -362,8 +456,46 @@ export class DatabaseStorage implements IStorage {
     return this.getThematicDigest(userId, results[0].id);
   }
 
+  async hasThematicDigestForDate(userId: string, date: Date): Promise<boolean> {
+    const database = this.ensureDb();
+    
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    const results = await database.select().from(thematicDigests)
+      .where(and(
+        eq(thematicDigests.userId, userId),
+        sql`${thematicDigests.date} >= ${startOfDay.toISOString()}`,
+        sql`${thematicDigests.date} <= ${endOfDay.toISOString()}`
+      ))
+      .limit(1);
+    
+    return results.length > 0;
+  }
+
   async createThematicDigest(digest: InsertThematicDigest): Promise<ThematicDigest> {
     const database = this.ensureDb();
+    
+    // Check if a thematic digest already exists for this user and date
+    const targetDate = digest.date;
+    const existingDigest = await this.hasThematicDigestForDate(digest.userId, targetDate);
+    
+    if (existingDigest) {
+      console.log(`Thematic digest already exists for user ${digest.userId} on date ${targetDate.toISOString().split('T')[0]}`);
+      // Get the existing digest and return it
+      const existingResults = await database.select().from(thematicDigests)
+        .where(and(
+          eq(thematicDigests.userId, digest.userId),
+          sql`${thematicDigests.date} >= ${targetDate.toISOString().split('T')[0]}`,
+          sql`${thematicDigests.date} <= ${targetDate.toISOString().split('T')[0]} 23:59:59`
+        ))
+        .orderBy(desc(thematicDigests.date))
+        .limit(1);
+      
+      return existingResults[0];
+    }
     
     const results = await database.insert(thematicDigests)
       .values(digest)

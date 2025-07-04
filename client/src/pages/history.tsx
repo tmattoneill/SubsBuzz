@@ -29,6 +29,12 @@ export default function History() {
     refetchOnWindowFocus: false,
   });
 
+  // Fetch available digest dates for calendar highlighting
+  const { data: availableDates = [] } = useQuery({
+    queryKey: ['/api/digest/available-dates'],
+    refetchOnWindowFocus: false,
+  });
+
   // Fetch digest for selected date
   const { data: selectedDateDigest, isLoading: isLoadingDateDigest } = useQuery({
     queryKey: ['/api/digest/date', date?.toISOString().split('T')[0]],
@@ -52,7 +58,13 @@ export default function History() {
             <Calendar
               mode="single"
               selected={date}
-              onSelect={setDate}
+              onSelect={(selectedDate) => {
+                if (selectedDate) {
+                  // Navigate to dedicated digest view page
+                  const dateStr = selectedDate.toISOString().split('T')[0];
+                  setLocation(`/digest/${dateStr}`);
+                }
+              }}
               className="rounded-md border"
               disabled={(date) => {
                 // Disable future dates and dates without digests
@@ -60,12 +72,9 @@ export default function History() {
                 today.setHours(23, 59, 59, 999);
                 if (date > today) return true;
                 
-                // Check if there's a digest for this date
+                // Check if there's a digest for this date using the available dates list
                 const dateStr = date.toISOString().split('T')[0];
-                return !digestHistory.some((digest: EmailDigest) => {
-                  const digestDate = new Date(digest.date).toISOString().split('T')[0];
-                  return digestDate === dateStr;
-                });
+                return !availableDates.includes(dateStr);
               }}
             />
           </div>
@@ -109,7 +118,11 @@ export default function History() {
                       <div 
                         key={digest.id} 
                         className="flex justify-between items-center p-2 bg-muted rounded cursor-pointer hover:bg-muted/80"
-                        onClick={() => setDate(new Date(digest.date))}
+                        onClick={() => {
+                          // Navigate to dedicated digest view page
+                          const dateStr = new Date(digest.date).toISOString().split('T')[0];
+                          setLocation(`/digest/${dateStr}`);
+                        }}
                       >
                         <span>{formatDate(new Date(digest.date))}</span>
                         <span className="text-sm text-muted-foreground">

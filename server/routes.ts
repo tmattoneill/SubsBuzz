@@ -587,15 +587,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get available digest dates for calendar highlighting
+  app.get('/api/digest/available-dates', requireAuth, async (req: any, res) => {
+    try {
+      const dates = await storage.getAvailableDigestDates(req.userId);
+      res.json(dates);
+    } catch (error: any) {
+      res.status(500).json({ message: `Failed to get available digest dates: ${error.message}` });
+    }
+  });
+
   // Get digest for a specific date
   app.get('/api/digest/date/:date', requireAuth, async (req: any, res) => {
     try {
       const { date } = req.params;
+      console.log(`🔍 Looking for digest for user ${req.userId} on date ${date}`);
+      
+      // First, try to get thematic digest for this date
+      const targetDate = new Date(date);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      console.log(`🔍 Target date: ${targetDate}, Start of day: ${startOfDay}, End of day: ${endOfDay}`);
+      
+      // Check if thematic digest exists for this date
+      const hasThematic = await storage.hasThematicDigestForDate(req.userId, targetDate);
+      console.log(`🔍 Has thematic digest: ${hasThematic}`);
+      
+      if (hasThematic) {
+        // Get thematic digest
+        const thematicDigests = await storage.getThematicDigests(req.userId);
+        const dateStr = date;
+        const thematicDigest = thematicDigests.find((digest) => {
+          const digestDateStr = new Date(digest.date).toISOString().split('T')[0];
+          return digestDateStr === dateStr;
+        });
+        
+        if (thematicDigest) {
+          const fullThematicDigest = await storage.getThematicDigest(req.userId, thematicDigest.id);
+          if (fullThematicDigest) {
+            return res.json({
+              ...fullThematicDigest,
+              type: 'thematic',
+              date: fullThematicDigest.date instanceof Date ? fullThematicDigest.date.toISOString() : fullThematicDigest.date,
+              emailsProcessed: fullThematicDigest.totalSourceEmails,
+              topicsIdentified: fullThematicDigest.sectionsCount
+            });
+          }
+        }
+      }
+      
+      // Fall back to regular digest
+      console.log(`🔍 Falling back to regular digest for date ${date}`);
       const digest = await storage.getDigestByDate(req.userId, date);
+      console.log(`🔍 Regular digest result:`, digest ? `Found digest ID ${digest.id}` : 'No digest found');
+      
       if (!digest) {
         return res.status(404).json({ message: 'No digest found for this date' });
       }
-      res.json(digest);
+      
+      // Get emails for this digest
+      const emails = await storage.getDigestEmails(digest.id);
+      console.log(`🔍 Found ${emails.length} emails for digest ${digest.id}`);
+      
+      const response = {
+        ...digest,
+        type: 'regular',
+        emails: emails.map(email => ({
+          ...email,
+          receivedAt: email.receivedAt instanceof Date ? email.receivedAt.toISOString() : email.receivedAt
+        }))
+      };
+      
+      console.log(`🔍 API Response:`, {
+        id: response.id,
+        type: response.type,
+        emailsCount: response.emails.length,
+        date: response.date
+      });
+      
+      res.json(response);
     } catch (error: any) {
       res.status(500).json({ message: `Failed to get digest for date: ${error.message}` });
     }
