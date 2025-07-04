@@ -23,12 +23,6 @@ export default function History() {
     }
   }, [user, authLoading, setLocation]);
 
-  // Fetch monitored emails
-  const { data: monitoredEmails = [] } = useQuery({
-    queryKey: ['/api/monitored-emails'],
-    refetchOnWindowFocus: false,
-  });
-
   // Fetch digest history
   const { data: digestHistory = [] } = useQuery({
     queryKey: ['/api/digest/history'],
@@ -43,11 +37,8 @@ export default function History() {
   });
   
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      <Sidebar 
-        monitoredEmails={monitoredEmails} 
-        onAddSourceClick={() => setLocation('/settings')} 
-      />
+    <div className="min-h-screen flex flex-col md:flex-row bg-background">
+      <Sidebar />
       
       <div className="flex-1 p-4 md:p-8">
         <PageHeader 
@@ -55,8 +46,8 @@ export default function History() {
           date={date}
         />
         
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Select a date to view past digests</h2>
+        <div className="bg-card rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Select a date to view past digests</h2>
           <div className="max-w-sm mx-auto">
             <Calendar
               mode="single"
@@ -83,11 +74,11 @@ export default function History() {
             <div className="mt-6 text-center">
               <p className="mb-3">Selected date: <strong>{formatDate(date)}</strong></p>
               {isLoadingDateDigest ? (
-                <p className="text-gray-500">Loading digest...</p>
+                <p className="text-muted-foreground">Loading digest...</p>
               ) : selectedDateDigest ? (
-                <p className="text-green-600">✓ Digest available for this date</p>
+                <p className="text-green-600 dark:text-green-400">✓ Digest available for this date</p>
               ) : (
-                <p className="text-gray-500">No digest found for this date</p>
+                <p className="text-muted-foreground">No digest found for this date</p>
               )}
             </div>
           )}
@@ -95,7 +86,7 @@ export default function History() {
         
         {selectedDateDigest ? (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold">Digest for {formatDate(date!)}</h3>
+            <h3 className="text-xl font-semibold text-foreground">Digest for {formatDate(date!)}</h3>
             {selectedDateDigest.type === 'thematic' ? (
               <ThematicDigest digest={selectedDateDigest as FullThematicDigest} />
             ) : (
@@ -103,10 +94,10 @@ export default function History() {
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-card rounded-xl shadow-sm p-6">
             <div className="text-center py-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Your Digest History</h3>
-              <p className="text-gray-500 max-w-md mx-auto mb-6">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Your Digest History</h3>
+              <p className="text-muted-foreground max-w-md mx-auto mb-6">
                 You have {digestHistory.length} digest{digestHistory.length !== 1 ? 's' : ''} in your history. 
                 Select a date above to view a specific digest.
               </p>
@@ -117,11 +108,11 @@ export default function History() {
                     {digestHistory.slice(0, 5).map((digest: EmailDigest) => (
                       <div 
                         key={digest.id} 
-                        className="flex justify-between items-center p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100"
+                        className="flex justify-between items-center p-2 bg-muted rounded cursor-pointer hover:bg-muted/80"
                         onClick={() => setDate(new Date(digest.date))}
                       >
                         <span>{formatDate(new Date(digest.date))}</span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-muted-foreground">
                           {digest.emailsProcessed} emails, {digest.topicsIdentified} topics
                         </span>
                       </div>

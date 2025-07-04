@@ -41,19 +41,51 @@ export function ThemeToggle() {
   )
 }
 
-export function ThemeColorSelector() {
+interface ThemeColorSelectorProps {
+  value?: string;
+  onChange?: (color: string) => void;
+}
+
+export function ThemeColorSelector({ value = "blue", onChange }: ThemeColorSelectorProps) {
   const { theme } = useTheme()
-  const [colorTheme, setColorTheme] = useState<string>("blue")
+  const [colorTheme, setColorTheme] = useState<string>(value)
   
-  const handleColorChange = (value: string) => {
+  // Apply theme color to CSS variables
+  const applyThemeColor = (color: string) => {
+    const themeConfig = getThemeConfig(color);
+    document.documentElement.style.setProperty('--color-primary-hue', themeConfig.primaryHue);
+    document.documentElement.style.setProperty('--color-primary-saturation', themeConfig.primarySat);
+    document.documentElement.style.setProperty('--color-accent-hue', themeConfig.accentHue);
+    document.documentElement.style.setProperty('--color-accent-saturation', themeConfig.accentSat);
+  };
+  
+  // Update local state when value prop changes
+  React.useEffect(() => {
     setColorTheme(value)
+    // Apply the color theme immediately
+    applyThemeColor(value)
+  }, [value])
+  
+  // Listen for theme color change events
+  React.useEffect(() => {
+    const handleThemeColorEvent = (event: CustomEvent) => {
+      const newColor = event.detail;
+      setColorTheme(newColor);
+      applyThemeColor(newColor);
+    };
     
-    // Update CSS custom properties for theme colors
-    const themeConfig = getThemeConfig(value)
-    document.documentElement.style.setProperty('--color-primary-hue', themeConfig.primaryHue)
-    document.documentElement.style.setProperty('--color-primary-saturation', themeConfig.primarySat)
-    document.documentElement.style.setProperty('--color-accent-hue', themeConfig.accentHue)
-    document.documentElement.style.setProperty('--color-accent-saturation', themeConfig.accentSat)
+    window.addEventListener('themeColorChange', handleThemeColorEvent as EventListener);
+    return () => window.removeEventListener('themeColorChange', handleThemeColorEvent as EventListener);
+  }, []);
+  
+  const handleColorChange = (newValue: string) => {
+    setColorTheme(newValue)
+    
+    // Apply theme color
+    applyThemeColor(newValue)
+    
+    // Call the onChange callback if provided
+    onChange?.(newValue)
   }
   
   interface ThemeConfig {

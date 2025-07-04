@@ -11,7 +11,6 @@ import { BookmarkIcon } from "lucide-react";
 export default function Favorites() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [monitoredEmails, setMonitoredEmails] = useState([]);
   const [favoriteEmails, setFavoriteEmails] = useState<DigestEmail[]>([]);
   
   // Redirect to login if not authenticated
@@ -20,23 +19,6 @@ export default function Favorites() {
       setLocation('/login');
     }
   }, [user, authLoading, setLocation]);
-
-  // Fetch monitored emails
-  useEffect(() => {
-    const fetchEmails = async () => {
-      try {
-        const response = await fetch('/api/monitored-emails');
-        if (response.ok) {
-          const data = await response.json();
-          setMonitoredEmails(data);
-        }
-      } catch (error) {
-        console.error('Error fetching monitored emails:', error);
-      }
-    };
-    
-    fetchEmails();
-  }, []);
   
   // In a real implementation, we would fetch favorites from the API
   useEffect(() => {
@@ -45,11 +27,8 @@ export default function Favorites() {
   }, []);
   
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      <Sidebar 
-        monitoredEmails={monitoredEmails} 
-        onAddSourceClick={() => setLocation('/settings')} 
-      />
+    <div className="min-h-screen flex flex-col md:flex-row bg-background">
+      <Sidebar />
       
       <div className="flex-1 p-4 md:p-8">
         <PageHeader 
@@ -67,12 +46,12 @@ export default function Favorites() {
               />
             ))
           ) : (
-            <div className="text-center py-12 bg-white rounded-xl shadow-sm">
-              <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+            <div className="text-center py-12 bg-card rounded-xl shadow-sm">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <BookmarkIcon className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">No favorites yet</h3>
-              <p className="text-gray-500 max-w-md mx-auto mb-6">
+              <h3 className="text-lg font-semibold text-foreground mb-2">No favorites yet</h3>
+              <p className="text-muted-foreground max-w-md mx-auto mb-6">
                 When you find emails you want to save for later, mark them as favorites
                 and they'll appear here for easy access.
               </p>
@@ -83,10 +62,10 @@ export default function Favorites() {
           )}
         </div>
         
-        <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
+        <div className="mt-8 bg-card rounded-xl shadow-sm p-6">
           <div className="text-center py-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Favorites Feature Coming Soon</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
+            <h3 className="text-lg font-semibold text-foreground mb-2">Favorites Feature Coming Soon</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
               We're working on implementing the ability to save your favorite emails.
               Soon, you'll be able to mark important emails and access them easily from this page.
             </p>

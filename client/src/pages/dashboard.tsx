@@ -357,8 +357,8 @@ export default function Dashboard() {
 
   if (isDigestLoading || isMonitoredEmailsLoading || isUserSettingsLoading) {
     return (
-      <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 dark:bg-gray-900">
-        <Sidebar monitoredEmails={[]} onAddSourceClick={() => setIsConfigModalOpen(true)} />
+      <div className="min-h-screen flex flex-col md:flex-row bg-background">
+        <Sidebar />
         <div className="flex-1 p-4 md:p-8 max-w-4xl mx-auto">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4 w-1/3"></div>
@@ -366,7 +366,7 @@ export default function Dashboard() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               {[1, 2, 3].map(i => (
-                <div key={i} className="h-24 bg-white dark:bg-gray-800 rounded-xl shadow-sm"></div>
+                <div key={i} className="h-24 bg-card rounded-xl shadow-sm"></div>
               ))}
             </div>
             
@@ -378,7 +378,7 @@ export default function Dashboard() {
             </div>
             
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-64 bg-white dark:bg-gray-800 rounded-xl shadow-sm mb-6"></div>
+              <div key={i} className="h-64 bg-card rounded-xl shadow-sm mb-6"></div>
             ))}
           </div>
         </div>
@@ -388,15 +388,12 @@ export default function Dashboard() {
 
   if (isDigestError) {
     return (
-      <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 dark:bg-gray-900">
-        <Sidebar 
-          monitoredEmails={monitoredEmails} 
-          onAddSourceClick={() => setIsConfigModalOpen(true)} 
-        />
+      <div className="min-h-screen flex flex-col md:flex-row bg-background">
+        <Sidebar />
         <div className="flex-1 p-4 md:p-8 flex items-center justify-center max-w-4xl mx-auto">
           <div className="text-center">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Failed to load digest</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">There was an error loading your email digest.</p>
+            <h2 className="text-xl font-bold text-foreground mb-2">Failed to load digest</h2>
+            <p className="text-muted-foreground mb-4">There was an error loading your email digest.</p>
             <Button onClick={() => refetchDigest()}>Try Again</Button>
           </div>
         </div>
@@ -406,10 +403,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50 dark:bg-gray-900">
-      <Sidebar 
-        monitoredEmails={monitoredEmails} 
-        onAddSourceClick={() => setIsConfigModalOpen(true)} 
-      />
+      <Sidebar />
       
       <div className="flex-1 p-4 md:p-8 max-w-4xl mx-auto">
         <PageHeader 
@@ -441,9 +435,9 @@ export default function Dashboard() {
             ))
           ) : (
             // No content to display
-            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">No digest to display</h3>
-              <p className="text-gray-500 dark:text-gray-400">
+            <div className="text-center py-12 bg-card rounded-xl shadow-sm">
+              <h3 className="text-lg font-semibold text-foreground mb-2">No digest to display</h3>
+              <p className="text-muted-foreground">
                 {selectedTopics.length > 0 
                   ? "Try selecting different topics or clearing your filters."
                   : "No emails have been processed yet."}

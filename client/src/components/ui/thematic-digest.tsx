@@ -31,7 +31,7 @@ function ThematicSection({ section, isExpanded, onToggleExpanded }: ThematicSect
   const { bg, text } = getTopicColors(section.theme);
 
   return (
-    <Card className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+    <Card className="w-full bg-card rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -77,7 +77,7 @@ function ThematicSection({ section, isExpanded, onToggleExpanded }: ThematicSect
             {section.keywords.slice(0, 6).map((keyword, index) => (
               <span 
                 key={index}
-                className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs"
+                className="px-2 py-1 bg-muted text-muted-foreground rounded text-xs"
               >
                 {keyword}
               </span>
@@ -98,7 +98,7 @@ function ThematicSection({ section, isExpanded, onToggleExpanded }: ThematicSect
               
               <div className="space-y-3">
                 {section.sourceEmails.map((sourceEmail, index) => (
-                  <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm">
+                  <div key={index} className="bg-muted rounded-lg p-3 text-sm">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-medium">
@@ -173,7 +173,7 @@ export function ThematicDigest({ digest }: ThematicDigestProps) {
 
   if (!digest.sections || digest.sections.length === 0) {
     return (
-      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+      <div className="text-center py-12 bg-card rounded-xl shadow-sm">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
           No thematic digest available
         </h3>

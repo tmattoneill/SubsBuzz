@@ -12,6 +12,13 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
   Form,
   FormControl,
   FormDescription,
@@ -30,7 +37,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Mail, Key, RefreshCw, Plus } from "lucide-react";
+import { Mail, Key, RefreshCw, Plus, Palette } from "lucide-react";
+import { ThemeColorSelector } from "@/components/ui/theme-toggle";
+import { useTheme } from "next-themes";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -73,7 +82,9 @@ export default function Settings() {
     id: 0,
     dailyDigestEnabled: true,
     topicClusteringEnabled: true,
-    emailNotificationsEnabled: false
+    emailNotificationsEnabled: false,
+    themeMode: "system",
+    themeColor: "blue"
   };
 
   // Form schema for OpenAI API key
@@ -216,11 +227,40 @@ export default function Settings() {
   const handleSettingToggle = (setting: keyof UserSettings, checked: boolean) => {
     updateSettingsMutation.mutate({ [setting]: checked });
   };
+  
+  // Theme management
+  const { setTheme, theme } = useTheme();
+  
+  // Handle theme mode change
+  const handleThemeModeChange = (newThemeMode: string) => {
+    // Update the next-themes provider immediately
+    setTheme(newThemeMode);
+    // Save to database
+    handleUpdateSettings({ themeMode: newThemeMode });
+  };
+  
+  // Sync theme with user settings on load
+  useEffect(() => {
+    if (userSettings.themeMode && userSettings.themeMode !== theme) {
+      console.log('Syncing theme from database:', userSettings.themeMode, 'current theme:', theme);
+      setTheme(userSettings.themeMode);
+    }
+  }, [userSettings.themeMode, setTheme, theme]);
+  
+  // Sync theme colors on load
+  useEffect(() => {
+    if (userSettings.themeColor) {
+      console.log('Syncing theme color from database:', userSettings.themeColor);
+      // Trigger theme color change to update CSS variables
+      const event = new CustomEvent('themeColorChange', { detail: userSettings.themeColor });
+      window.dispatchEvent(event);
+    }
+  }, [userSettings.themeColor]);
 
   if (isMonitoredEmailsLoading || isUserSettingsLoading) {
     return (
-      <div className="min-h-screen flex flex-col md:flex-row">
-        <Sidebar monitoredEmails={[]} onAddSourceClick={() => setIsConfigModalOpen(true)} />
+      <div className="min-h-screen flex flex-col md:flex-row bg-background">
+        <Sidebar />
         <div className="flex-1 p-4 md:p-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded mb-4 w-1/3"></div>
@@ -238,15 +278,12 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      <Sidebar 
-        monitoredEmails={monitoredEmails} 
-        onAddSourceClick={() => setIsConfigModalOpen(true)} 
-      />
+    <div className="min-h-screen flex flex-col md:flex-row bg-background">
+      <Sidebar />
       
       <div className="flex-1 p-4 md:p-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Settings</h1>
-        <p className="text-gray-500 mb-8">Configure your email monitoring and digest preferences</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Settings</h1>
+        <p className="text-muted-foreground mb-8">Configure your email monitoring and digest preferences</p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <Card>
@@ -264,7 +301,7 @@ export default function Settings() {
                 {monitoredEmails.length > 0 ? (
                   <div className="space-y-3">
                     {monitoredEmails.map(email => (
-                      <div key={email.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={email.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <span>{email.email}</span>
                         <Button 
                           variant="ghost" 
@@ -282,7 +319,7 @@ export default function Settings() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm italic">No email addresses monitored yet.</p>
+                  <p className="text-muted-foreground text-sm italic">No email addresses monitored yet.</p>
                 )}
               </div>
             </CardContent>
@@ -396,7 +433,7 @@ export default function Settings() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Daily Digests</p>
-                  <p className="text-sm text-gray-500">Generate digests once per day</p>
+                  <p className="text-sm text-muted-foreground">Generate digests once per day</p>
                 </div>
                 <Switch 
                   checked={userSettings.dailyDigestEnabled}
@@ -407,7 +444,7 @@ export default function Settings() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Topic Clustering</p>
-                  <p className="text-sm text-gray-500">Group emails by similar topics</p>
+                  <p className="text-sm text-muted-foreground">Group emails by similar topics</p>
                 </div>
                 <Switch 
                   checked={userSettings.topicClusteringEnabled}
@@ -418,12 +455,52 @@ export default function Settings() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Email Notifications</p>
-                  <p className="text-sm text-gray-500">Get notified when digest is ready</p>
+                  <p className="text-sm text-muted-foreground">Get notified when digest is ready</p>
                 </div>
                 <Switch 
                   checked={userSettings.emailNotificationsEnabled}
                   onCheckedChange={(checked) => handleSettingToggle('emailNotificationsEnabled', checked)}
                 />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Palette className="mr-2 h-5 w-5 text-primary" />
+                Appearance
+              </CardTitle>
+              <CardDescription>
+                Customize the look and feel of SubsBuzz
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Theme Mode</label>
+                <Select 
+                  value={userSettings.themeMode || "system"} 
+                  onValueChange={handleThemeModeChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select theme mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">Light</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="system">System</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Theme Color</label>
+                <div className="flex space-x-3">
+                  <ThemeColorSelector 
+                    value={userSettings.themeColor || "blue"}
+                    onChange={(color) => handleUpdateSettings({ themeColor: color })}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

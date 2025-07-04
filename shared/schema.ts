@@ -80,6 +80,8 @@ export const userSettings = pgTable("user_settings", {
   dailyDigestEnabled: boolean("daily_digest_enabled").notNull().default(true),
   topicClusteringEnabled: boolean("topic_clustering_enabled").notNull().default(true),
   emailNotificationsEnabled: boolean("email_notifications_enabled").notNull().default(false),
+  themeMode: text("theme_mode").default("system"), // "light", "dark", "system"
+  themeColor: text("theme_color").default("blue"), // "blue", "green", "purple", "teal", "red", "orange"
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
@@ -87,6 +89,8 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
   dailyDigestEnabled: true,
   topicClusteringEnabled: true,
   emailNotificationsEnabled: true,
+  themeMode: true,
+  themeColor: true,
 });
 
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;

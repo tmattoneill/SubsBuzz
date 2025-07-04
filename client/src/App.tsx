@@ -30,8 +30,13 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* @ts-ignore - Ignore TypeScript error with next-themes type mismatch */}
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true}>
+      <ThemeProvider 
+        attribute="class" 
+        defaultTheme="system" 
+        enableSystem={true}
+        storageKey="theme-mode"
+        disableTransitionOnChange={true}
+      >
         <AuthProvider>
           <TooltipProvider>
             <Toaster />

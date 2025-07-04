@@ -19,7 +19,7 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   return (
     <NextThemesProvider
-      attribute={props.attribute}
+      attribute={props.attribute || "class"}
       defaultTheme={props.defaultTheme}
       enableSystem={props.enableSystem}
       storageKey={props.storageKey}

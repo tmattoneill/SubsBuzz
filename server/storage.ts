@@ -192,7 +192,9 @@ export class DatabaseStorage implements IStorage {
         userId,
         dailyDigestEnabled: true,
         topicClusteringEnabled: true,
-        emailNotificationsEnabled: false
+        emailNotificationsEnabled: false,
+        themeMode: "system",
+        themeColor: "blue"
       };
       
       const newSettings = await db.insert(userSettings).values(defaultSettings).returning();
@@ -206,10 +208,21 @@ export class DatabaseStorage implements IStorage {
     // Get current settings first
     const currentSettings = await this.getUserSettings(userId);
     
+    // Filter out undefined values and id field to avoid issues
+    const filteredSettings = Object.fromEntries(
+      Object.entries(settings).filter(([key, value]) => 
+        value !== undefined && key !== 'id' && key !== 'userId'
+      )
+    );
+    
+    console.log('Updating user settings for userId:', userId);
+    console.log('Current settings ID:', currentSettings.id);
+    console.log('Settings to update:', filteredSettings);
+    
     // Update settings
     const results = await db
       .update(userSettings)
-      .set(settings)
+      .set(filteredSettings)
       .where(eq(userSettings.id, currentSettings.id))
       .returning();
     

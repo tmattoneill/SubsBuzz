@@ -50,6 +50,8 @@ export interface UserSettings {
   dailyDigestEnabled: boolean;
   topicClusteringEnabled: boolean;
   emailNotificationsEnabled: boolean;
+  themeMode?: string; // "light", "dark", "system"
+  themeColor?: string; // "blue", "green", "purple", "teal", "red", "orange"
 }
 
 // Thematic digest types for new meta-summary system
