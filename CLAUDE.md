@@ -181,3 +181,29 @@ npm run db:push                        # Initialize database schema
 **Authentication Flow**: Uses Gmail OAuth with Express sessions. No development bypasses or mock authentication modes exist.
 
 **Automatic Setup**: Database initialization is fully automated. System will attempt to start PostgreSQL, create databases, and initialize schema automatically on first run.
+
+## Development Planning & Documentation
+
+This project includes comprehensive development planning documentation:
+
+- **`docs/PLANNING.md`** - Master development plan with timeline and priorities
+- **`docs/CRITICAL.md`** - Critical issues requiring immediate attention (cron jobs, error handling, validation)
+- **`docs/PRIORITY.md`** - High-priority enhancements for production readiness (testing, deployment, monitoring)
+- **`docs/DEVELOPMENT.md`** - Feature development roadmap (real-time updates, PWA, AI enhancements)
+- **`docs/DEPLOY.md`** - Production deployment strategy and workflow
+
+### Current Development Status
+
+**Critical Issues** (Address First):
+1. **Cron job system disabled** - Daily digest generation not working
+2. **Missing error handling** - Application vulnerable to crashes
+3. **No input validation** - Security vulnerabilities present
+4. **Performance bottlenecks** - Database connection pooling needed
+
+**Next Phase** (Production Readiness):
+1. **Testing framework** - Jest, React Testing Library, Playwright setup
+2. **Docker containerization** - Production deployment preparation
+3. **Monitoring integration** - Sentry, metrics, health checks
+4. **Security hardening** - Rate limiting, token encryption
+
+See documentation in `docs/` for detailed implementation guidance and task breakdowns.

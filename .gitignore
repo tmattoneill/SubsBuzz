@@ -97,3 +97,6 @@ backend/__pycache__/
 *.pid
 *.tar
 docker-compose.override.yml
+
+# === Development Planning & Documentation ===
+docs/
