@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/lib/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Dashboard from "@/pages/dashboard";
 import History from "@/pages/history";
 import Favorites from "@/pages/favorites";
@@ -31,22 +32,24 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider 
-        attribute="class" 
-        defaultTheme="system" 
-        enableSystem={true}
-        storageKey="theme-mode"
-        disableTransitionOnChange={true}
-      >
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="system" 
+          enableSystem={true}
+          storageKey="theme-mode"
+          disableTransitionOnChange={true}
+        >
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

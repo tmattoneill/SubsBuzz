@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api, tokenManager, ApiError } from './api-client';
+import { useToast } from '../hooks/use-toast';
 
 // Simple user interface without Firebase dependency
 interface User {
@@ -33,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Check for existing auth on mount and handle OAuth callback
   useEffect(() => {
@@ -41,6 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (urlParams.get('connected') === 'gmail') {
       // Remove the parameter and show success message
       window.history.replaceState({}, document.title, window.location.pathname);
+      toast({
+        title: "Connected to Gmail",
+        description: "Your Gmail account has been successfully connected.",
+      });
       // The OAuth callback already handled token storage, so just check auth status
       setTimeout(checkAuthStatus, 500); // Small delay to ensure backend has processed
     } else {
@@ -50,29 +57,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkAuthStatus = async () => {
     try {
+      const existingToken = tokenManager.getAccessToken();
+      if (!existingToken) {
+        setIsLoading(false);
+        return;
+      }
+
       // Check if user is already authenticated by calling validation endpoint
-      const userResponse = await fetch('/api/auth/validate', {
-        method: 'GET',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('subsbuzz_token')}`
-        }
-      });
+      const data = await api.get<{
+        valid: boolean;
+        uid?: string;
+        email?: string;
+      }>('/api/auth/validate');
       
-      if (userResponse.ok) {
-        const data = await userResponse.json();
-        if (data.valid) {
-          setUser({
-            uid: data.uid,
-            email: data.email,
-            displayName: null,
-            photoURL: null
-          });
-          setToken(localStorage.getItem('subsbuzz_token'));
-        }
+      if (data.valid && data.uid) {
+        setUser({
+          uid: data.uid,
+          email: data.email || null,
+          displayName: null,
+          photoURL: null
+        });
+        setToken(existingToken);
+      } else {
+        // Invalid token, clear it
+        tokenManager.clearTokens();
       }
     } catch (error) {
-      console.log('No existing auth found');
+      console.log('No existing auth found:', error);
+      tokenManager.clearTokens();
     } finally {
       setIsLoading(false);
     }
@@ -83,29 +95,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       setIsLoading(true);
       
-      // First, we need to get a temporary token to access the gmail-access endpoint
-      // For now, we'll use Firebase auth to get a token, then use that to get Gmail access
-      
       // Get Gmail auth URL from backend - no authentication required for new users
-      const response = await fetch('/api/auth/gmail-access', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({})
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to get auth URL');
-      }
-      
-      const { auth_url } = await response.json();
+      const data = await api.post<{ auth_url: string }>('/api/auth/gmail-access', {});
       
       // Redirect to Google OAuth
-      window.location.href = auth_url;
+      window.location.href = data.auth_url;
     } catch (error) {
       console.error('Error signing in:', error);
-      setError('Failed to sign in with Google. Please try again.');
+      const apiError = error as ApiError;
+      setError(apiError.message || 'Failed to sign in with Google. Please try again.');
+      toast({
+        title: "Authentication Error",
+        description: apiError.message || 'Failed to sign in with Google. Please try again.',
+        variant: "destructive",
+      });
       setIsLoading(false);
     }
   };
@@ -115,22 +118,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       
       // Call backend logout endpoint
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('subsbuzz_token')}`
-        }
-      });
+      await api.post('/api/auth/logout', {});
       
-      // Clear local storage
-      localStorage.removeItem('subsbuzz_token');
-      
-      setUser(null);
-      setToken(null);
     } catch (error) {
       console.error('Error signing out:', error);
-      setError('Failed to sign out. Please try again.');
+      const apiError = error as ApiError;
+      setError(apiError.message || 'Failed to sign out. Please try again.');
+      toast({
+        title: "Sign Out Error",
+        description: apiError.message || 'Failed to sign out. Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      // Always clear tokens and user state, even if the API call fails
+      tokenManager.clearTokens();
+      setUser(null);
+      setToken(null);
     }
   };
 

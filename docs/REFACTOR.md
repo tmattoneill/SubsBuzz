@@ -355,3 +355,256 @@ SubsBuzz microservices architecture has **exceeded initial objectives** and demo
 ---
 
 **🚀 Status**: Production-ready microservices architecture with complete end-to-end validation successful.
+
+## 🎯 Phase 3A: Frontend Robustness & Microservices Integration
+
+### 📊 Frontend Analysis Results (July 5, 2025)
+
+#### Current Architecture Assessment
+
+**Strengths**:
+- ✅ Modern React 18 with TypeScript
+- ✅ TanStack Query for server state management
+- ✅ Comprehensive UI component library (Shadcn/ui)
+- ✅ Clean routing with Wouter
+- ✅ Theme system with dark/light modes
+- ✅ Well-structured component organization
+
+**Critical Gaps Identified**:
+- ❌ **No error boundaries** - Application vulnerable to component crashes
+- ❌ **Mixed authentication** - Inconsistent use of cookies vs JWT tokens
+- ❌ **Limited error recovery** - Basic toast notifications only
+- ❌ **No offline support** - Network failures cause poor UX
+- ❌ **Incomplete loading states** - Missing skeleton screens
+- ❌ **Type safety gaps** - Some `any` types, no runtime validation
+- ❌ **No request/response interceptors** - Manual token handling
+- ❌ **Hard-coded API endpoints** - Not configured for microservices
+
+### 🛡️ Robustness Improvement Plan
+
+#### 1. **Global Error Handling System** 🔥 CRITICAL
+**Implementation**:
+```typescript
+// components/ErrorBoundary.tsx
+- Catch all component errors
+- Log to monitoring service
+- Fallback UI with retry
+- User-friendly error messages
+```
+
+**Coverage**:
+- Wrap entire app in error boundary
+- Component-level boundaries for critical sections
+- Async error handling for API calls
+- Unhandled promise rejection capture
+
+#### 2. **Centralized API Client** 🔥 CRITICAL
+**New File**: `lib/api-client.ts`
+```typescript
+// Features to implement:
+- Axios instance with base URL configuration
+- Request interceptor for JWT tokens
+- Response interceptor for error handling
+- Automatic retry with exponential backoff
+- Request cancellation support
+- TypeScript generics for type safety
+```
+
+**Configuration**:
+```typescript
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+```
+
+#### 3. **Authentication Standardization** 🔥 HIGH PRIORITY
+**Changes Required**:
+- Remove cookie-based authentication
+- Standardize on JWT Bearer tokens
+- Implement token refresh mechanism
+- Add token expiry handling
+- Secure token storage (HttpOnly cookies or secure localStorage)
+
+**Updated Flow**:
+1. User authenticates → Receive JWT + refresh token
+2. Store tokens securely
+3. Auto-inject JWT in all API requests
+4. Handle 401 responses → Refresh token
+5. Retry failed request with new token
+
+#### 4. **Network Resilience** 🔧 MEDIUM PRIORITY
+**Features**:
+```typescript
+// lib/network-monitor.ts
+- Detect online/offline status
+- Queue failed requests when offline
+- Retry queue when connection restored
+- Optimistic updates for better UX
+- Background sync for critical data
+```
+
+**React Query Configuration**:
+```typescript
+{
+  retry: (failureCount, error) => {
+    if (error.status === 404) return false;
+    return failureCount < 3;
+  },
+  retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  staleTime: 5 * 60 * 1000, // 5 minutes
+  cacheTime: 10 * 60 * 1000, // 10 minutes
+}
+```
+
+#### 5. **Loading States & Skeleton Screens** 🎨 MEDIUM PRIORITY
+**Components to Create**:
+```
+components/ui/skeletons/
+├── DigestCardSkeleton.tsx
+├── ThematicDigestSkeleton.tsx
+├── SettingsSkeleton.tsx
+├── EmailListSkeleton.tsx
+└── CalendarSkeleton.tsx
+```
+
+**Implementation Pattern**:
+```typescript
+const { data, isLoading, error } = useQuery(...);
+
+if (isLoading) return <DigestCardSkeleton />;
+if (error) return <ErrorState error={error} />;
+return <DigestCard data={data} />;
+```
+
+#### 6. **Type Safety Enhancements** 🛡️ HIGH PRIORITY
+**Zod Schema Validation**:
+```typescript
+// lib/schemas.ts
+import { z } from 'zod';
+
+export const DigestSchema = z.object({
+  id: z.number(),
+  date: z.string(),
+  emailsProcessed: z.number(),
+  emails: z.array(EmailSchema),
+});
+
+// Runtime validation
+const validatedData = DigestSchema.parse(apiResponse);
+```
+
+**API Response Types**:
+```typescript
+interface ApiResponse<T> {
+  data: T;
+  error?: ApiError;
+  meta?: {
+    pagination?: PaginationMeta;
+  };
+}
+
+interface ApiError {
+  code: string;
+  message: string;
+  details?: Record<string, any>;
+}
+```
+
+### 🔌 Microservices Integration Plan
+
+#### API Endpoint Migration
+**Current (Monolithic)** → **New (Microservices)**:
+```
+http://localhost:5500/api/* → http://localhost:8000/api/*
+```
+
+**Endpoints to Update**:
+1. `/api/auth/gmail-access` - OAuth initiation
+2. `/api/auth/callback` - OAuth callback
+3. `/api/auth/validate` - Token validation
+4. `/api/digest/*` - All digest endpoints
+5. `/api/monitored-emails/*` - Email management
+6. `/api/settings/*` - User settings
+
+#### Environment Configuration
+```env
+# client/.env.development
+VITE_API_URL=http://localhost:8000
+VITE_APP_URL=http://localhost:5500
+```
+
+#### JWT Token Flow
+1. **Login/OAuth**: API Gateway returns JWT + refresh token
+2. **Storage**: Secure storage in httpOnly cookie or encrypted localStorage
+3. **Usage**: Automatic injection via axios interceptor
+4. **Refresh**: Handle token expiry gracefully
+5. **Logout**: Clear tokens and redirect
+
+### 📋 Implementation Priority
+
+#### Phase 1: Critical Foundation (Week 1)
+1. ✅ Create centralized API client with interceptors
+2. ✅ Implement global error boundary
+3. ✅ Standardize JWT authentication
+4. ✅ Update AuthContext for microservices
+
+#### Phase 2: Robustness (Week 2)
+5. ✅ Add Zod schemas for validation
+6. ✅ Implement skeleton loading states
+7. ✅ Add network resilience features
+8. ✅ Comprehensive error handling
+
+#### Phase 3: Integration (Week 3)
+9. ✅ Migrate all API endpoints
+10. ✅ Test complete user journeys
+11. ✅ Performance optimization
+12. ✅ Production deployment prep
+
+### 🧪 Testing Strategy
+
+**Unit Tests**:
+- Error boundary behavior
+- API client interceptors
+- Authentication flows
+- Network resilience
+
+**Integration Tests**:
+- Complete user journeys
+- OAuth flow end-to-end
+- API error scenarios
+- Offline/online transitions
+
+**E2E Tests**:
+- New user registration
+- Digest generation and viewing
+- Settings management
+- Historical browsing
+
+### 📈 Success Metrics
+
+**Technical Metrics**:
+- 0 unhandled errors in production
+- < 3s perceived load time
+- 100% API calls with proper error handling
+- Graceful offline/online transitions
+
+**User Experience**:
+- Clear error messages
+- Smooth loading states
+- No data loss during network issues
+- Consistent authentication experience
+
+### 🎯 Outcome
+
+Upon completion of Phase 3A, the SubsBuzz frontend will be:
+- **Production-grade robust** with comprehensive error handling
+- **Fully integrated** with the microservices backend
+- **Type-safe** with runtime validation
+- **Network resilient** with offline support
+- **User-friendly** with proper loading and error states
+
+This positions SubsBuzz for reliable production deployment with excellent user experience and maintainability.
