@@ -161,12 +161,14 @@ const retryConfig = {
 export const api = {
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await apiClient.get<ApiResponse<T>>(url, config);
-    return response.data.data;
+    // Handle both wrapped ({ data: T }) and direct (T) responses
+    return response.data.data !== undefined ? response.data.data : response.data as T;
   },
 
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response = await apiClient.post<ApiResponse<T>>(url, data, config);
-    return response.data.data;
+    // Handle both wrapped ({ data: T }) and direct (T) responses
+    return response.data.data !== undefined ? response.data.data : response.data as T;
   },
 
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {

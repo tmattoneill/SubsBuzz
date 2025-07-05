@@ -224,7 +224,7 @@ async def gmail_access(request: GmailAccessRequest):
         # Build OAuth authorization URL
         auth_params = {
             "client_id": settings.GOOGLE_CLIENT_ID,
-            "redirect_uri": f"{settings.API_GATEWAY_URL}/auth/callback",
+            "redirect_uri": settings.OAUTH_REDIRECT_URI,
             "response_type": "code",
             "scope": "https://www.googleapis.com/auth/gmail.readonly openid email profile",
             "access_type": "offline",
@@ -264,7 +264,7 @@ async def oauth_callback(request: OAuthCallbackRequest):
             "code": request.code,
             "client_id": settings.GOOGLE_CLIENT_ID,
             "client_secret": settings.GOOGLE_CLIENT_SECRET,
-            "redirect_uri": f"{settings.UI_URL}/auth/callback",
+            "redirect_uri": settings.OAUTH_REDIRECT_URI,
             "grant_type": "authorization_code"
         }
         
@@ -304,15 +304,15 @@ async def oauth_callback(request: OAuthCallbackRequest):
             oauth_data = {
                 "uid": user_info["id"],  # Use Google's user ID as UID
                 "email": user_info["email"],
-                "access_token": tokens["access_token"],
-                "refresh_token": tokens.get("refresh_token"),
-                "expires_at": None,  # Will be calculated by Data Server
+                "accessToken": tokens["access_token"],
+                "refreshToken": tokens.get("refresh_token"),
+                "expiresAt": None,  # Will be calculated by Data Server
                 "scope": "https://www.googleapis.com/auth/gmail.readonly"
             }
             
             # Store tokens via Data Server
             data_server_response = await client.post(
-                f"{settings.DATA_SERVER_URL}/api/oauth-tokens",
+                f"{settings.DATA_SERVER_URL}/api/storage/oauth-tokens",
                 json=oauth_data,
                 headers={"x-internal-api-key": settings.INTERNAL_API_SECRET}
             )

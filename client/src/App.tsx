@@ -14,6 +14,7 @@ import DigestView from "@/pages/digest";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
+import AuthCallback from "@/pages/auth-callback";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/favorites" component={Favorites} />
       <Route path="/settings" component={Settings} />
       <Route path="/login" component={Login} />
+      <Route path="/auth/callback" component={AuthCallback} />
       <Route component={NotFound} />
     </Switch>
   );

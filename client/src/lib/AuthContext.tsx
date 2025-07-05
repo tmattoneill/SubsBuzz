@@ -16,6 +16,7 @@ interface AuthContextType {
   error: string | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
   token: string | null;
 }
 
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
   error: null,
   signIn: async () => {},
   signOut: async () => {},
+  refreshAuth: async () => {},
   token: null
 });
 
@@ -137,12 +139,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshAuth = async () => {
+    await checkAuthStatus();
+  };
+
   const value = {
     user,
     isLoading,
     error,
     signIn,
     signOut,
+    refreshAuth,
     token
   };
 

@@ -4,7 +4,12 @@ Configuration settings for the API Gateway service
 
 import os
 from typing import List
-from pydantic import BaseSettings, validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -33,6 +38,7 @@ class Settings(BaseSettings):
     # Google OAuth Configuration
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    OAUTH_REDIRECT_URI: str = os.getenv("OAUTH_REDIRECT_URI", "http://127.0.0.1:5500/auth/callback")
     
     # UI Configuration
     UI_URL: str = os.getenv("UI_URL", "http://localhost:5500")
@@ -42,7 +48,7 @@ class Settings(BaseSettings):
     EMAIL_WORKER_URL: str = os.getenv("EMAIL_WORKER_URL", "http://localhost:5555")
     API_GATEWAY_URL: str = os.getenv("API_GATEWAY_URL", "http://localhost:8000")
     
-    # CORS Origins
+    # CORS Origins (default values if not set in env)
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:5500", 
@@ -50,7 +56,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5500"
     ]
     
-    # Trusted Hosts
+    # Trusted Hosts (default values if not set in env)
     ALLOWED_HOSTS: List[str] = ["*"]
     
     # Rate Limiting
@@ -60,17 +66,6 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     
-    @validator('CORS_ORIGINS', pre=True)
-    def parse_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
-    
-    @validator('ALLOWED_HOSTS', pre=True) 
-    def parse_allowed_hosts(cls, v):
-        if isinstance(v, str):
-            return [host.strip() for host in v.split(",")]
-        return v
     
     @property
     def firebase_credentials(self) -> dict:
@@ -88,9 +83,9 @@ class Settings(BaseSettings):
             "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{self.FIREBASE_CLIENT_EMAIL}"
         }
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "case_sensitive": True
+    }
 
 
 # Global settings instance
