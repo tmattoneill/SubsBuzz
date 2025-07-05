@@ -43,7 +43,7 @@ export default function Dashboard() {
   });
 
   // Create digest summary cards from the history data
-  const digestCards: DigestSummaryCard[] = digestHistory.map((digest: EmailDigest) => ({
+  const digestCards: DigestSummaryCard[] = (Array.isArray(digestHistory) ? digestHistory : []).map((digest: EmailDigest) => ({
     id: digest.id,
     date: digest.date,
     emailsProcessed: digest.emailsProcessed,
