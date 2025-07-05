@@ -37,8 +37,17 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
   console.log(`📧 Creating digest for user ${user_id} with ${emails.length} emails`);
   
   try {
+    // Transform incoming email data to EmailInput format
+    const transformedEmails = emails.map((email: any) => ({
+      sender: email.sender,
+      subject: email.subject,
+      content: email.content,
+      receivedAt: new Date(email.received_at || email.receivedAt), // Handle both snake_case and camelCase
+      originalLink: email.original_link || email.originalLink
+    }));
+    
     // Generate digest using existing OpenAI service
-    const digest = await generateDigest(user_id, emails);
+    const digest = await generateDigest(user_id, transformedEmails);
     
     res.status(201).json(apiResponse(digest, 'Digest created successfully'));
     
