@@ -5,8 +5,10 @@
  * Runs tests systematically and provides comprehensive reporting
  */
 
-import 'dotenv/config';
-import { runDatabaseTests } from './test-database.js';
+// Load environment variables using custom loader
+import { loadDevEnv } from '../lib/env.js';
+loadDevEnv();
+import { runDatabaseTestsSimple as runDatabaseTests } from './test-database-simple.js';
 import { runDataServerTests } from './test-data-server.js';
 import { runAPIGatewayTests } from './test-api-gateway.js';
 import { runIntegrationTests } from './test-integration.js';

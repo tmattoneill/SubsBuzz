@@ -5,8 +5,9 @@
  * Tests the API Gateway HTTP endpoints, JWT authentication, and service proxying
  */
 
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env.dev' });
+// Load environment variables using custom loader
+import { loadDevEnv } from '../lib/env.js';
+loadDevEnv();
 // Using native fetch available in Node.js 18+
 const fetch = globalThis.fetch;
 
