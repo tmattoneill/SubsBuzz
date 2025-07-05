@@ -70,6 +70,18 @@ class DataServerClient:
             )
             response.raise_for_status()
             return response.json()
+    
+    async def patch(self, endpoint: str, data: Dict[Any, Any]) -> Dict[Any, Any]:
+        """PATCH request to data server"""
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(
+                f"{self.base_url}{endpoint}",
+                json=data,
+                headers=self.headers,
+                timeout=60.0
+            )
+            response.raise_for_status()
+            return response.json()
 
 data_server = DataServerClient()
 
@@ -178,8 +190,22 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
             print(f"🔑 No OAuth token found for user {user_id}")
             return {'emails_processed': 0, 'digest_created': False, 'error': 'No OAuth token'}
         
-        # Fetch emails from Gmail
-        emails = await gmail_client.fetch_emails(active_emails, oauth_data)
+        # Create callback to save refreshed tokens
+        async def save_token_callback(refreshed_token_data):
+            """Save refreshed token back to database"""
+            try:
+                update_response = await data_server.patch(f'/api/storage/oauth-token/{user_id}', {
+                    'accessToken': refreshed_token_data['access_token'],
+                    'refreshToken': refreshed_token_data.get('refresh_token'),
+                    'expiresAt': refreshed_token_data.get('expires_at')
+                })
+                if not update_response.get('success'):
+                    print(f"⚠️ Failed to save refreshed token for user {user_id}")
+            except Exception as e:
+                print(f"❌ Error saving refreshed token for user {user_id}: {e}")
+
+        # Fetch emails from Gmail with token refresh callback
+        emails = await gmail_client.fetch_emails(active_emails, oauth_data, save_token_callback)
         
         if not emails:
             print(f"📭 No new emails found for user {user_id}")
@@ -257,12 +283,15 @@ async def _refresh_oauth_tokens_async():
                 refreshed = await gmail_client.refresh_oauth_token(token_data)
                 
                 if refreshed:
-                    # Update token in database
-                    await data_server.post(f'/api/storage/oauth-token/{token_data["uid"]}/update', {
-                        'access_token': refreshed['access_token'],
-                        'refresh_token': refreshed.get('refresh_token'),
-                        'expires_at': refreshed.get('expires_at')
+                    # Update token in database using correct endpoint and field names
+                    update_response = await data_server.patch(f'/api/storage/oauth-token/{token_data["uid"]}', {
+                        'accessToken': refreshed['access_token'],
+                        'refreshToken': refreshed.get('refresh_token'),
+                        'expiresAt': refreshed.get('expires_at')
                     })
+                    
+                    if update_response.get('success'):
+                        print(f"✅ Updated token for {token_data['email']} in database")
                     
                     results.append({
                         'uid': token_data['uid'],

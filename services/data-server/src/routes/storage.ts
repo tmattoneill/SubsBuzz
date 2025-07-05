@@ -278,9 +278,16 @@ router.get('/oauth-tokens/expiring', asyncHandler(async (req: Request, res: Resp
     return res.status(400).json(apiError('before parameter is required', 'MISSING_PARAMETER'));
   }
   
-  // This would need to be implemented in the storage layer
-  // For now, return empty array
-  res.json(apiResponse([]));
+  try {
+    const beforeDate = new Date(before as string);
+    const expiringTokens = await storage.getExpiringOAuthTokens(beforeDate);
+    
+    console.log(`🔍 Found ${expiringTokens.length} tokens expiring before ${beforeDate.toISOString()}`);
+    res.json(apiResponse(expiringTokens));
+  } catch (error: any) {
+    console.error('Error getting expiring tokens:', error);
+    res.status(500).json(apiError(`Failed to get expiring tokens: ${error.message}`, 'EXPIRING_TOKENS_FAILED'));
+  }
 }));
 
 // ==================== THEMATIC DIGESTS ====================
@@ -426,9 +433,15 @@ router.get('/theme-source-emails/:thematicSectionId', asyncHandler(async (req: R
 
 // Get users with monitored emails (for email worker)
 router.get('/users-with-monitored-emails', asyncHandler(async (req: Request, res: Response) => {
-  // This would need to be implemented in the storage layer
-  // For now, return empty array
-  res.json(apiResponse([]));
+  try {
+    const users = await storage.getUsersWithMonitoredEmails();
+    
+    console.log(`📊 Found ${users.length} users with monitored emails`);
+    res.json(apiResponse(users));
+  } catch (error: any) {
+    console.error('Error getting users with monitored emails:', error);
+    res.status(500).json(apiError(`Failed to get users: ${error.message}`, 'USERS_FETCH_FAILED'));
+  }
 }));
 
 export { router as storageRoutes };

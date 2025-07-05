@@ -101,7 +101,7 @@ class GmailClient:
             print(f"❌ Error refreshing token for {oauth_data.get('email', 'unknown')}: {e}")
             return None
     
-    async def fetch_emails(self, monitored_senders: List[str], oauth_data: Dict[str, Any]) -> List[ParsedEmail]:
+    async def fetch_emails(self, monitored_senders: List[str], oauth_data: Dict[str, Any], save_refreshed_token_callback=None) -> List[ParsedEmail]:
         """
         Fetch emails from Gmail API for monitored senders
         Extracted from server/gmail.ts fetchEmails function
@@ -124,6 +124,16 @@ class GmailClient:
                 print("🔄 Refreshing expired token...")
                 request = Request()
                 credentials.refresh(request)
+                
+                # Save refreshed token back to database if callback provided
+                if save_refreshed_token_callback:
+                    refreshed_token_data = {
+                        'access_token': credentials.token,
+                        'refresh_token': credentials.refresh_token,
+                        'expires_at': credentials.expiry.isoformat() if credentials.expiry else None
+                    }
+                    await save_refreshed_token_callback(refreshed_token_data)
+                    print(f"✅ Saved refreshed token for {oauth_data.get('email', 'unknown')}")
             
             # Build Gmail service
             service = build('gmail', 'v1', credentials=credentials)

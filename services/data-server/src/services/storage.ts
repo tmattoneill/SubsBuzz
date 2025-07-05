@@ -70,6 +70,8 @@ export interface IStorage {
   getOAuthTokenByUid(uid: string): Promise<OAuthToken | undefined>;
   getOAuthTokenByEmail(email: string): Promise<OAuthToken | undefined>;
   updateOAuthToken(uid: string, updates: Partial<OAuthToken>): Promise<OAuthToken | undefined>;
+  getExpiringOAuthTokens(beforeDate: Date): Promise<OAuthToken[]>;
+  getUsersWithMonitoredEmails(): Promise<{ id: string; email: string; }[]>;
   
   // Thematic digests
   getThematicDigests(userId: string): Promise<ThematicDigest[]>;
@@ -373,16 +375,61 @@ export class DatabaseStorage implements IStorage {
     const existingToken = await this.getOAuthTokenByUid(uid);
     if (!existingToken) return undefined;
     
+    // Convert date strings to Date objects for database
+    const processedUpdates = { ...updates };
+    if (processedUpdates.expiresAt && typeof processedUpdates.expiresAt === 'string') {
+      processedUpdates.expiresAt = new Date(processedUpdates.expiresAt);
+    }
+    if (processedUpdates.createdAt && typeof processedUpdates.createdAt === 'string') {
+      processedUpdates.createdAt = new Date(processedUpdates.createdAt);
+    }
+    
     const results = await db
       .update(oauthTokens)
       .set({
-        ...updates,
+        ...processedUpdates,
         updatedAt: new Date()
       })
       .where(eq(oauthTokens.uid, uid))
       .returning();
     
     return results.length > 0 ? results[0] : undefined;
+  }
+
+  async getExpiringOAuthTokens(beforeDate: Date): Promise<OAuthToken[]> {
+    try {
+      const database = this.ensureDb();
+      return await database.select()
+        .from(oauthTokens)
+        .where(and(
+          sql`${oauthTokens.expiresAt} IS NOT NULL`,
+          sql`${oauthTokens.expiresAt} <= ${beforeDate.toISOString()}`
+        ))
+        .orderBy(oauthTokens.expiresAt);
+    } catch (error) {
+      console.error('Error getting expiring OAuth tokens:', error);
+      return [];
+    }
+  }
+
+  async getUsersWithMonitoredEmails(): Promise<{ id: string; email: string; }[]> {
+    try {
+      const database = this.ensureDb();
+      // Get distinct users who have active monitored emails
+      const results = await database.select({
+        id: users.id,
+        email: users.email
+      })
+      .from(users)
+      .innerJoin(monitoredEmails, eq(users.id, monitoredEmails.userId))
+      .where(eq(monitoredEmails.active, true))
+      .groupBy(users.id, users.email);
+      
+      return results;
+    } catch (error) {
+      console.error('Error getting users with monitored emails:', error);
+      return [];
+    }
   }
 
   // Thematic digest methods
