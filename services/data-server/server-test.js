@@ -6,7 +6,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.DATA_SERVER_PORT || 3001;
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/subsbuzz_dev';
 
 // Initialize database
