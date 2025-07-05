@@ -5,9 +5,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { asyncHandler } from '../middleware/error.js';
-import { generateDigest, getLatestDigest, getLatestThematicDigest } from '../services/openai.js';
-import { storage } from '../services/storage.js';
+import { asyncHandler } from '../middleware/error';
+import { generateDigest, getLatestDigest, getLatestThematicDigest } from '../services/openai';
+import { storage } from '../services/storage';
 
 const router = Router();
 

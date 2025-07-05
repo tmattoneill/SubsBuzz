@@ -31,7 +31,7 @@ import {
   type InsertThemeSourceEmail,
   type FullThematicDigest
 } from '../../../../shared/schema.js';
-import { db } from '../db.js';
+import { db } from '../db';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { createHash } from 'crypto';
 

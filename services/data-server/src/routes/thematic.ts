@@ -5,8 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { asyncHandler } from '../middleware/error.js';
-import { storage } from '../services/storage.js';
+import { asyncHandler } from '../middleware/error';
+import { storage } from '../services/storage';
 
 const router = Router();
 

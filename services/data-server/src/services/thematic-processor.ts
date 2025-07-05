@@ -5,8 +5,8 @@
  * Handles the 3-stage thematic digest generation pipeline
  */
 
-import { storage } from './storage.js';
-import { analyzeEmailForThemes, ProcessedEmail } from './openai.js';
+import { storage } from './storage';
+import { analyzeEmailForThemes, ProcessedEmail } from './openai';
 import { 
   InsertThematicDigest, 
   InsertThematicSection, 

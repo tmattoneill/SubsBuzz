@@ -5,7 +5,7 @@
  */
 
 import OpenAI from 'openai';
-import { storage } from './storage.js';
+import { storage } from './storage';
 import { InsertEmailDigest, InsertDigestEmail } from '../../../../shared/schema.js';
 
 // Initialize OpenAI client
