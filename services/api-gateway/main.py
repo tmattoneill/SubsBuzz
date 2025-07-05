@@ -156,10 +156,10 @@ async def root():
 
 # ==================== INCLUDE ROUTERS ====================
 
-app.include_router(auth_routes.router, prefix="/auth", tags=["Authentication"])
-app.include_router(digest.router, prefix="/digest", tags=["Digests"])
-app.include_router(monitored_emails.router, prefix="/monitored-emails", tags=["Monitored Emails"])
-app.include_router(settings_routes.router, prefix="/settings", tags=["Settings"])
+app.include_router(auth_routes.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(digest.router, prefix="/api/digest", tags=["Digests"])
+app.include_router(monitored_emails.router, prefix="/api/monitored-emails", tags=["Monitored Emails"])
+app.include_router(settings_routes.router, prefix="/api/settings", tags=["Settings"])
 
 # Add callback route at root level (to match frontend expectation)
 app.include_router(auth_routes.router, prefix="", tags=["OAuth Callback"])

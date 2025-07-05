@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Dict, Any
 from pydantic import BaseModel
 
-from .config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

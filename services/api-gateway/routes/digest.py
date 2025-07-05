@@ -9,9 +9,9 @@ import httpx
 from fastapi import APIRouter, HTTPException, Depends, Query, status
 from pydantic import BaseModel
 
-from .auth import get_current_user
-from ..config import settings
-from ..auth import create_internal_api_headers
+from auth import get_current_user
+from config import settings
+from auth import create_internal_api_headers
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

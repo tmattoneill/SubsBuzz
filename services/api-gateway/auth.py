@@ -10,7 +10,8 @@ from typing import Optional, Dict, Any
 import jwt
 import firebase_admin
 from firebase_admin import auth as firebase_auth, credentials
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends, Request
+from fastapi.security import HTTPBearer
 
 from config import settings
 
@@ -170,3 +171,41 @@ def create_internal_api_headers() -> Dict[str, str]:
         "x-internal-api-key": settings.INTERNAL_API_SECRET,
         "Content-Type": "application/json"
     }
+
+
+# Bearer token security scheme
+security = HTTPBearer()
+
+
+async def get_current_user(request: Request, token: HTTPBearer = Depends(security)) -> Dict[str, Any]:
+    """
+    Get current user from JWT token
+    """
+    try:
+        # Extract token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing or invalid authorization header"
+            )
+        
+        token_value = auth_header.split(" ")[1]
+        
+        # Verify JWT token
+        payload = verify_jwt_token(token_value)
+        
+        return {
+            "uid": payload["uid"],
+            "email": payload["email"],
+            "email_verified": payload.get("email_verified", False)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting current user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed"
+        )
