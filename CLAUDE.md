@@ -191,6 +191,9 @@ This project includes comprehensive development planning documentation:
 - **`docs/PRIORITY.md`** - High-priority enhancements for production readiness (testing, deployment, monitoring)
 - **`docs/DEVELOPMENT.md`** - Feature development roadmap (real-time updates, PWA, AI enhancements)
 - **`docs/DEPLOY.md`** - Production deployment strategy and workflow
+- **`docs/OAUTH20.md`** - Guide to implementing OAuth 2.0 for Google Mail on the backend
+- **`docs/CHECKPOINT.md`** - Current snapshot of development and next steps. To be read when a new session is created.
+- **`REFACTOR.md`** - Our project guidelines for the refactor from a monolithic application to scalable micro-services.
 
 ### Current Development Status
 
