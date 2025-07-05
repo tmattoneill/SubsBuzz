@@ -12,7 +12,7 @@ import firebase_admin
 from firebase_admin import auth as firebase_auth, credentials
 from fastapi import HTTPException, status
 
-from .config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -12,8 +12,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 import httpx
 
-from ..auth import verify_firebase_token, create_jwt_token, verify_jwt_token
-from ..config import settings
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from auth import verify_firebase_token, create_jwt_token, verify_jwt_token
+from config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
