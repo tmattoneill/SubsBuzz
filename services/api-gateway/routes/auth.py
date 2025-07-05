@@ -4,10 +4,13 @@ Authentication routes for the API Gateway
 
 import logging
 from typing import Dict, Any
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
+import httpx
 
 from ..auth import verify_firebase_token, create_jwt_token, verify_jwt_token
 from ..config import settings
@@ -35,6 +38,24 @@ class UserResponse(BaseModel):
     """Response model for user information"""
     success: bool
     user: Dict[str, Any]
+
+
+class GmailAccessRequest(BaseModel):
+    """Request model for Gmail access URL"""
+    pass
+
+
+class GmailAccessResponse(BaseModel):
+    """Response model for Gmail access URL"""
+    success: bool
+    auth_url: str
+    message: str
+
+
+class OAuthCallbackRequest(BaseModel):
+    """Request model for OAuth callback"""
+    code: str
+    state: str
 
 
 # Dependency to get current user
@@ -177,3 +198,220 @@ async def validate_token(
         "uid": current_user["uid"],
         "email": current_user["email"]
     }
+
+
+@router.post("/gmail-access", response_model=GmailAccessResponse)
+async def gmail_access(request: GmailAccessRequest):
+    """
+    Generate Gmail OAuth authorization URL for user
+    
+    This endpoint:
+    1. Creates a Gmail OAuth authorization URL
+    2. Includes offline access for refresh tokens
+    3. Returns URL for frontend to redirect user
+    
+    Note: This endpoint doesn't require authentication since it's used for initial signup
+    """
+    try:
+        # Generate a temporary state for new users
+        import uuid
+        temp_state = str(uuid.uuid4())
+        
+        # Build OAuth authorization URL
+        auth_params = {
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "redirect_uri": f"{settings.API_GATEWAY_URL}/auth/callback",
+            "response_type": "code",
+            "scope": "https://www.googleapis.com/auth/gmail.readonly openid email profile",
+            "access_type": "offline",
+            "prompt": "consent",
+            "state": temp_state  # Use temporary state for new users
+        }
+        
+        auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(auth_params)}"
+        
+        return GmailAccessResponse(
+            success=True,
+            auth_url=auth_url,
+            message="OAuth URL generated successfully"
+        )
+        
+    except Exception as e:
+        logger.error(f"Gmail access URL generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate Gmail access URL"
+        )
+
+
+@router.post("/oauth-callback")
+async def oauth_callback(request: OAuthCallbackRequest):
+    """
+    Handle OAuth callback from Google
+    
+    This endpoint:
+    1. Exchanges authorization code for access/refresh tokens
+    2. Stores tokens in database via Data Server
+    3. Creates/updates user session
+    """
+    try:
+        # Exchange authorization code for tokens
+        token_data = {
+            "code": request.code,
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
+            "redirect_uri": f"{settings.UI_URL}/auth/callback",
+            "grant_type": "authorization_code"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            # Exchange code for tokens
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data=token_data
+            )
+            
+            if not token_response.is_success:
+                logger.error(f"Token exchange failed: {token_response.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to exchange authorization code"
+                )
+            
+            tokens = token_response.json()
+            
+            # Get user info from Google
+            user_info_response = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {tokens['access_token']}"}
+            )
+            
+            if not user_info_response.is_success:
+                logger.error(f"User info fetch failed: {user_info_response.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to fetch user information"
+                )
+            
+            user_info = user_info_response.json()
+            
+            # Store OAuth tokens in database via Data Server
+            # Use email as UID for new users (we'll use Google's user ID as the UID)
+            oauth_data = {
+                "uid": user_info["id"],  # Use Google's user ID as UID
+                "email": user_info["email"],
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens.get("refresh_token"),
+                "expires_at": None,  # Will be calculated by Data Server
+                "scope": "https://www.googleapis.com/auth/gmail.readonly"
+            }
+            
+            # Store tokens via Data Server
+            data_server_response = await client.post(
+                f"{settings.DATA_SERVER_URL}/api/oauth-tokens",
+                json=oauth_data,
+                headers={"x-internal-api-key": settings.INTERNAL_API_SECRET}
+            )
+            
+            if not data_server_response.is_success:
+                logger.error(f"Token storage failed: {data_server_response.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to store OAuth tokens"
+                )
+            
+            # Create JWT token for user
+            jwt_token = create_jwt_token({
+                "uid": user_info["id"],
+                "email": user_info["email"],
+                "email_verified": user_info.get("verified_email", False)
+            })
+            
+            return {
+                "success": True,
+                "message": "Gmail connected successfully",
+                "token": jwt_token,
+                "user": {
+                    "uid": user_info["id"],
+                    "email": user_info["email"],
+                    "name": user_info.get("name"),
+                    "picture": user_info.get("picture"),
+                    "email_verified": user_info.get("verified_email", False)
+                }
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OAuth callback failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="OAuth callback processing failed"
+        )
+
+
+@router.get("/callback")
+async def oauth_callback_get(code: str, state: str):
+    """
+    Handle OAuth callback from Google (GET request)
+    
+    This endpoint handles the callback when Google redirects back to our app
+    with the authorization code as query parameters.
+    """
+    try:
+        # Convert to POST request format and process
+        request_data = OAuthCallbackRequest(code=code, state=state)
+        result = await oauth_callback(request_data)
+        
+        # If successful, redirect to frontend with success parameter and token
+        if result.get("success"):
+            # Create a temporary token storage mechanism
+            # In a real implementation, you'd want to use secure httpOnly cookies
+            token = result.get("token", "")
+            return HTMLResponse(
+                content=f"""
+                <html>
+                <head><title>Gmail Connected</title></head>
+                <body>
+                <h1>Gmail Connected Successfully!</h1>
+                <p>Redirecting to your dashboard...</p>
+                <script>
+                    localStorage.setItem('subsbuzz_token', '{token}');
+                    window.location.href = '{settings.UI_URL}?connected=gmail';
+                </script>
+                </body>
+                </html>
+                """,
+                status_code=200
+            )
+        else:
+            # Show error page
+            return HTMLResponse(
+                content=f"""
+                <html>
+                <head><title>OAuth Error</title></head>
+                <body>
+                <h1>OAuth Error</h1>
+                <p>Failed to connect Gmail account.</p>
+                <p><a href="{settings.UI_URL}">Return to app</a></p>
+                </body>
+                </html>
+                """,
+                status_code=400
+            )
+    except Exception as e:
+        logger.error(f"OAuth callback GET failed: {e}")
+        # Return HTML response for browser redirect
+        return HTMLResponse(
+            content=f"""
+            <html>
+            <head><title>OAuth Error</title></head>
+            <body>
+            <h1>OAuth Error</h1>
+            <p>Failed to process OAuth callback: {str(e)}</p>
+            <p><a href="{settings.UI_URL}">Return to app</a></p>
+            </body>
+            </html>
+            """,
+            status_code=500
+        )

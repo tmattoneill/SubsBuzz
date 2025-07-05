@@ -30,9 +30,17 @@ class Settings(BaseSettings):
     FIREBASE_AUTH_URI: str = os.getenv("FIREBASE_AUTH_URI", "https://accounts.google.com/o/oauth2/auth")
     FIREBASE_TOKEN_URI: str = os.getenv("FIREBASE_TOKEN_URI", "https://oauth2.googleapis.com/token")
     
+    # Google OAuth Configuration
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    
+    # UI Configuration
+    UI_URL: str = os.getenv("UI_URL", "http://localhost:5500")
+    
     # Service URLs
     DATA_SERVER_URL: str = os.getenv("DATA_SERVER_URL", "http://localhost:3001")
     EMAIL_WORKER_URL: str = os.getenv("EMAIL_WORKER_URL", "http://localhost:5555")
+    API_GATEWAY_URL: str = os.getenv("API_GATEWAY_URL", "http://localhost:8000")
     
     # CORS Origins
     CORS_ORIGINS: List[str] = [

@@ -161,6 +161,9 @@ app.include_router(digest.router, prefix="/digest", tags=["Digests"])
 app.include_router(monitored_emails.router, prefix="/monitored-emails", tags=["Monitored Emails"])
 app.include_router(settings_routes.router, prefix="/settings", tags=["Settings"])
 
+# Add callback route at root level (to match frontend expectation)
+app.include_router(auth_routes.router, prefix="", tags=["OAuth Callback"])
+
 
 if __name__ == "__main__":
     uvicorn.run(
