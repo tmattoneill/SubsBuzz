@@ -100,4 +100,5 @@ backend/__pycache__/
 docker-compose.override.yml
 
 # === Development Planning & Documentation ===
-docs/
+# docs/ <-- will add back in when we push
+
