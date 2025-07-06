@@ -259,12 +259,40 @@ export class DatabaseStorage implements IStorage {
     const existingDigest = await this.hasDigestForDate(digestToInsert.userId, targetDate);
     
     if (existingDigest) {
-      console.log(`Digest already exists for user ${digestToInsert.userId} on date ${targetDate.toISOString().split('T')[0]}`);
-      // Return the existing digest instead of creating a duplicate
-      return await this.getDigestByDate(digestToInsert.userId, targetDate.toISOString().split('T')[0]) as EmailDigest;
+      console.log(`🔄 Overwriting existing digest for user ${digestToInsert.userId} on date ${targetDate.toISOString().split('T')[0]}`);
+      
+      // Delete existing digests for this date (maintaining one-per-day rule)
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      // Get existing digest IDs to clean up related digest_emails
+      const existingDigests = await db.select().from(emailDigests)
+        .where(and(
+          eq(emailDigests.userId, digestToInsert.userId),
+          sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
+          sql`${emailDigests.date} <= ${endOfDay.toISOString()}`
+        ));
+      
+      // Delete related digest emails first
+      for (const existingDigest of existingDigests) {
+        await db.delete(digestEmails).where(eq(digestEmails.digestId, existingDigest.id));
+      }
+      
+      // Delete existing digests for this date
+      await db.delete(emailDigests)
+        .where(and(
+          eq(emailDigests.userId, digestToInsert.userId),
+          sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
+          sql`${emailDigests.date} <= ${endOfDay.toISOString()}`
+        ));
+      
+      console.log(`✅ Cleaned up ${existingDigests.length} existing digest(s) for ${targetDate.toISOString().split('T')[0]}`);
     }
     
     const results = await db.insert(emailDigests).values(digestToInsert).returning();
+    console.log(`✅ Created new digest ${results[0].id} for user ${digestToInsert.userId} on ${targetDate.toISOString().split('T')[0]}`);
     return results[0];
   }
   
