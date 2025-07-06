@@ -251,6 +251,39 @@ async def create_digest(
         )
 
 
+@router.post("/generate", response_model=DigestResponse)
+async def generate_digest(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Generate a new digest automatically by fetching recent emails
+    """
+    user_id = current_user["uid"]
+    
+    try:
+        result = await proxy_to_data_server(
+            "POST",
+            "digest/generate",
+            json_data={
+                "user_id": user_id
+            }
+        )
+        
+        return DigestResponse(
+            success=True,
+            data=result.get("data", {})
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating digest: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate digest"
+        )
+
+
 @router.post("/thematic/process", response_model=DigestResponse)
 async def process_thematic_digest(
     request: ThematicProcessRequest,
