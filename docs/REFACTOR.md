@@ -209,7 +209,7 @@ JWT_SECRET_KEY=jwt-secret-key-for-development-testing
 # External APIs
 GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-your_secret_here
-OPENAI_API_KEY=sk-proj-WJUVVvN4plcogA0F...
+OPENAI_API_KEY=sk-proj-your_key_here
 ```
 
 ## 🚀 Service Startup Commands
