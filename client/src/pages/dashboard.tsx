@@ -35,10 +35,15 @@ export default function Dashboard() {
   }, [user, authLoading, setLocation]);
 
   // Fetch all available digest history
-  const { data: digestHistory = [], isLoading: isHistoryLoading } = useQuery({
+  const { data: digestHistoryResponse, isLoading: isHistoryLoading } = useQuery({
     queryKey: ['/api/digest/history'],
     refetchOnWindowFocus: false,
   });
+
+  // Extract digests array from response
+  const digestHistory = Array.isArray(digestHistoryResponse) 
+    ? digestHistoryResponse 
+    : (digestHistoryResponse?.digests || digestHistoryResponse?.data || []);
 
   // Fetch available digest dates for additional info
   const { data: availableDates = [] } = useQuery({
@@ -54,8 +59,8 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       toast({
-        title: "Digest Generated Successfully",
-        description: "Your new digest has been created and will appear shortly.",
+        title: "Digest Generation Started",
+        description: "Your request has been submitted. The digest will appear once processing completes.",
       });
       // Refetch digest data
       queryClient.invalidateQueries({ queryKey: ['/api/digest/history'] });
