@@ -110,6 +110,9 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
     Verify JWT token and return payload
     """
     try:
+        logger.info(f"Verifying JWT token with secret: {settings.JWT_SECRET_KEY[:10]}...")
+        logger.info(f"JWT algorithm: {settings.JWT_ALGORITHM}")
+        
         # Decode and verify token
         payload = jwt.decode(
             token,
@@ -184,16 +187,21 @@ async def get_current_user(request: Request, token: HTTPBearer = Depends(securit
     try:
         # Extract token from Authorization header
         auth_header = request.headers.get("Authorization")
+        logger.info(f"Auth header received: {auth_header[:50] if auth_header else 'None'}...")
+        
         if not auth_header or not auth_header.startswith("Bearer "):
+            logger.warning("Missing or invalid authorization header format")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Missing or invalid authorization header"
             )
         
         token_value = auth_header.split(" ")[1]
+        logger.info(f"Extracted token (first 50 chars): {token_value[:50]}...")
         
         # Verify JWT token
         payload = verify_jwt_token(token_value)
+        logger.info(f"JWT verification successful for user: {payload.get('email')}")
         
         return {
             "uid": payload["uid"],

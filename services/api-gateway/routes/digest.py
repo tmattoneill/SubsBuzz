@@ -340,7 +340,7 @@ async def get_available_digest_dates(
         
         return DigestResponse(
             success=True,
-            data=result.get("data", [])
+            data={"dates": result.get("data", [])}
         )
         
     except HTTPException:

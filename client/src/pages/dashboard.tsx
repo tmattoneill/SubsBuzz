@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/AuthContext';
 import { PageHeader } from "@/components/ui/page-header";
@@ -7,8 +7,10 @@ import { Sidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { ExternalLink, Calendar, Mail, Tag } from "lucide-react";
+import { ExternalLink, Calendar, Mail, Tag, RefreshCw, Loader2 } from "lucide-react";
 import { EmailDigest } from "@/lib/types";
+import { api } from "@/lib/api-client";
+import { useToast } from "@/hooks/use-toast";
 
 interface DigestSummaryCard {
   id: number;
@@ -22,6 +24,8 @@ interface DigestSummaryCard {
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -40,6 +44,30 @@ export default function Dashboard() {
   const { data: availableDates = [] } = useQuery({
     queryKey: ['/api/digest/available-dates'],
     refetchOnWindowFocus: false,
+  });
+
+  // Digest generation mutation
+  const generateDigestMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/api/digest/create', {});
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Digest Generated Successfully",
+        description: "Your new digest has been created and will appear shortly.",
+      });
+      // Refetch digest data
+      queryClient.invalidateQueries({ queryKey: ['/api/digest/history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/digest/available-dates'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Digest Generation Failed",
+        description: error.message || "Failed to generate digest. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Create digest summary cards from the history data
@@ -81,10 +109,29 @@ export default function Dashboard() {
       <Sidebar />
       
       <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto">
-        <PageHeader 
-          title="Your Digest Dashboard" 
-          date={new Date()}
-        />
+        <div className="flex items-center justify-between mb-6">
+          <PageHeader 
+            title="Your Digest Dashboard" 
+            date={new Date()}
+          />
+          <Button
+            onClick={() => generateDigestMutation.mutate()}
+            disabled={generateDigestMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            {generateDigestMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Generate Digest
+              </>
+            )}
+          </Button>
+        </div>
         
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-foreground mb-2">
