@@ -30,10 +30,15 @@ export default function History() {
   });
 
   // Fetch available digest dates for calendar highlighting
-  const { data: availableDates = [] } = useQuery({
+  const { data: availableDatesResponse } = useQuery({
     queryKey: ['/api/digest/available-dates'],
     refetchOnWindowFocus: false,
   });
+
+  // Extract dates array from response
+  const availableDates = Array.isArray(availableDatesResponse) 
+    ? availableDatesResponse 
+    : (availableDatesResponse?.dates || []);
 
   // Fetch digest for selected date
   const { data: selectedDateDigest, isLoading: isLoadingDateDigest } = useQuery({
