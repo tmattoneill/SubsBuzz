@@ -77,18 +77,18 @@ class DependencyHealth:
     def _check_firebase_config(self) -> str:
         """Check if Firebase is properly configured"""
         try:
-            required_vars = [
-                settings.FIREBASE_PROJECT_ID,
-                settings.FIREBASE_CLIENT_EMAIL,
-                settings.FIREBASE_PRIVATE_KEY
-            ]
-            
-            if all(var for var in required_vars):
+            import firebase_admin
+
+            # Check if Firebase Admin SDK is actually initialized
+            if firebase_admin._apps:
+                logger.debug("✅ Firebase Admin SDK is initialized")
                 return "configured"
             else:
+                logger.warning("⚠️ Firebase Admin SDK is not initialized")
                 return "misconfigured"
-                
-        except Exception:
+
+        except Exception as e:
+            logger.error(f"❌ Firebase check error: {e}")
             return "error"
     
     def get_uptime(self) -> float:

@@ -20,11 +20,21 @@ logger = logging.getLogger(__name__)
 # Initialize Firebase Admin SDK
 try:
     if not firebase_admin._apps:
-        # Create credentials from environment variables
-        firebase_creds = settings.firebase_credentials
-        cred = credentials.Certificate(firebase_creds)
+        # Try to load from file first, fallback to environment variables
+        import os
+        credentials_path = os.path.join(os.path.dirname(__file__), "firebase-credentials.json")
+
+        if os.path.exists(credentials_path):
+            cred = credentials.Certificate(credentials_path)
+            logger.info(f"✅ Loading Firebase credentials from file: {credentials_path}")
+        else:
+            # Fallback to environment variables
+            firebase_creds = settings.firebase_credentials
+            cred = credentials.Certificate(firebase_creds)
+            logger.info("✅ Loading Firebase credentials from environment variables")
+
         firebase_admin.initialize_app(cred)
-        logger.info("✅ Firebase Admin SDK initialized")
+        logger.info("✅ Firebase Admin SDK initialized successfully")
 except Exception as e:
     logger.warning(f"⚠️ Firebase initialization failed: {e}")
     logger.warning("Firebase authentication will not be available")
