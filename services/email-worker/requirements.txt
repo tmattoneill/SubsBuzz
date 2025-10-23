@@ -1,0 +1,14 @@
+# Email Worker Service Dependencies
+celery==5.3.4
+redis==5.0.1
+google-api-python-client==2.108.0
+google-auth-httplib2==0.1.1
+google-auth-oauthlib==1.1.0
+google-auth==2.23.4
+beautifulsoup4==4.12.2
+html2text==2020.1.16
+httpx==0.25.2
+aiohttp==3.9.1
+pydantic==2.5.0
+python-dotenv==1.0.0
+lxml==4.9.3

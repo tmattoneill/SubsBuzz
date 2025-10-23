@@ -1,0 +1,33 @@
+{
+  "name": "subsbuzz-microservices",
+  "version": "2.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "SubsBuzz - AI-powered email digest application with microservices architecture",
+  "scripts": {
+    "start:all": "./start-all.sh",
+    "stop:all": "./stop-all.sh",
+    "build:all": "npm run build:data-server && npm run build:api-gateway && npm run build:frontend",
+    "build:data-server": "cd services/data-server && npm run build",
+    "build:api-gateway": "cd services/api-gateway && pip install -r requirements.txt",
+    "build:frontend": "cd services/frontend && npm run build",
+    "dev:data-server": "cd services/data-server && npm run dev",
+    "dev:api-gateway": "cd services/api-gateway && python3 main.py",
+    "dev:email-worker": "cd services/email-worker && python3 main.py",
+    "test": "node tests/run-tests.js",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "db:generate": "cd services/data-server && npm run db:generate",
+    "db:migrate": "cd services/data-server && npm run db:migrate",
+    "db:studio": "cd services/data-server && npm run db:studio"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tmattoneill/SubsBuzz.git"
+  }
+}

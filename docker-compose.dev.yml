@@ -1,0 +1,208 @@
+# SubsBuzz Development Environment - Docker Compose
+# ISOLATED deployment for dev.subsbuzz.com
+# Uses different ports to avoid conflicts with production
+
+version: '3.8'
+
+services:
+  # Frontend Service (Development Port: 5501)
+  frontend:
+    build: 
+      context: .
+      dockerfile: services/frontend/Dockerfile
+    ports:
+      - "5501:3000"  # External 5501 -> Internal 3000
+    environment:
+      - NODE_ENV=staging
+      - VITE_API_URL=https://dev.subsbuzz.com/api
+      - VITE_APP_URL=https://dev.subsbuzz.com
+      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
+      - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID}
+      - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
+    restart: unless-stopped
+    networks:
+      - subsbuzz-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    
+  # API Gateway (Development Port: 8001)
+  api-gateway:
+    build: 
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "8001:8000"  # External 8001 -> Internal 8000
+    environment:
+      - NODE_ENV=staging
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DATA_SERVER_URL=http://data-server:3001
+      - DATABASE_URL=${DATABASE_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - ENABLE_CORS=true
+      - LOG_LEVEL=debug
+    depends_on:
+      data-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - subsbuzz-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+  # Data Server (Development Port: 3002)
+  data-server:
+    build: 
+      context: .
+      dockerfile: services/data-server/Dockerfile
+    ports:
+      - "3002:3001"  # External 3002 -> Internal 3001
+    environment:
+      - NODE_ENV=staging
+      - DATABASE_URL=${DATABASE_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - LOG_LEVEL=debug
+      - ENABLE_SQL_LOGGING=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - subsbuzz-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+  # Email Worker
+  email-worker:
+    build: 
+      context: .
+      dockerfile: services/email-worker/Dockerfile
+    environment:
+      - NODE_ENV=staging
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DATA_SERVER_URL=http://data-server:3001
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - LOG_LEVEL=debug
+    depends_on:
+      redis:
+        condition: service_healthy
+      data-server:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - subsbuzz-dev-network
+    
+  # PostgreSQL Database (Development Port: 5433)
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5433:5432"  # External 5433 -> Internal 5432
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-dev.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+    networks:
+      - subsbuzz-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+  # Redis Cache (Development Port: 6380)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # External 6380 -> Internal 6379
+    volumes:
+      - redis_dev_data:/data
+    restart: unless-stopped
+    networks:
+      - subsbuzz-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: redis-server --appendonly yes --requirepass ""
+    
+  # Adminer (Database Administration Tool)
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"  # Database admin interface
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - subsbuzz-dev-network
+    profiles:
+      - admin
+
+# Development-specific volumes
+volumes:
+  postgres_dev_data:
+    driver: local
+    name: subsbuzz_dev_postgres_data
+  redis_dev_data:
+    driver: local
+    name: subsbuzz_dev_redis_data
+
+# Isolated development network
+networks:
+  subsbuzz-dev-network:
+    driver: bridge
+    name: subsbuzz-dev-network
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16  # Different subnet from production
+
+# Development-specific labels for management
+x-common-labels: &common-labels
+  project: "subsbuzz"
+  environment: "development"
+  domain: "dev.subsbuzz.com"
+  
+x-common-logging: &common-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"

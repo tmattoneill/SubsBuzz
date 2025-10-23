@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "id": "fa91fdc214719bd4aa0d5368501b0ff633f7276e5b5dc01a8fa29a6e16dcf52d",
+      "email": "tmattoneill@gmail.com",
+      "full_name": "Matt O'Neill",
+      "email_subscriptions": [
+        "christopher.fox@ideasledgrowth.com",
+        "adtechgodnewsletter@mail.beehiiv.com",
+        "breakingnews-noreply@nytimes.com"
+      ]
+    },
+    {
+      "id": "0759baf6beb49de2fd517d887292d68115ae54a34d8170a7e76e1da9c7463b68",
+      "email": "e18325303@gmail.com",
+      "full_name": "Elmer Testaccount",
+      "email_subscriptions": [
+        "kevinnaughtonjr@substack.com",
+        "tidyfirst+forest-and-desert@substack.com",
+        "joycevance@substack.com"
+      ]
+    }
+  ]
+}

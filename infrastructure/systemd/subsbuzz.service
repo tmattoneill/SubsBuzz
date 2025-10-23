@@ -1,0 +1,49 @@
+[Unit]
+Description=SubsBuzz Microservices Application
+Documentation=https://github.com/your-org/subsbuzz
+Requires=docker.service
+After=docker.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/subsbuzz
+EnvironmentFile=/opt/subsbuzz/.env
+
+# Pre-start commands
+ExecStartPre=/usr/bin/docker system prune -f --volumes
+ExecStartPre=/usr/bin/docker-compose --file docker-compose.yml pull --quiet
+
+# Start services
+ExecStart=/usr/bin/docker-compose --file docker-compose.yml up --detach --remove-orphans
+
+# Stop services
+ExecStop=/usr/bin/docker-compose --file docker-compose.yml down --remove-orphans
+
+# Reload services (restart)
+ExecReload=/usr/bin/docker-compose --file docker-compose.yml restart
+
+# Restart settings
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/subsbuzz
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=subsbuzz
+
+[Install]
+WantedBy=multi-user.target
