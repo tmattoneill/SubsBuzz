@@ -236,12 +236,25 @@ router.post('/oauth-tokens', asyncHandler(async (req: Request, res: Response) =>
 router.get('/oauth-token/:uid', asyncHandler(async (req: Request, res: Response) => {
   const { uid } = req.params;
   const token = await storage.getOAuthTokenByUid(uid);
-  
+
   if (!token) {
     return res.status(404).json(apiError('OAuth token not found', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(token));
+
+  // Transform to snake_case for Python email worker compatibility
+  const transformedToken = {
+    id: token.id,
+    uid: token.uid,
+    email: token.email,
+    access_token: token.accessToken,
+    refresh_token: token.refreshToken,
+    expires_at: token.expiresAt instanceof Date ? token.expiresAt.toISOString() : token.expiresAt,
+    scope: token.scope,
+    created_at: token.createdAt instanceof Date ? token.createdAt.toISOString() : token.createdAt,
+    updated_at: token.updatedAt instanceof Date ? token.updatedAt.toISOString() : token.updatedAt
+  };
+
+  res.json(apiResponse(transformedToken));
 }));
 
 // Get OAuth token by email

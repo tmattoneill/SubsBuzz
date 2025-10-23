@@ -8,6 +8,7 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/error';
 import { generateDigest, getLatestDigest, getLatestThematicDigest } from '../services/openai';
 import { storage } from '../services/storage';
+import { queueDigestGeneration } from '../services/celery-client';
 
 const router = Router();
 
@@ -63,36 +64,39 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
 // Generate digest automatically (new simple endpoint)
 router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
   const { user_id } = req.body;
-  
+
   if (!user_id) {
     return res.status(400).json(apiError('user_id is required', 'MISSING_FIELDS'));
   }
-  
+
   console.log(`🚀 Auto-generating digest for user ${user_id}`);
-  
+
   try {
     // Get monitored emails for the user
     const monitoredEmails = await storage.getMonitoredEmails(user_id);
-    
+
     if (monitoredEmails.length === 0) {
       return res.status(400).json(apiError('No monitored emails configured. Please add email sources first.', 'NO_MONITORED_EMAILS'));
     }
-    
+
     // Get OAuth tokens for Gmail access
     const oauthTokens = await storage.getOAuthTokenByUid(user_id);
-    
+
     if (!oauthTokens) {
       return res.status(400).json(apiError('No OAuth tokens found. Please re-authenticate with Gmail.', 'NO_OAUTH_TOKENS'));
     }
-    
-    // Return success message - in production this would trigger email worker
+
+    // Queue the digest generation task to Celery worker
+    const taskId = await queueDigestGeneration(user_id);
+
     res.json(apiResponse({
       message: 'Digest generation started successfully',
       user_id,
       monitored_emails_count: monitoredEmails.length,
-      status: 'processing'
+      status: 'processing',
+      task_id: taskId
     }, 'Digest generation initiated'));
-    
+
   } catch (error: any) {
     console.error('Error auto-generating digest:', error);
     res.status(500).json(apiError(

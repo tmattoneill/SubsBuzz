@@ -212,20 +212,30 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
             return {'emails_processed': 0, 'digest_created': False}
         
         print(f"📧 Fetched {len(emails)} emails for user {user_id}")
-        
+
         # Process email content
         processed_emails = []
         for email in emails:
             try:
+                # Convert ParsedEmail dataclass to dict for processing
+                email_dict = {
+                    'id': email.id,
+                    'sender': email.sender,
+                    'subject': email.subject,
+                    'received_at': email.received_at,
+                    'content': email.content,
+                    'original_link': email.original_link
+                }
+
                 # Extract and clean content
-                extracted_content = await content_extractor.extract_newsletter_content(email['content'])
-                
+                extracted_content = await content_extractor.extract_newsletter_content(email_dict['content'])
+
                 # Update email with extracted content
-                email['content'] = extracted_content
-                processed_emails.append(email)
-                
+                email_dict['content'] = extracted_content
+                processed_emails.append(email_dict)
+
             except Exception as e:
-                print(f"⚠️  Error processing email {email.get('id', 'unknown')}: {e}")
+                print(f"⚠️  Error processing email {email.id}: {e}")
                 continue
         
         print(f"✅ Processed {len(processed_emails)} emails for user {user_id}")

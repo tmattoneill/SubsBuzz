@@ -44,7 +44,7 @@ cd ../..
 # Wait a moment for data server
 sleep 2
 
-# Start API Gateway (in background)  
+# Start API Gateway (in background)
 echo "   🌐 Starting API Gateway on port ${API_GATEWAY_PORT:-8000}..."
 cd services/api-gateway
 python -m uvicorn main:app --host 0.0.0.0 --port ${API_GATEWAY_PORT:-8000} > ../../logs/api-gateway.log 2>&1 &
@@ -54,9 +54,22 @@ cd ../..
 # Wait a moment for API gateway
 sleep 2
 
-# Frontend service (production only - served via nginx in Docker)
-# For development, build frontend separately in services/frontend or use Docker
-# echo "   🎨 Frontend available via Docker: docker-compose up frontend"
+# Start Email Worker (Celery)
+echo "   📧 Starting Email Worker (Celery)..."
+cd services/email-worker
+python -m celery -A tasks worker --loglevel=info > ../../logs/email-worker.log 2>&1 &
+EMAIL_WORKER_PID=$!
+cd ../..
+
+# Wait a moment for email worker
+sleep 2
+
+# Start Frontend (Vite dev server)
+echo "   🎨 Starting Frontend on port ${UI_PORT:-5500}..."
+cd services/frontend
+npm run dev > ../../logs/frontend.log 2>&1 &
+FRONTEND_PID=$!
+cd ../..
 
 # Create logs directory if it doesn't exist
 mkdir -p logs
@@ -64,15 +77,18 @@ mkdir -p logs
 # Save PIDs for easy cleanup
 echo "$DATA_SERVER_PID" > logs/data-server.pid
 echo "$API_GATEWAY_PID" > logs/api-gateway.pid
+echo "$EMAIL_WORKER_PID" > logs/email-worker.pid
+echo "$FRONTEND_PID" > logs/frontend.pid
 
 echo ""
-echo "✅ Backend services started!"
+echo "✅ All services started!"
 echo ""
 echo "📊 Data Server:    http://localhost:${DATA_SERVER_PORT:-3001}"
 echo "🌐 API Gateway:    http://localhost:${API_GATEWAY_PORT:-8000}"
-echo "🎨 Frontend:       Use Docker (docker-compose up frontend)"
+echo "📧 Email Worker:   Running (Celery)"
+echo "🎨 Frontend:       http://localhost:${UI_PORT:-5500}"
 echo ""
 echo "📋 Logs available in ./logs/"
 echo "🛑 To stop all services: ./stop-all.sh"
 echo ""
-echo "⏳ Services are starting... Backend ready"
+echo "⏳ Services are starting... Full stack ready"

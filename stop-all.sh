@@ -20,6 +20,16 @@ if [ -f logs/api-gateway.pid ]; then
     rm logs/api-gateway.pid
 fi
 
+if [ -f logs/email-worker.pid ]; then
+    kill $(cat logs/email-worker.pid) 2>/dev/null || true
+    rm logs/email-worker.pid
+fi
+
+if [ -f logs/frontend.pid ]; then
+    kill $(cat logs/frontend.pid) 2>/dev/null || true
+    rm logs/frontend.pid
+fi
+
 # Kill any remaining processes on our ports
 echo "🧹 Cleaning up ports: ${PORTS[*]}"
 for port in "${PORTS[@]}"; do
@@ -33,6 +43,8 @@ done
 pkill -f "uvicorn.*main:app" 2>/dev/null || true
 pkill -f "tsx.*data-server" 2>/dev/null || true
 pkill -f "python.*main.py" 2>/dev/null || true
+pkill -f "celery.*worker" 2>/dev/null || true
+pkill -f "vite" 2>/dev/null || true
 
 echo "✅ All services stopped"
 echo "📋 Logs preserved in ./logs/"
