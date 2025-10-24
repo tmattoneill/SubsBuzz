@@ -3,106 +3,114 @@
 @tailwind utilities;
 
 :root {
-  /* Theme base color customization */
-  --color-primary-hue: 210;  /* Default blue */
-  --color-primary-saturation: 90%;
-  --color-primary-lightness: 54%;
-  
-  --color-accent-hue: 141;  /* Default green accent */
-  --color-accent-saturation: 73%;
-  --color-accent-lightness: 42%;
+  /* Theme knobs retained for dynamic palette support */
+  --color-primary-hue: 0;
+  --color-primary-saturation: 0%;
+  --color-primary-lightness: 10%;
+  --color-accent-hue: 139;
+  --color-accent-saturation: 53%;
+  --color-accent-lightness: 76%;
 
-  /* Base colors */
-  --background: 0 0% 100%;
-  --foreground: 20 14.3% 4.1%;
-  --muted: 60 4.8% 95.9%;
-  --muted-foreground: 25 5.3% 44.7%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 14.3% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 20 14.3% 4.1%;
-  --border: 20 5.9% 90%;
-  --input: 20 5.9% 90%;
-  
-  /* Theme colors - generated from theme variables */
+  /* Nexus design tokens */
+  --background: 67 36% 95%;
+  --foreground: 0 0% 10%;
+
+  --card: 0 0% 94%;
+  --card-foreground: 0 0% 10%;
+  --card-hover: 139 53% 76%;
+
+  --popover: 0 0% 94%;
+  --popover-foreground: 0 0% 10%;
+
   --primary: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --primary-foreground: 210 100% 98%;
-  --secondary: 60 4.8% 95.9%;
-  --secondary-foreground: 24 9.8% 10%;
+  --primary-foreground: 0 0% 94%;
+
+  --secondary: 212 80% 60%;
+  --secondary-foreground: 0 0% 94%;
+
+  --muted: 67 36% 95%;
+  --muted-foreground: 0 0% 45%;
+
   --accent: var(--color-accent-hue) var(--color-accent-saturation) var(--color-accent-lightness);
-  --accent-foreground: 24 9.8% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 60 9.1% 97.8%;
-  --ring: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  
-  /* Other UI elements */
-  --radius: 0.5rem;
-  
-  /* Chart colors */
-  --chart-1: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --chart-2: var(--color-accent-hue) var(--color-accent-saturation) var(--color-accent-lightness);
-  --chart-3: 262 90% 54%;
-  --chart-4: 359 75% 59%;
-  --chart-5: 30 96% 62%;
-  
-  /* Sidebar theme */
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 20 14.3% 4.1%;
+  --accent-foreground: 0 0% 10%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 94%;
+
+  --border: 0 0% 85%;
+  --input: 0 0% 85%;
+  --ring: var(--color-accent-hue) var(--color-accent-saturation) var(--color-accent-lightness);
+
+  --radius: 0.75rem;
+
+  /* Sidebar palette */
+  --sidebar-background: 0 0% 94%;
+  --sidebar-foreground: 0 0% 10%;
   --sidebar-primary: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --sidebar-primary-foreground: 210 100% 98%;
-  --sidebar-accent: 60 4.8% 95.9%;
-  --sidebar-accent-foreground: 24 9.8% 10%;
-  --sidebar-border: 20 5.9% 90%;
-  --sidebar-ring: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
+  --sidebar-primary-foreground: 0 0% 94%;
+  --sidebar-accent: 139 53% 76%;
+  --sidebar-accent-foreground: 0 0% 10%;
+  --sidebar-border: 0 0% 88%;
+  --sidebar-ring: 139 53% 76%;
+
+  /* Charts & shadows */
+  --chart-1: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
+  --chart-2: 139 53% 76%;
+  --chart-3: 212 80% 60%;
+  --chart-4: 39 84% 57%;
+  --chart-5: 340 82% 52%;
+
+  --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+  --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+  --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1);
 }
 
 .dark {
-  /* Base dark theme colors */
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  
-  /* Keep the same custom theme colors but adjust their lightness */
-  --color-primary-lightness: 60%;
-  --color-accent-lightness: 50%;
-  
-  /* Theme colors */
+  --background: 0 0% 10%;
+  --foreground: 0 0% 94%;
+
+  --card: 0 0% 14%;
+  --card-foreground: 0 0% 94%;
+  --card-hover: 139 53% 76%;
+
+  --popover: 0 0% 14%;
+  --popover-foreground: 0 0% 94%;
+
+  --color-primary-lightness: 94%;
+
   --primary: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --primary-foreground: 210 100% 99%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --accent: var(--color-accent-hue) var(--color-accent-saturation) var(--color-accent-lightness);
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --ring: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  
-  /* UI elements */
-  --radius: 0.5rem;
-  
-  /* Chart colors */
-  --chart-1: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --chart-2: var(--color-accent-hue) var(--color-accent-saturation) var(--color-accent-lightness);
-  --chart-3: 262 90% 60%;
-  --chart-4: 359 75% 65%;
-  --chart-5: 30 96% 65%;
-  
-  /* Sidebar theme */
-  --sidebar-background: 240 10% 3.9%;
-  --sidebar-foreground: 0 0% 98%;
+  --primary-foreground: 0 0% 10%;
+
+  --secondary: 212 80% 60%;
+  --secondary-foreground: 0 0% 94%;
+
+  --muted: 0 0% 18%;
+  --muted-foreground: 0 0% 65%;
+
+  --accent: 139 53% 76%;
+  --accent-foreground: 0 0% 10%;
+
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 94%;
+
+  --border: 0 0% 22%;
+  --input: 0 0% 22%;
+  --ring: 139 53% 76%;
+
+  --sidebar-background: 0 0% 14%;
+  --sidebar-foreground: 0 0% 94%;
   --sidebar-primary: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --sidebar-primary-foreground: 210 100% 99%;
-  --sidebar-accent: 240 3.7% 15.9%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-border: 240 3.7% 15.9%;
-  --sidebar-ring: var(--color-primary-hue) 80% 70%;
+  --sidebar-primary-foreground: 0 0% 10%;
+  --sidebar-accent: 139 53% 76%;
+  --sidebar-accent-foreground: 0 0% 10%;
+  --sidebar-border: 0 0% 22%;
+  --sidebar-ring: 139 53% 76%;
+
+  --chart-1: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
+  --chart-2: 139 53% 76%;
+  --chart-3: 212 80% 60%;
+  --chart-4: 39 84% 57%;
+  --chart-5: 340 82% 52%;
 }
 
 @layer base {

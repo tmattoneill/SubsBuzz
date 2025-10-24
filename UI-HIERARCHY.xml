@@ -1,0 +1,1926 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application name="SubsBuzz" description="AI-powered email digest and newsletter management application">
+
+  <!-- GLOBAL THEME CONFIGURATION -->
+  <theme-configuration>
+    <theme-modes>
+      <mode name="light" default="true" />
+      <mode name="dark" />
+      <mode name="system" description="Follows OS preference" />
+    </theme-modes>
+
+    <color-schemes>
+      <scheme name="blue" primary-hue="210" primary-saturation="90%" primary-lightness="54%" default="true" />
+      <scheme name="green" primary-hue="141" primary-saturation="73%" primary-lightness="42%" />
+      <scheme name="purple" primary-hue="262" primary-saturation="90%" primary-lightness="54%" />
+      <scheme name="teal" primary-hue="180" primary-saturation="85%" primary-lightness="48%" />
+      <scheme name="red" primary-hue="0" primary-saturation="84%" primary-lightness="60%" />
+      <scheme name="orange" primary-hue="30" primary-saturation="96%" primary-lightness="62%" />
+    </color-schemes>
+
+    <design-tokens>
+      <token name="border-radius-base" value="0.5rem" />
+      <token name="border-radius-large" value="0.75rem" />
+      <token name="border-radius-xl" value="1rem" />
+      <token name="spacing-base" value="1rem" />
+      <token name="shadow-sm" value="0 1px 2px 0 rgb(0 0 0 / 0.05)" />
+      <token name="shadow-md" value="0 4px 6px -1px rgb(0 0 0 / 0.1)" />
+      <token name="transition-base" value="all 0.2s ease-out" />
+    </design-tokens>
+  </theme-configuration>
+
+  <!-- ROUTING STRUCTURE -->
+  <routes>
+    <route path="/" name="Landing" public="true" />
+    <route path="/dashboard" name="Dashboard" authenticated="true" />
+    <route path="/digest/:date" name="DigestView" authenticated="true" dynamic="true" />
+    <route path="/history" name="History" authenticated="true" />
+    <route path="/favorites" name="Favorites" authenticated="true" />
+    <route path="/settings" name="Settings" authenticated="true" />
+    <route path="/login" name="Login" public="true" />
+    <route path="/auth/callback" name="AuthCallback" public="true" />
+  </routes>
+
+  <!-- GLOBAL PROVIDERS -->
+  <providers>
+    <provider name="ThemeProvider" description="Manages light/dark mode and color scheme">
+      <attribute name="defaultTheme" value="system" />
+      <attribute name="enableSystem" value="true" />
+      <attribute name="storageKey" value="theme-mode" />
+    </provider>
+    <provider name="AuthProvider" description="Handles user authentication state">
+      <state>
+        <field name="user" type="User | null" sample-data='{"uid": "user123", "email": "tmattoneill@gmail.com", "displayName": "Tom O'"'"'Neill", "photoURL": null}' />
+        <field name="token" type="string | null" sample-data="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+        <field name="isLoading" type="boolean" sample-data="false" />
+        <field name="error" type="string | null" sample-data="null" />
+      </state>
+    </provider>
+    <provider name="QueryClientProvider" description="React Query for data fetching and caching" />
+    <provider name="TooltipProvider" description="Global tooltip management" />
+  </providers>
+
+  <!-- GLOBAL COMPONENTS -->
+  <global-components>
+    <component name="Toaster" type="notification" position="bottom-right">
+      <description>Global toast notification system</description>
+      <toast-styles>
+        <style type="default" background="white" foreground="black" />
+        <style type="destructive" background="red-50" foreground="red-900" />
+        <style type="success" background="green-50" foreground="green-900" />
+      </toast-styles>
+    </component>
+
+    <component name="ErrorBoundary" type="wrapper">
+      <description>Catches and displays React errors gracefully</description>
+    </component>
+  </global-components>
+
+  <!-- SCREEN: LANDING PAGE -->
+  <screen route="/" name="Landing" type="marketing">
+    <layout type="vertical" background="gradient-to-br from-blue-50 via-white to-purple-50">
+
+      <!-- Header -->
+      <section name="header" type="navigation" position="top" height="64px">
+        <layout type="horizontal-between" padding="16px" background="white/80" backdrop-blur="sm" border-bottom="1px solid gray-200">
+          <element type="logo-group">
+            <element type="logo-icon" size="32x32" background="primary" border-radius="8px" color="white">
+              <icon name="Mail" size="20x20" />
+            </element>
+            <element type="brand-text" font-size="20px" font-weight="bold" color="gray-900">
+              <text>SubsBuzz</text>
+            </element>
+          </element>
+
+          <element type="button" variant="outline" action="signIn">
+            <text>Sign In</text>
+          </element>
+        </layout>
+      </section>
+
+      <!-- Hero Section -->
+      <section name="hero" type="content" padding="80px 16px">
+        <layout type="vertical-center" max-width="1152px" margin="auto">
+          <element type="heading" tag="h1" font-size="48px-96px" font-weight="bold" color="gray-900" margin-bottom="24px" text-align="center">
+            <text>Transform Your Email <span class="text-primary">Subscriptions</span></text>
+          </element>
+
+          <element type="paragraph" font-size="20px" color="gray-600" margin-bottom="32px" max-width="768px" text-align="center" line-height="1.6">
+            <text>Analyze and synthesize all your newsletters and email subscriptions in one place. Get intelligent daily digests that surface the most important insights from your inbox.</text>
+          </element>
+
+          <element type="button" size="large" variant="primary" action="handleGetStarted">
+            <icon type="google-logo" size="20x20" margin-right="8px" />
+            <text>Get Started with Google</text>
+          </element>
+        </layout>
+
+        <!-- Features Grid -->
+        <layout type="grid" columns="4" gap="24px" margin-top="64px" responsive="mobile:1 tablet:2 desktop:4">
+          <component name="FeatureCard" repeat="4">
+            <data>
+              <item id="1">
+                <icon>TrendingUp</icon>
+                <title>Smart Analysis</title>
+                <description>AI-powered thematic analysis groups related emails into meaningful topics</description>
+                <icon-bg>primary/10</icon-bg>
+                <icon-color>primary</icon-color>
+              </item>
+              <item id="2">
+                <icon>Clock</icon>
+                <title>Daily Digests</title>
+                <description>Get your personalized summary delivered at your preferred time</description>
+                <icon-bg>primary/10</icon-bg>
+                <icon-color>primary</icon-color>
+              </item>
+              <item id="3">
+                <icon>Zap</icon>
+                <title>Instant Setup</title>
+                <description>We'll scan your Gmail and suggest newsletters to get you started</description>
+                <icon-bg>primary/10</icon-bg>
+                <icon-color>primary</icon-color>
+              </item>
+              <item id="4">
+                <icon>Shield</icon>
+                <title>Privacy First</title>
+                <description>Read-only Gmail access with secure OAuth authentication</description>
+                <icon-bg>primary/10</icon-bg>
+                <icon-color>primary</icon-color>
+              </item>
+            </data>
+            <card background="white/60" backdrop-blur="sm" border="none" shadow="sm" text-align="center" padding="24px">
+              <icon-container size="48x48" background="primary/10" color="primary" border-radius="8px" margin="0 auto 8px" />
+              <title font-size="18px" font-weight="600" margin-bottom="8px" />
+              <description font-size="14px" color="gray-600" />
+            </card>
+          </component>
+        </layout>
+      </section>
+
+      <!-- How it Works Section -->
+      <section name="how-it-works" background="white/80" backdrop-blur="sm" padding="64px 16px">
+        <layout type="vertical-center" max-width="896px" margin="auto">
+          <element type="heading" tag="h2" font-size="36px" font-weight="bold" color="gray-900" margin-bottom="48px" text-align="center">
+            <text>How SubsBuzz Works</text>
+          </element>
+
+          <layout type="grid" columns="3" gap="32px" responsive="mobile:1 tablet:3">
+            <component name="StepCard" repeat="3">
+              <data>
+                <step number="1" title="Connect Your Gmail" description="Securely connect your Gmail account. We'll scan for newsletters and subscriptions automatically." />
+                <step number="2" title="Choose Your Sources" description="Select which newsletters and subscriptions you want included in your daily digest." />
+                <step number="3" title="Get Smart Summaries" description="Receive intelligent thematic summaries that highlight the most important insights from your inbox." />
+              </data>
+              <step-number size="48x48" background="primary" color="white" border-radius="50%" font-size="20px" font-weight="bold" margin="0 auto" />
+              <title font-size="20px" font-weight="600" margin="16px 0" />
+              <description font-size="16px" color="gray-600" />
+            </component>
+          </layout>
+        </layout>
+      </section>
+
+      <!-- Social Proof Section -->
+      <section name="social-proof" padding="64px 16px">
+        <layout type="vertical-center" max-width="896px" margin="auto" text-align="center">
+          <element type="star-rating" count="5" color="yellow-400" size="20px" margin-bottom="16px" />
+          <element type="blockquote" font-size="20px" color="gray-700" margin-bottom="16px" line-height="1.5">
+            <text>"SubsBuzz transformed how I consume my newsletter subscriptions. Instead of drowning in emails, I get perfectly curated daily summaries that actually help me stay informed."</text>
+          </element>
+          <element type="cite" font-size="16px" color="gray-500">
+            <text>— Early Beta User</text>
+          </element>
+        </layout>
+      </section>
+
+      <!-- CTA Section -->
+      <section name="cta" background="primary" color="white" padding="80px 16px" text-align="center">
+        <layout type="vertical-center" max-width="768px" margin="auto">
+          <element type="heading" tag="h2" font-size="36px-48px" font-weight="bold" margin-bottom="24px">
+            <text>Ready to Transform Your Email Experience?</text>
+          </element>
+          <element type="paragraph" font-size="20px" color="blue-100" margin-bottom="32px">
+            <text>Join thousands of users who've already simplified their newsletter management with SubsBuzz.</text>
+          </element>
+          <element type="button" size="large" variant="secondary" action="handleGetStarted">
+            <icon type="google-logo" size="20px" margin-right="8px" />
+            <text>Start Your Free Account</text>
+          </element>
+        </layout>
+      </section>
+
+      <!-- Footer -->
+      <section name="footer" background="gray-900" color="white" padding="32px 16px" text-align="center">
+        <element type="logo-group" margin-bottom="16px">
+          <element type="logo-icon" size="24x24" background="primary" border-radius="4px">
+            <icon name="Mail" size="16x16" />
+          </element>
+          <element type="brand-text" font-size="18px" font-weight="600">
+            <text>SubsBuzz</text>
+          </element>
+        </element>
+        <element type="paragraph" color="gray-400">
+          <text>Transform your email subscriptions into actionable insights</text>
+        </element>
+      </section>
+    </layout>
+  </screen>
+
+  <!-- SCREEN: LOGIN -->
+  <screen route="/login" name="Login" type="authentication">
+    <layout type="flex-center" min-height="100vh" background="gray-50" padding="16px">
+      <component name="Card" max-width="448px" width="100%">
+        <section name="header" padding="24px" text-align="center">
+          <element type="logo-icon" size="48x48" background="primary" border-radius="8px" color="white" margin="0 auto 16px">
+            <icon name="Mail" size="24px" />
+          </element>
+          <element type="heading" tag="h1" font-size="24px" font-weight="bold" margin-bottom="8px">
+            <text>MailDigest</text>
+          </element>
+          <element type="description" font-size="14px" color="gray-600">
+            <text>Sign in to monitor your email and create AI-powered digests</text>
+          </element>
+        </section>
+
+        <section name="content" padding="0 24px 24px">
+          <element type="info-box" background="blue-50" padding="16px" border-radius="8px" font-size="14px" color="blue-600">
+            <text><strong>Note:</strong> This app will request read-only access to your Gmail inbox to monitor specified email senders and generate digests.</text>
+          </element>
+        </section>
+
+        <section name="footer" padding="0 24px 24px">
+          <element type="button" variant="primary" width="100%" action="signIn" disabled-if="isLoading">
+            <icon type="google-logo" size="20px" margin-right="8px" />
+            <text>Sign in with Google</text>
+          </element>
+        </section>
+      </component>
+    </layout>
+  </screen>
+
+  <!-- SHARED LAYOUT: AUTHENTICATED PAGES -->
+  <layout-template name="authenticated-layout">
+    <layout type="horizontal" min-height="100vh" background="background">
+
+      <!-- Sidebar Navigation -->
+      <component name="Sidebar" width="256px" position="sticky" height="100vh" padding="24px" background="background" border-right="1px solid border">
+        <section name="header" margin-bottom="32px">
+          <element type="logo-group">
+            <element type="logo-icon" size="32x32" background="primary" border-radius="8px" color="white">
+              <icon name="Mail" size="20px" />
+            </element>
+            <element type="brand-text" font-size="20px" font-weight="600" margin-left="8px">
+              <text>SubsBuzz</text>
+            </element>
+          </element>
+        </section>
+
+        <navigation>
+          <nav-items>
+            <nav-item path="/" icon="LayoutDashboard" text="Dashboard" active-background="blue-50" active-color="primary" />
+            <nav-item path="/history" icon="History" text="History" active-background="blue-50" active-color="primary" />
+            <nav-item path="/favorites" icon="Star" text="Favorites" active-background="blue-50" active-color="primary" />
+            <nav-item path="/settings" icon="Settings" text="Settings" active-background="blue-50" active-color="primary" />
+          </nav-items>
+        </navigation>
+
+        <section name="user-profile" position="bottom" margin-top="auto" padding-top="24px">
+          <element type="user-card" background="gray-50" padding="12px" border-radius="8px">
+            <element type="avatar" size="32x32" background="blue-100" color="primary" border-radius="50%">
+              <text>TO</text>
+            </element>
+            <element type="user-info" margin-left="12px">
+              <element type="user-name" font-size="14px" font-weight="500">
+                <text sample-data="Tom O'Neill">User Name</text>
+              </element>
+              <element type="user-email" font-size="12px" color="gray-500">
+                <text sample-data="tmattoneill@gmail.com">user@email.com</text>
+              </element>
+            </element>
+            <element type="button" variant="ghost" icon="LogOut" size="icon" color="gray-400" hover-color="red-500" action="signOut" />
+          </element>
+        </section>
+
+        <!-- Mobile Menu Toggle -->
+        <element type="mobile-menu-button" display="mobile-only" position="absolute" top="16px" right="16px">
+          <icon name="Menu" size="20px" />
+        </element>
+      </component>
+
+      <!-- Main Content Area -->
+      <section name="main-content" flex="1" padding="32px" max-width="1152px" margin="0 auto">
+        <slot name="page-content" />
+      </section>
+    </layout>
+  </layout-template>
+
+  <!-- SCREEN: DASHBOARD -->
+  <screen route="/dashboard" name="Dashboard" type="authenticated" layout="authenticated-layout">
+    <page-content>
+
+      <!-- Page Header -->
+      <component name="PageHeader" margin-bottom="24px">
+        <layout type="horizontal-between" align-items="center">
+          <element type="title" tag="h1" font-size="30px-36px" font-weight="bold">
+            <text>Your Digest Dashboard</text>
+          </element>
+          <element type="date-display" font-size="16px" color="gray-500" sample-data="Wednesday, October 23, 2025" />
+        </layout>
+        <element type="button" variant="primary" icon="RefreshCw" action="generateDigest" disabled-if="isGenerating">
+          <text>Generate Digest</text>
+        </element>
+      </component>
+
+      <!-- Section Header -->
+      <section name="section-header" margin-bottom="24px">
+        <element type="heading" tag="h2" font-size="20px" font-weight="600" margin-bottom="8px">
+          <text>All Your Digests</text>
+        </element>
+        <element type="description" font-size="16px" color="gray-600">
+          <text sample-data="You have 12 digests available. Click any digest to view its full content.">You have N digests available. Click any digest to view its full content.</text>
+        </element>
+      </section>
+
+      <!-- Empty State -->
+      <component name="EmptyState" visible-if="digestCards.length === 0">
+        <card padding="48px" text-align="center">
+          <icon name="Mail" size="48px" color="gray-400" margin="0 auto 16px" />
+          <element type="heading" font-size="18px" font-weight="600" margin-bottom="8px">
+            <text>No Digests Yet</text>
+          </element>
+          <element type="paragraph" color="gray-600" margin-bottom="24px">
+            <text>Your email digests will appear here once they're processed.</text>
+          </element>
+          <element type="button" variant="primary" action="navigateToSettings">
+            <text>Configure Email Sources</text>
+          </element>
+        </card>
+      </component>
+
+      <!-- Digest Cards Grid -->
+      <layout type="grid" columns="3" gap="16px" responsive="mobile:1 tablet:2 desktop:3">
+        <component name="DigestSummaryCard" repeat="dynamic">
+          <data sample-items="12">
+            <digest-item>
+              <id>1</id>
+              <date>2025-10-23</date>
+              <formatted-date>October 23, 2025</formatted-date>
+              <emails-processed>45</emails-processed>
+              <topics-identified>8</topics-identified>
+              <type>thematic</type>
+              <sections-count>5</sections-count>
+            </digest-item>
+            <digest-item>
+              <id>2</id>
+              <date>2025-10-22</date>
+              <formatted-date>October 22, 2025</formatted-date>
+              <emails-processed>38</emails-processed>
+              <topics-identified>6</topics-identified>
+              <type>regular</type>
+            </digest-item>
+            <digest-item>
+              <id>3</id>
+              <date>2025-10-21</date>
+              <formatted-date>October 21, 2025</formatted-date>
+              <emails-processed>52</emails-processed>
+              <topics-identified>9</topics-identified>
+              <type>thematic</type>
+              <sections-count>6</sections-count>
+            </digest-item>
+          </data>
+
+          <card border-left="4px solid primary" hover-shadow="md" transition="shadow 0.2s" cursor="pointer" action="viewDigest">
+            <section name="header" padding="16px 16px 12px">
+              <layout type="horizontal-between" margin-bottom="8px">
+                <element type="title" font-size="16px" font-weight="600">
+                  <text data-field="formatted-date">Date</text>
+                </element>
+                <icon name="ExternalLink" size="16px" color="gray-400" />
+              </layout>
+              <element type="date-subtext" font-size="14px" color="gray-600">
+                <icon name="Calendar" size="12px" margin-right="4px" />
+                <text data-field="date">2025-10-23</text>
+              </element>
+            </section>
+
+            <section name="stats" padding="0 16px">
+              <layout type="vertical" gap="8px">
+                <stat-row>
+                  <icon name="Mail" size="12px" color="gray-600" />
+                  <label font-size="14px" color="gray-600">Emails Processed</label>
+                  <value font-weight="500" data-field="emails-processed">45</value>
+                </stat-row>
+                <stat-row>
+                  <icon name="Tag" size="12px" color="gray-600" />
+                  <label font-size="14px" color="gray-600">Topics Identified</label>
+                  <value font-weight="500" data-field="topics-identified">8</value>
+                </stat-row>
+                <stat-row visible-if="type === 'thematic'">
+                  <label font-size="14px" color="gray-600">Thematic Sections</label>
+                  <value font-weight="500" data-field="sections-count">5</value>
+                </stat-row>
+              </layout>
+            </section>
+
+            <section name="footer" padding="16px" border-top="1px solid gray-200">
+              <element type="button" variant="outline" size="sm" width="100%" action="viewDigest">
+                <text>View Full Digest</text>
+              </element>
+            </section>
+          </card>
+        </component>
+      </layout>
+
+      <!-- View Calendar Button -->
+      <section name="additional-actions" margin-top="32px" text-align="center">
+        <element type="button" variant="outline" action="navigateToHistory">
+          <text>View Calendar History</text>
+        </element>
+      </section>
+    </page-content>
+  </screen>
+
+  <!-- SCREEN: DIGEST VIEW -->
+  <screen route="/digest/:date" name="DigestView" type="authenticated" layout="authenticated-layout">
+    <page-content>
+
+      <!-- Page Header -->
+      <component name="PageHeader" margin-bottom="24px">
+        <element type="title" tag="h1" font-size="24px" font-weight="bold">
+          <text>Digest View</text>
+        </element>
+        <element type="date-display" font-size="16px" color="gray-500" />
+      </component>
+
+      <!-- Digest Title and Navigation -->
+      <layout type="horizontal-between" margin-bottom="24px">
+        <element type="heading" tag="h1" font-size="24px" font-weight="bold">
+          <text data-field="formatted-date">Digest for October 23, 2025</text>
+        </element>
+        <element type="button-group" gap="8px">
+          <element type="button" variant="outline" action="navigateToDashboard">
+            <text>← Dashboard</text>
+          </element>
+          <element type="button" variant="outline" action="navigateToHistory">
+            <text>History</text>
+          </element>
+        </element>
+      </layout>
+
+      <!-- Thematic Digest Display -->
+      <component name="ThematicDigest" visible-if="digest.type === 'thematic'">
+
+        <!-- Overview Card -->
+        <card background="gradient-to-r from-blue-50 to-indigo-50" border="blue-200" padding="24px" margin-bottom="24px">
+          <layout type="horizontal-between">
+            <section>
+              <element type="heading" tag="h2" font-size="20px" font-weight="bold" margin-bottom="8px">
+                <text>Daily Thematic Summary</text>
+              </element>
+              <element type="description" color="gray-600">
+                <text data-template="{sectionsCount} themes identified from {totalSourceEmails} emails">5 themes identified from 45 emails</text>
+              </element>
+            </section>
+            <section text-align="right">
+              <element type="label" font-size="14px" color="gray-500">
+                <text>Processing Method</text>
+              </element>
+              <element type="value" font-size="18px" font-weight="600" color="blue-600" text-transform="capitalize">
+                <text data-field="processingMethod">openai-thematic</text>
+              </element>
+            </section>
+          </layout>
+        </card>
+
+        <!-- Thematic Sections -->
+        <component name="ThematicSection" repeat="dynamic">
+          <data sample-items="5">
+            <section-item>
+              <id>1</id>
+              <theme>AI & Machine Learning</theme>
+              <summary>This week saw major announcements in AI development, with new models released and significant improvements in reasoning capabilities. Multiple sources covered the rapid advancement of LLMs and their practical applications in various industries.</summary>
+              <confidence>92</confidence>
+              <keywords>["AI", "machine learning", "LLM", "GPT", "neural networks", "deep learning"]</keywords>
+              <source-emails-count>8</source-emails-count>
+            </section-item>
+            <section-item>
+              <id>2</id>
+              <theme>Tech Industry News</theme>
+              <summary>Major tech companies announced quarterly earnings, with several reporting strong revenue growth driven by cloud services and enterprise software. Leadership changes and strategic partnerships were also prominent topics.</summary>
+              <confidence>88</confidence>
+              <keywords>["earnings", "revenue", "cloud", "enterprise", "partnerships"]</keywords>
+              <source-emails-count>12</source-emails-count>
+            </section-item>
+            <section-item>
+              <id>3</id>
+              <theme>Product Launches</theme>
+              <summary>Several new product announcements captured attention, including hardware releases and software updates. Emphasis on sustainability and user privacy features were common themes across launches.</summary>
+              <confidence>85</confidence>
+              <keywords>["product launch", "hardware", "software", "sustainability", "privacy"]</keywords>
+              <source-emails-count>7</source-emails-count>
+            </section-item>
+          </data>
+
+          <card margin-bottom="24px" hover-shadow="md" transition="shadow 0.2s">
+            <section name="header" padding="16px">
+              <layout type="horizontal-between" align-items="center">
+                <element type="theme-badge" background="dynamic-from-theme" color="dynamic-from-theme" padding="6px 12px" border-radius="16px" font-size="14px" font-weight="500">
+                  <text data-field="theme">Theme Name</text>
+                </element>
+                <element type="confidence-label" visible-if="confidence" font-size="12px" color="gray-500">
+                  <text data-template="{confidence}% confidence">92% confidence</text>
+                </element>
+              </layout>
+              <element type="button" variant="ghost" size="sm" action="toggleExpanded" margin-top="8px">
+                <text when-collapsed="Show Sources" when-expanded="Hide Sources" />
+                <icon name="ChevronDown" when-collapsed="true" />
+                <icon name="ChevronUp" when-expanded="true" />
+              </element>
+            </section>
+
+            <section name="content" padding="0 16px 16px">
+              <element type="summary-text" font-size="16px" line-height="1.6" color="gray-700" margin-bottom="16px">
+                <text data-field="summary">Summary text here...</text>
+              </element>
+
+              <!-- Keywords -->
+              <element type="keyword-list" visible-if="keywords.length > 0">
+                <layout type="flex-wrap" gap="4px">
+                  <element type="keyword-badge" repeat="keywords" max-items="6" background="gray-100" color="gray-700" padding="4px 8px" border-radius="4px" font-size="12px">
+                    <text data-field="keyword">keyword</text>
+                  </element>
+                </layout>
+              </element>
+
+              <!-- Source Emails (Expandable) -->
+              <section name="source-emails" visible-when="expanded" border-top="1px solid gray-200" padding-top="16px" margin-top="16px">
+                <element type="section-header" font-size="14px" font-weight="500" color="gray-600" margin-bottom="12px">
+                  <icon name="Mail" size="16px" margin-right="8px" />
+                  <text data-template="Source Emails ({count})">Source Emails (8)</text>
+                </element>
+
+                <component name="SourceEmail" repeat="source-emails">
+                  <data sample-items="3">
+                    <source-email>
+                      <sender>TechCrunch</sender>
+                      <sender-initials>TC</sender-initials>
+                      <subject>OpenAI announces GPT-5 with revolutionary reasoning capabilities</subject>
+                      <summary>OpenAI's latest model shows significant improvements in complex reasoning tasks, outperforming previous versions on benchmark tests.</summary>
+                      <received-at>2025-10-23T08:30:00Z</received-at>
+                      <time-ago>2 hours ago</time-ago>
+                      <relevance-score>95</relevance-score>
+                      <original-link>https://techcrunch.com/article/...</original-link>
+                    </source-email>
+                  </data>
+
+                  <card background="gray-50" border-radius="8px" padding="12px" margin-bottom="12px">
+                    <layout type="horizontal-between" margin-bottom="8px">
+                      <element type="sender-info">
+                        <element type="avatar" size="20px" background="blue-100" color="primary" border-radius="50%" font-size="10px">
+                          <text data-field="sender-initials">TC</text>
+                        </element>
+                        <element type="sender-name" font-size="14px" color="gray-600" margin-left="8px">
+                          <text data-field="sender">Sender Name</text>
+                        </element>
+                        <element type="timestamp" font-size="12px" color="gray-400" margin-left="8px">
+                          <text data-field="time-ago">2 hours ago</text>
+                        </element>
+                      </element>
+
+                      <element type="actions">
+                        <element type="relevance-badge" visible-if="relevance-score" background="green-100" color="green-600" padding="4px 8px" border-radius="4px" font-size="12px">
+                          <text data-template="{relevance-score}% relevant">95% relevant</text>
+                        </element>
+                        <element type="button" variant="ghost" size="icon" action="openOriginalLink" visible-if="original-link">
+                          <icon name="ExternalLink" size="12px" color="gray-400" />
+                        </element>
+                      </element>
+                    </layout>
+
+                    <element type="subject" font-size="14px" font-weight="500" margin-bottom="4px">
+                      <text data-field="subject">Email subject</text>
+                    </element>
+
+                    <element type="summary" font-size="12px" color="gray-600" line-height="1.4">
+                      <text data-field="summary">Email summary...</text>
+                    </element>
+                  </card>
+                </component>
+              </section>
+            </section>
+          </card>
+        </component>
+      </component>
+
+      <!-- Regular Digest Display -->
+      <component name="RegularDigest" visible-if="digest.type !== 'thematic'">
+        <component name="DigestCard" repeat="emails">
+          <!-- See DigestCard component definition below -->
+        </component>
+      </component>
+    </page-content>
+  </screen>
+
+  <!-- COMPONENT: DIGEST CARD (Reusable) -->
+  <component-definition name="DigestCard">
+    <description>Displays a single email digest item with expandable content</description>
+
+    <data-structure>
+      <field name="id" type="number" sample-data="123" />
+      <field name="sender" type="string" sample-data="TechCrunch" />
+      <field name="sender-initials" type="string" sample-data="TC" />
+      <field name="subject" type="string" sample-data="Breaking: Major AI Breakthrough Announced" />
+      <field name="received-at" type="datetime" sample-data="2025-10-23T10:30:00Z" />
+      <field name="time-display" type="string" sample-data="Today at 10:30 AM" />
+      <field name="summary" type="string" sample-data="Researchers have unveiled a new AI model that demonstrates human-level reasoning capabilities across multiple domains..." />
+      <field name="full-content" type="string" sample-data="Full article content with detailed information..." />
+      <field name="topics" type="array" sample-data='["AI", "Machine Learning", "Research"]' />
+      <field name="keywords" type="array" sample-data='["breakthrough", "reasoning", "model"]' />
+      <field name="original-link" type="url" sample-data="https://techcrunch.com/article/ai-breakthrough" />
+    </data-structure>
+
+    <state>
+      <field name="isExpanded" type="boolean" default="false" />
+      <field name="isFavorite" type="boolean" default="false" />
+    </state>
+
+    <card background="white" border-radius="12px" shadow="sm" hover-shadow="md" transition="all 0.2s" padding="20px">
+      <section name="header">
+        <layout type="horizontal-between">
+          <section name="sender-info" flex="1">
+            <layout type="horizontal" align-items="center" margin-bottom="12px">
+              <element type="avatar" size="24px" background="blue-100" color="primary" border-radius="50%" font-size="12px">
+                <text data-field="sender-initials">TC</text>
+              </element>
+              <element type="sender-name" font-size="14px" color="gray-600" margin-left="8px">
+                <text data-field="sender">Sender</text>
+              </element>
+              <element type="timestamp" font-size="12px" color="gray-400" margin-left="8px">
+                <text data-field="time-display">Time</text>
+              </element>
+            </layout>
+
+            <element type="subject" tag="h3" font-size="18px" font-weight="600" cursor="pointer" hover-color="primary" action="toggleExpanded">
+              <text data-field="subject">Subject line</text>
+            </element>
+          </section>
+
+          <section name="actions" flex-shrink="0" margin-left="16px">
+            <layout type="horizontal" gap="8px">
+              <element type="button" variant="ghost" size="icon" action="toggleFavorite">
+                <icon name="Star" when-favorite="true" color="yellow-400" />
+                <icon name="StarOff" when-not-favorite="true" color="gray-400" />
+              </element>
+              <element type="button" variant="ghost" size="icon" action="openOriginalLink" visible-if="original-link">
+                <icon name="ExternalLink" size="16px" color="gray-400" />
+              </element>
+            </layout>
+          </section>
+        </layout>
+      </section>
+
+      <section name="topics" margin-top="12px">
+        <layout type="flex-wrap" gap="8px">
+          <element type="topic-badge" repeat="topics" background="dynamic-from-topic" color="dynamic-from-topic" padding="4px 8px" border-radius="16px" font-size="12px" font-weight="500">
+            <text data-field="topic">Topic</text>
+          </element>
+        </layout>
+      </section>
+
+      <section name="summary" margin-top="16px">
+        <element type="text" font-size="14px" color="gray-600" line-height="1.5">
+          <text data-field="summary">Summary text...</text>
+        </element>
+      </section>
+
+      <section name="full-content" visible-when="expanded" max-height="1000px" transition="max-height 0.3s" overflow="hidden" margin-top="16px" padding-top="16px" border-top="1px solid gray-200">
+        <element type="html-content" font-size="14px" color="gray-500" line-height="1.5">
+          <content data-field="full-content" html-safe="true" />
+        </element>
+
+        <element type="link" visible-if="original-link" margin-top="16px" color="primary" hover-underline="true" font-size="14px" action="openOriginalLink">
+          <text>Read full article</text>
+          <icon name="ExternalLink" size="12px" margin-left="4px" />
+        </element>
+      </section>
+
+      <section name="expand-toggle" margin-top="16px">
+        <element type="button" variant="ghost" size="sm" font-size="12px" color="gray-400" hover-color="gray-600" action="toggleExpanded">
+          <text when-collapsed="Show more" />
+          <text when-expanded="Show less" />
+          <icon name="ChevronDown" when-collapsed="true" size="12px" margin-left="4px" />
+          <icon name="ChevronUp" when-expanded="true" size="12px" margin-left="4px" />
+        </element>
+      </section>
+    </card>
+  </component-definition>
+
+  <!-- SCREEN: HISTORY -->
+  <screen route="/history" name="History" type="authenticated" layout="authenticated-layout">
+    <page-content>
+
+      <!-- Page Header -->
+      <component name="PageHeader">
+        <element type="title" tag="h1" font-size="30px-36px" font-weight="bold">
+          <text>Digest History</text>
+        </element>
+        <element type="date-display" font-size="16px" color="gray-500" data-field="selected-date" />
+      </component>
+
+      <!-- Calendar Section -->
+      <card background="card" border-radius="12px" shadow="sm" padding="24px" margin-bottom="24px">
+        <element type="heading" tag="h2" font-size="18px" font-weight="600" margin-bottom="16px">
+          <text>Select a date to view past digests</text>
+        </element>
+
+        <component name="Calendar" max-width="400px" margin="0 auto">
+          <calendar-properties>
+            <property name="mode" value="single" />
+            <property name="disabled-dates" value="future dates and dates without digests" />
+            <property name="highlighted-dates" value="dates with available digests" />
+            <property name="border" value="1px solid gray-200" />
+            <property name="border-radius" value="8px" />
+          </calendar-properties>
+
+          <data>
+            <available-dates>["2025-10-23", "2025-10-22", "2025-10-21", "2025-10-20", "2025-10-19"]</available-dates>
+          </data>
+        </component>
+
+        <section name="date-status" margin-top="24px" text-align="center">
+          <element type="selected-date" margin-bottom="12px">
+            <text>Selected date: <strong data-field="formatted-date">October 23, 2025</strong></text>
+          </element>
+          <element type="status-message" visible-when="loading">
+            <text color="gray-600">Loading digest...</text>
+          </element>
+          <element type="status-message" visible-when="has-digest">
+            <text color="green-600">✓ Digest available for this date</text>
+          </element>
+          <element type="status-message" visible-when="no-digest">
+            <text color="gray-600">No digest found for this date</text>
+          </element>
+        </section>
+      </card>
+
+      <!-- Recent Digests List -->
+      <card background="card" border-radius="12px" shadow="sm" padding="24px">
+        <section name="summary" text-align="center" padding="32px 0">
+          <element type="heading" tag="h3" font-size="18px" font-weight="600" margin-bottom="8px">
+            <text>Your Digest History</text>
+          </element>
+          <element type="description" color="gray-600" max-width="512px" margin="0 auto 24px">
+            <text data-template="You have {count} digests in your history. Select a date above to view a specific digest.">You have 12 digests in your history. Select a date above to view a specific digest.</text>
+          </element>
+
+          <section name="recent-list" visible-if="digestHistory.length > 0" margin-top="24px">
+            <element type="heading" tag="h4" font-size="16px" font-weight="500" margin-bottom="12px">
+              <text>Recent Digests:</text>
+            </element>
+
+            <layout type="vertical" gap="8px" max-width="512px" margin="0 auto">
+              <component name="RecentDigestItem" repeat="5">
+                <data sample-items="5">
+                  <digest>
+                    <date>2025-10-23</date>
+                    <formatted-date>October 23, 2025</formatted-date>
+                    <emails-processed>45</emails-processed>
+                    <topics-identified>8</topics-identified>
+                  </digest>
+                </data>
+
+                <element type="digest-item" background="gray-100" padding="8px" border-radius="8px" cursor="pointer" hover-background="gray-200" transition="background 0.2s" action="viewDigest">
+                  <layout type="horizontal-between">
+                    <text data-field="formatted-date">Date</text>
+                    <text font-size="14px" color="gray-600" data-template="{emails-processed} emails, {topics-identified} topics">45 emails, 8 topics</text>
+                  </layout>
+                </element>
+              </component>
+            </layout>
+          </section>
+
+          <element type="button" variant="outline" margin-top="16px" action="navigateToDashboard">
+            <text>Back to Dashboard</text>
+          </element>
+        </section>
+      </card>
+    </page-content>
+  </screen>
+
+  <!-- SCREEN: FAVORITES -->
+  <screen route="/favorites" name="Favorites" type="authenticated" layout="authenticated-layout">
+    <page-content>
+
+      <!-- Page Header -->
+      <component name="PageHeader">
+        <element type="title" tag="h1" font-size="30px-36px" font-weight="bold">
+          <text>Favorite Emails</text>
+        </element>
+        <element type="date-display" font-size="16px" color="gray-500" />
+      </component>
+
+      <!-- Favorites List -->
+      <section name="favorites-list" visible-if="favoriteEmails.length > 0">
+        <layout type="vertical" gap="24px">
+          <component name="DigestCard" repeat="favoriteEmails" />
+        </layout>
+      </section>
+
+      <!-- Empty State -->
+      <card visible-if="favoriteEmails.length === 0" background="card" padding="48px" border-radius="12px" shadow="sm" text-align="center">
+        <element type="icon-container" size="64px" background="primary/10" border-radius="50%" margin="0 auto 16px">
+          <icon name="BookmarkIcon" size="32px" color="primary" />
+        </element>
+        <element type="heading" tag="h3" font-size="18px" font-weight="600" margin-bottom="8px">
+          <text>No favorites yet</text>
+        </element>
+        <element type="description" color="gray-600" max-width="512px" margin="0 auto 24px">
+          <text>When you find emails you want to save for later, mark them as favorites and they'll appear here for easy access.</text>
+        </element>
+        <element type="button" variant="primary" action="navigateToDashboard">
+          <text>Back to Dashboard</text>
+        </element>
+      </card>
+
+      <!-- Feature Coming Soon Notice -->
+      <card background="card" border-radius="12px" shadow="sm" padding="24px" margin-top="32px">
+        <section text-align="center" padding="24px 0">
+          <element type="heading" tag="h3" font-size="18px" font-weight="600" margin-bottom="8px">
+            <text>Favorites Feature Coming Soon</text>
+          </element>
+          <element type="description" color="gray-600" max-width="512px" margin="0 auto">
+            <text>We're working on implementing the ability to save your favorite emails. Soon, you'll be able to mark important emails and access them easily from this page.</text>
+          </element>
+        </section>
+      </card>
+    </page-content>
+  </screen>
+
+  <!-- SCREEN: SETTINGS -->
+  <screen route="/settings" name="Settings" type="authenticated" layout="authenticated-layout">
+    <page-content>
+
+      <!-- Page Header -->
+      <section name="page-header" margin-bottom="32px">
+        <element type="heading" tag="h1" font-size="30px-36px" font-weight="bold" margin-bottom="8px">
+          <text>Settings</text>
+        </element>
+        <element type="description" font-size="16px" color="gray-600">
+          <text>Configure your email monitoring and digest preferences</text>
+        </element>
+      </section>
+
+      <!-- Settings Grid -->
+      <layout type="grid" columns="2" gap="32px" responsive="mobile:1 desktop:2">
+
+        <!-- Monitored Email Sources Card -->
+        <card>
+          <section name="header" padding="24px 24px 16px">
+            <element type="title" font-size="18px" font-weight="600" margin-bottom="8px">
+              <icon name="Mail" size="20px" color="primary" margin-right="8px" />
+              <text>Monitored Email Sources</text>
+            </element>
+            <element type="description" font-size="14px" color="gray-600">
+              <text>Configure which email addresses to monitor for digests</text>
+            </element>
+          </section>
+
+          <section name="content" padding="0 24px 16px">
+            <!-- Email List -->
+            <component name="MonitoredEmailList" visible-if="monitoredEmails.length > 0">
+              <data sample-items="3">
+                <email id="1" address="newsletter@techcrunch.com" />
+                <email id="2" address="updates@medium.com" />
+                <email id="3" address="digest@hackernews.com" />
+              </data>
+
+              <layout type="vertical" gap="12px">
+                <element type="email-item" repeat="monitoredEmails" background="gray-100" padding="12px" border-radius="8px">
+                  <layout type="horizontal-between" align-items="center">
+                    <text data-field="address" font-size="14px">email@example.com</text>
+                    <element type="button" variant="ghost" size="icon" color="red-500" hover-color="red-700" action="removeEmail">
+                      <icon name="Trash" size="16px" />
+                    </element>
+                  </layout>
+                </element>
+              </layout>
+            </component>
+
+            <element type="empty-message" visible-if="monitoredEmails.length === 0" font-size="14px" color="gray-500" font-style="italic">
+              <text>No email addresses monitored yet.</text>
+            </element>
+          </section>
+
+          <section name="footer" padding="0 24px 24px">
+            <element type="button" variant="primary" width="100%" action="openConfigModal">
+              <icon name="Plus" size="16px" margin-right="8px" />
+              <text>Add new email source</text>
+            </element>
+          </section>
+        </card>
+
+        <!-- OpenAI API Configuration Card -->
+        <card>
+          <section name="header" padding="24px 24px 16px">
+            <element type="title" font-size="18px" font-weight="600" margin-bottom="8px">
+              <icon name="Key" size="20px" color="primary" margin-right="8px" />
+              <text>OpenAI API Configuration</text>
+            </element>
+            <element type="description" font-size="14px" color="gray-600">
+              <text>Configure your OpenAI API Key for generating digests</text>
+            </element>
+          </section>
+
+          <section name="content" padding="0 24px 24px">
+            <form action="updateApiKey">
+              <element type="form-field" margin-bottom="16px">
+                <label font-size="14px" font-weight="500" margin-bottom="8px">OpenAI API Key</label>
+                <input type="password" placeholder="sk-..." border="1px solid gray-200" border-radius="8px" padding="8px 12px" />
+                <element type="help-text" font-size="12px" color="gray-500" margin-top="4px">
+                  <text>Your API key is securely stored and used for AI-powered digest generation.</text>
+                </element>
+              </element>
+
+              <element type="button" variant="primary" width="100%" type="submit" disabled-if="isUpdating">
+                <icon name="RefreshCw" size="16px" margin-right="8px" animate-spin-if="isUpdating" />
+                <text when-updating="Updating..." when-idle="Update API Key" />
+              </element>
+            </form>
+          </section>
+        </card>
+
+        <!-- Gmail Connection Card -->
+        <card>
+          <section name="header" padding="24px 24px 16px">
+            <element type="title" font-size="18px" font-weight="600" margin-bottom="8px">
+              <icon name="Mail" size="20px" color="primary" margin-right="8px" />
+              <text>Gmail Connection</text>
+            </element>
+            <element type="description" font-size="14px" color="gray-600">
+              <text>Connect your Gmail account to monitor newsletters</text>
+            </element>
+          </section>
+
+          <section name="content" padding="0 24px 24px">
+            <element type="status-box" background="green-50" border="1px solid green-200" border-radius="8px" padding="16px" margin-bottom="16px">
+              <layout type="horizontal" align-items="center">
+                <element type="status-indicator" size="8px" background="green-500" border-radius="50%" margin-right="12px" />
+                <element type="status-text" font-weight="500" color="green-800">
+                  <text>Gmail Connected</text>
+                </element>
+              </layout>
+              <element type="status-description" font-size="14px" color="green-700" margin-top="4px">
+                <text>Successfully connected to your Gmail account</text>
+              </element>
+            </element>
+
+            <element type="button" variant="outline" width="100%" action="reconnectGmail">
+              <text>Reconnect Gmail Account</text>
+            </element>
+          </section>
+        </card>
+
+        <!-- Digest Preferences Card -->
+        <card>
+          <section name="header" padding="24px 24px 16px">
+            <element type="title" font-size="18px" font-weight="600" margin-bottom="8px">
+              <text>Digest Preferences</text>
+            </element>
+            <element type="description" font-size="14px" color="gray-600">
+              <text>Configure how your email digests are generated</text>
+            </element>
+          </section>
+
+          <section name="content" padding="0 24px 24px">
+            <layout type="vertical" gap="16px">
+
+              <component name="SettingToggle" repeat="3">
+                <data>
+                  <setting>
+                    <id>dailyDigestEnabled</id>
+                    <label>Daily Digests</label>
+                    <description>Generate digests once per day</description>
+                    <default-value>true</default-value>
+                  </setting>
+                  <setting>
+                    <id>topicClusteringEnabled</id>
+                    <label>Topic Clustering</label>
+                    <description>Group emails by similar topics</description>
+                    <default-value>true</default-value>
+                  </setting>
+                  <setting>
+                    <id>emailNotificationsEnabled</id>
+                    <label>Email Notifications</label>
+                    <description>Get notified when digest is ready</description>
+                    <default-value>false</default-value>
+                  </setting>
+                </data>
+
+                <element type="setting-row" background="white" padding="12px" border-radius="8px">
+                  <layout type="horizontal-between" align-items="center">
+                    <section>
+                      <element type="label" font-weight="500" margin-bottom="4px">
+                        <text data-field="label">Setting Label</text>
+                      </element>
+                      <element type="description" font-size="14px" color="gray-600">
+                        <text data-field="description">Setting description</text>
+                      </element>
+                    </section>
+                    <element type="switch" data-field="id" default-checked="default-value" action="toggleSetting" />
+                  </layout>
+                </element>
+              </component>
+
+            </layout>
+          </section>
+        </card>
+
+        <!-- Appearance Card -->
+        <card>
+          <section name="header" padding="24px 24px 16px">
+            <element type="title" font-size="18px" font-weight="600" margin-bottom="8px">
+              <icon name="Palette" size="20px" color="primary" margin-right="8px" />
+              <text>Appearance</text>
+            </element>
+            <element type="description" font-size="14px" color="gray-600">
+              <text>Customize the look and feel of SubsBuzz</text>
+            </element>
+          </section>
+
+          <section name="content" padding="0 24px 24px">
+            <layout type="vertical" gap="24px">
+
+              <!-- Theme Mode Selector -->
+              <element type="form-field">
+                <label font-size="14px" font-weight="500" margin-bottom="12px">Theme Mode</label>
+                <component name="Select">
+                  <options>
+                    <option value="light" label="Light" />
+                    <option value="dark" label="Dark" />
+                    <option value="system" label="System" default="true" />
+                  </options>
+                </component>
+              </element>
+
+              <!-- Theme Color Selector -->
+              <element type="form-field">
+                <label font-size="14px" font-weight="500" margin-bottom="12px">Theme Color</label>
+                <component name="ThemeColorSelector">
+                  <layout type="horizontal" gap="12px">
+                    <element type="color-button" repeat="color-schemes">
+                      <data>
+                        <color name="blue" value="hsl(210, 90%, 54%)" default="true" />
+                        <color name="green" value="hsl(141, 73%, 42%)" />
+                        <color name="purple" value="hsl(262, 90%, 54%)" />
+                        <color name="teal" value="hsl(180, 85%, 48%)" />
+                        <color name="red" value="hsl(0, 84%, 60%)" />
+                        <color name="orange" value="hsl(30, 96%, 62%)" />
+                      </data>
+
+                      <button size="40x40" background="color-value" border-radius="8px" border="2px solid transparent" active-border="2px solid gray-900" action="selectThemeColor" />
+                    </element>
+                  </layout>
+                </component>
+              </element>
+
+            </layout>
+          </section>
+        </card>
+
+      </layout>
+    </page-content>
+  </screen>
+
+  <!-- MODAL: CONFIG MODAL -->
+  <modal name="ConfigModal" max-width="512px">
+    <dialog-overlay background="rgba(0, 0, 0, 0.5)" />
+
+    <dialog-content background="white" border-radius="12px" shadow="lg" max-height="90vh" overflow="auto">
+      <section name="header" padding="24px 24px 16px">
+        <element type="title" font-size="20px" font-weight="600" margin-bottom="8px">
+          <text>Configure Monitored Addresses</text>
+        </element>
+        <element type="description" font-size="14px" color="gray-600">
+          <text>Add email addresses to monitor for digest generation and configure your notification preferences.</text>
+        </element>
+      </section>
+
+      <section name="content" padding="0 24px">
+
+        <!-- Add Email Form -->
+        <form action="addEmail" margin-bottom="24px">
+          <element type="form-field">
+            <label font-size="14px" font-weight="500" color="gray-700" margin-bottom="8px">
+              <text>Add New Email Address</text>
+            </label>
+            <layout type="horizontal">
+              <input type="email" placeholder="Enter email address" flex="1" border="1px solid gray-200" border-radius-left="8px" border-radius-right="0" padding="8px 12px" />
+              <element type="button" variant="primary" border-radius-left="0" border-radius-right="8px" type="submit">
+                <text>Add</text>
+              </element>
+            </layout>
+          </element>
+        </form>
+
+        <!-- Currently Monitored List -->
+        <section margin-bottom="24px">
+          <label font-size="14px" font-weight="500" color="gray-700" margin-bottom="8px">
+            <text>Currently Monitored</text>
+          </label>
+
+          <component name="MonitoredEmailList" visible-if="monitoredEmails.length > 0">
+            <layout type="vertical" gap="12px">
+              <element type="email-item" repeat="monitoredEmails" background="gray-50" padding="12px" border-radius="8px">
+                <layout type="horizontal-between" align-items="center">
+                  <text data-field="email" font-size="14px">email@example.com</text>
+                  <element type="button" variant="ghost" size="icon" color="red-500" hover-color="red-700" action="removeEmail">
+                    <icon name="Trash2" size="16px" />
+                  </element>
+                </layout>
+              </element>
+            </layout>
+          </component>
+
+          <element type="empty-message" visible-if="monitoredEmails.length === 0" font-size="14px" color="gray-500" font-style="italic">
+            <text>No email addresses monitored yet.</text>
+          </element>
+        </section>
+
+        <!-- Advanced Settings -->
+        <section>
+          <label font-size="14px" font-weight="500" color="gray-700" margin-bottom="12px">
+            <text>Advanced Settings</text>
+          </label>
+
+          <layout type="vertical" gap="12px">
+            <component name="SettingToggle" repeat="3">
+              <element type="setting-row" background="gray-50" padding="12px" border-radius="8px">
+                <layout type="horizontal-between" align-items="center">
+                  <section>
+                    <element type="label" font-weight="500">
+                      <text data-field="label">Setting Label</text>
+                    </element>
+                    <element type="description" font-size="14px" color="gray-600">
+                      <text data-field="description">Setting description</text>
+                    </element>
+                  </section>
+                  <element type="switch" data-field="id" action="toggleSetting" />
+                </layout>
+              </element>
+            </component>
+          </layout>
+        </section>
+      </section>
+
+      <section name="footer" padding="24px" border-top="1px solid gray-200">
+        <layout type="horizontal-end" gap="12px">
+          <element type="button" variant="outline" action="close">
+            <text>Cancel</text>
+          </element>
+          <element type="button" variant="primary" action="saveChanges">
+            <text>Save Changes</text>
+          </element>
+        </layout>
+      </section>
+    </dialog-content>
+  </modal>
+
+  <!-- MODAL: ONBOARDING MODAL -->
+  <modal name="OnboardingModal" max-width="768px">
+    <dialog-overlay background="rgba(0, 0, 0, 0.6)" />
+
+    <dialog-content background="white" border-radius="12px" shadow="lg" max-height="90vh" overflow="auto">
+      <section name="header" padding="24px">
+        <element type="title" font-size="20px" font-weight="600">
+          <icon name="Mail" size="20px" margin-right="8px" />
+          <text>Welcome to SubsBuzz</text>
+        </element>
+      </section>
+
+      <!-- Progress Indicator -->
+      <section name="progress" padding="0 24px 16px">
+        <element type="progress-bar" height="8px" background="gray-200" border-radius="4px">
+          <element type="progress-fill" background="primary" height="100%" border-radius="4px" width-percent="dynamic" transition="width 0.3s" />
+        </element>
+
+        <layout type="horizontal-between" margin-top="16px" font-size="12px">
+          <component name="StepIndicator" repeat="5">
+            <data>
+              <step number="1" label="Connect" />
+              <step number="2" label="Scan" />
+              <step number="3" label="Select" />
+              <step number="4" label="Customize" />
+              <step number="5" label="Schedule" />
+            </data>
+
+            <layout type="horizontal" gap="8px" align-items="center">
+              <element type="step-circle" size="32px" border-radius="50%" background-when-active="primary" background-when-complete="green-500" background-when-pending="gray-200" color-when-active="white" color-when-complete="white" color-when-pending="gray-500" font-weight="600">
+                <icon name="CheckCircle" visible-when="complete" size="16px" />
+                <text visible-when="not-complete" data-field="number">1</text>
+              </element>
+              <text font-weight-when-active="600" color-when-inactive="gray-500" data-field="label">Step</text>
+            </layout>
+          </component>
+        </layout>
+      </section>
+
+      <!-- Step Content Area -->
+      <section name="step-content" padding="24px" min-height="400px">
+
+        <!-- Step 1: Gmail Auth -->
+        <component name="GmailAuthStep" visible-when="step === 'gmail_auth'">
+          <layout type="vertical-center" text-align="center" gap="24px" padding="32px 0">
+            <element type="icon-container" size="64px" background="primary/10" border-radius="50%">
+              <icon name="Mail" size="32px" color="primary" />
+            </element>
+
+            <section>
+              <element type="heading" font-size="20px" font-weight="600" margin-bottom="8px">
+                <text>Connect Your Gmail</text>
+              </element>
+              <element type="description" color="gray-600" margin-bottom="16px">
+                <text>To scan for newsletters and create your digest, we need access to your Gmail account.</text>
+              </element>
+
+              <element type="info-box" background="blue-50" padding="16px" border-radius="8px" max-width="512px" margin="0 auto" text-align="left">
+                <element type="heading" font-size="14px" font-weight="500" margin-bottom="8px">
+                  <text>What we'll do:</text>
+                </element>
+                <layout type="vertical" gap="4px" font-size="14px" color="gray-600">
+                  <text>• Scan your recent emails for newsletters</text>
+                  <text>• Read only emails from senders you approve</text>
+                  <text>• Never send emails or access your contacts</text>
+                  <text>• Create intelligent summaries of your content</text>
+                </layout>
+              </element>
+            </section>
+
+            <element type="button" size="large" variant="primary" action="authorizeGmail">
+              <icon type="google-logo" size="20px" margin-right="8px" />
+              <text>Connect Gmail Account</text>
+            </element>
+
+            <element type="help-text" font-size="12px" color="gray-500">
+              <text>You'll be redirected to Google to grant permissions</text>
+            </element>
+          </layout>
+        </component>
+
+        <!-- Step 2: Scanning -->
+        <component name="ScanningStep" visible-when="step === 'scanning'">
+          <layout type="vertical-center" text-align="center" gap="24px" padding="32px 0">
+            <element type="icon-container" size="64px" background="primary/10" border-radius="50%">
+              <icon name="Loader2" when-scanning="true" size="32px" color="primary" animation="spin" />
+              <icon name="Search" when-error="true" size="32px" color="red-500" />
+              <icon name="CheckCircle" when-complete="true" size="32px" color="green-500" />
+            </element>
+
+            <section>
+              <element type="heading" font-size="20px" font-weight="600" margin-bottom="8px">
+                <text when-scanning="Scanning Your Gmail" />
+                <text when-error="Scan Failed" />
+                <text when-complete="Scan Complete" />
+              </element>
+              <element type="description" color="gray-600">
+                <text when-scanning="We're looking through your recent emails to find newsletters and subscriptions..." />
+                <text when-error="We couldn't scan your Gmail. You can still add newsletters manually." />
+                <text when-complete="Found {count} potential newsletters in your inbox." sample-data="15" />
+              </element>
+            </section>
+          </layout>
+        </component>
+
+        <!-- Step 3: Newsletter Selection -->
+        <component name="NewsletterSelectionStep" visible-when="step === 'newsletter_selection'">
+          <section>
+            <element type="heading" font-size="20px" font-weight="600" margin-bottom="8px">
+              <text>Select Your Newsletters</text>
+            </element>
+            <element type="description" color="gray-600" margin-bottom="24px">
+              <text>Choose which newsletters you'd like to include in your daily digest.</text>
+            </element>
+
+            <layout type="horizontal-between" margin-bottom="16px">
+              <text font-size="14px" color="gray-500">
+                <span data-template="{selected} of {total} selected">5 of 15 selected</span>
+              </text>
+              <layout type="horizontal" gap="8px">
+                <element type="button" variant="outline" size="sm" action="clearAll">
+                  <text>Clear All</text>
+                </element>
+                <element type="button" variant="outline" size="sm" action="selectAll">
+                  <text>Select All</text>
+                </element>
+              </layout>
+            </layout>
+
+            <layout type="vertical" gap="12px" max-height="320px" overflow="auto">
+              <component name="NewsletterItem" repeat="newsletters">
+                <data sample-items="10">
+                  <newsletter>
+                    <email>newsletter@techcrunch.com</email>
+                    <name>TechCrunch</name>
+                    <count>24</count>
+                    <latest-subject>Breaking: Major AI announcement from OpenAI</latest-subject>
+                  </newsletter>
+                </data>
+
+                <card cursor="pointer" hover-background="gray-50" padding="16px">
+                  <layout type="horizontal" gap="12px" align-items="center">
+                    <element type="checkbox" checked-data-field="selected" action="toggleNewsletter" />
+                    <section flex="1" min-width="0">
+                      <layout type="horizontal-between" margin-bottom="4px">
+                        <element type="name" font-weight="500" truncate="true" data-field="name">
+                          <text>Newsletter Name</text>
+                        </element>
+                        <element type="badge" variant="secondary" margin-left="8px">
+                          <text data-template="{count} emails">24 emails</text>
+                        </element>
+                      </layout>
+                      <element type="email" font-size="14px" color="gray-500" truncate="true" data-field="email">
+                        <text>email@example.com</text>
+                      </element>
+                      <element type="latest" font-size="12px" color="gray-400" truncate="true" margin-top="4px">
+                        <text data-template="Latest: {latest-subject}">Latest: Subject</text>
+                      </element>
+                    </section>
+                  </layout>
+                </card>
+              </component>
+            </layout>
+
+            <layout type="horizontal-between" margin-top="24px">
+              <element type="button" variant="outline" action="previousStep">
+                <text>Back</text>
+              </element>
+              <element type="button" variant="primary" action="nextStep">
+                <text>Continue</text>
+              </element>
+            </layout>
+          </section>
+        </component>
+
+        <!-- Step 4: Custom Emails -->
+        <component name="CustomEmailsStep" visible-when="step === 'custom_emails'">
+          <section>
+            <element type="heading" font-size="20px" font-weight="600" margin-bottom="8px">
+              <text>Add Custom Newsletters</text>
+            </element>
+            <element type="description" color="gray-600" margin-bottom="24px">
+              <text>Add any specific newsletter email addresses we might have missed.</text>
+            </element>
+
+            <layout type="horizontal" gap="8px" margin-bottom="16px">
+              <input type="email" placeholder="newsletter@example.com" flex="1" border="1px solid gray-200" border-radius="8px" padding="8px 12px" />
+              <element type="button" variant="primary" action="addCustomEmail">
+                <icon name="Plus" size="16px" />
+              </element>
+            </layout>
+
+            <section visible-if="customEmails.length > 0" margin-bottom="24px">
+              <label font-size="14px" font-weight="500" margin-bottom="8px">Custom Newsletters:</label>
+              <layout type="vertical" gap="8px">
+                <element type="custom-email-item" repeat="customEmails" background="gray-50" padding="8px" border-radius="8px">
+                  <layout type="horizontal-between" align-items="center">
+                    <text font-size="14px" data-field="email">email@example.com</text>
+                    <element type="button" variant="ghost" size="sm" action="removeCustomEmail">
+                      <text>Remove</text>
+                    </element>
+                  </layout>
+                </element>
+              </layout>
+            </section>
+
+            <element type="separator" margin="24px 0" />
+
+            <element type="summary-box" background="blue-50" padding="16px" border-radius="8px">
+              <element type="heading" font-size="14px" font-weight="500" margin-bottom="8px">
+                <text>Summary</text>
+              </element>
+              <element type="description" font-size="14px" color="gray-600">
+                <text data-template="You've selected {total} newsletters to monitor." sample-data="12">You've selected N newsletters to monitor.</text>
+              </element>
+            </element>
+
+            <layout type="horizontal-between" margin-top="24px">
+              <element type="button" variant="outline" action="previousStep">
+                <text>Back</text>
+              </element>
+              <element type="button" variant="primary" action="nextStep">
+                <text>Continue</text>
+              </element>
+            </layout>
+          </section>
+        </component>
+
+        <!-- Step 5: Frequency Selection -->
+        <component name="FrequencyStep" visible-when="step === 'frequency'">
+          <section>
+            <element type="heading" font-size="20px" font-weight="600" margin-bottom="8px">
+              <text>Digest Frequency</text>
+            </element>
+            <element type="description" color="gray-600" margin-bottom="24px">
+              <text>How often would you like to receive your newsletter digest?</text>
+            </element>
+
+            <layout type="vertical" gap="16px">
+
+              <component name="FrequencyOption" repeat="3">
+                <data>
+                  <option value="daily" title="Daily" description="Get your digest every morning at 7 AM" />
+                  <option value="weekly" title="Weekly" description="Get your digest every Monday morning" />
+                  <option value="custom" title="Custom" description="Choose your own frequency" />
+                </data>
+
+                <card cursor="pointer" border="2px solid transparent" active-border="2px solid primary" padding="16px" action="selectFrequency">
+                  <layout type="horizontal" gap="12px" align-items="center">
+                    <input type="radio" name="frequency" data-field="value" />
+                    <section flex="1">
+                      <element type="title" font-weight="500" margin-bottom="4px" data-field="title">
+                        <text>Frequency Title</text>
+                      </element>
+                      <element type="description" font-size="14px" color="gray-500" data-field="description">
+                        <text>Description</text>
+                      </element>
+
+                      <!-- Custom frequency selector -->
+                      <section visible-when="value === 'custom' && selected">
+                        <layout type="horizontal" gap="8px" align-items="center" margin-top="8px">
+                          <text font-size="14px">Every</text>
+                          <component name="Select" width="80px">
+                            <options>
+                              <option value="2">2</option>
+                              <option value="3">3</option>
+                              <option value="4">4</option>
+                              <option value="5">5</option>
+                              <option value="6">6</option>
+                              <option value="7">7</option>
+                              <option value="10">10</option>
+                              <option value="14">14</option>
+                            </options>
+                          </component>
+                          <text font-size="14px">days</text>
+                        </layout>
+                      </section>
+                    </section>
+                  </layout>
+                </card>
+              </component>
+
+            </layout>
+
+            <layout type="horizontal-between" margin-top="24px">
+              <element type="button" variant="outline" action="previousStep">
+                <text>Back</text>
+              </element>
+              <element type="button" variant="primary" action="completeSetup" disabled-if="isProcessing">
+                <icon name="Loader2" when-processing="true" size="16px" margin-right="8px" animation="spin" />
+                <text when-processing="Setting Up..." when-idle="Complete Setup" />
+              </element>
+            </layout>
+          </section>
+        </component>
+
+        <!-- Step 6: Confirmation -->
+        <component name="ConfirmationStep" visible-when="step === 'confirmation'">
+          <layout type="vertical-center" text-align="center" gap="24px" padding="32px 0">
+            <element type="icon-container" size="64px" background="green-100" border-radius="50%">
+              <icon name="CheckCircle" size="32px" color="green-500" />
+            </element>
+
+            <section>
+              <element type="heading" font-size="24px" font-weight="600" margin-bottom="8px">
+                <text>Welcome to SubsBuzz!</text>
+              </element>
+              <element type="description" color="gray-600" margin-bottom="16px">
+                <text>Your account is set up and your first digest is being generated.</text>
+              </element>
+
+              <element type="summary-box" background="blue-50" padding="16px" border-radius="8px" max-width="384px" margin="0 auto" font-size="14px">
+                <p><strong>Monitoring:</strong> <span data-template="{count} newsletters">15 newsletters</span></p>
+                <p><strong>Frequency:</strong> <span data-field="frequency">Daily</span></p>
+              </element>
+            </section>
+
+            <element type="button" size="large" variant="primary" action="goToDashboard">
+              <text>Go to Dashboard</text>
+            </element>
+          </layout>
+        </component>
+
+      </section>
+    </dialog-content>
+  </modal>
+
+  <!-- REUSABLE UI COMPONENTS -->
+  <component-library>
+
+    <component name="Button">
+      <variants>
+        <variant name="primary" background="primary" color="white" hover-background="blue-600" />
+        <variant name="secondary" background="gray-100" color="gray-900" hover-background="gray-200" />
+        <variant name="outline" background="transparent" border="1px solid gray-300" color="gray-700" hover-background="gray-50" />
+        <variant name="ghost" background="transparent" color="gray-600" hover-background="gray-100" />
+        <variant name="destructive" background="red-500" color="white" hover-background="red-600" />
+      </variants>
+      <sizes>
+        <size name="sm" padding="6px 12px" font-size="14px" />
+        <size name="md" padding="8px 16px" font-size="16px" default="true" />
+        <size name="lg" padding="12px 24px" font-size="18px" />
+        <size name="icon" padding="8px" width="32px" height="32px" />
+      </sizes>
+      <properties>
+        <property name="border-radius" value="8px" />
+        <property name="font-weight" value="500" />
+        <property name="transition" value="all 0.2s" />
+        <property name="cursor" value="pointer" />
+      </properties>
+    </component>
+
+    <component name="Card">
+      <properties>
+        <property name="background" value="white" />
+        <property name="border" value="1px solid gray-200" />
+        <property name="border-radius" value="12px" />
+        <property name="shadow" value="0 1px 3px rgba(0,0,0,0.1)" />
+        <property name="padding" value="0" />
+        <property name="transition" value="shadow 0.2s" />
+      </properties>
+      <hover-state>
+        <property name="shadow" value="0 4px 6px rgba(0,0,0,0.1)" />
+      </hover-state>
+    </component>
+
+    <component name="Input">
+      <properties>
+        <property name="border" value="1px solid gray-200" />
+        <property name="border-radius" value="8px" />
+        <property name="padding" value="8px 12px" />
+        <property name="font-size" value="16px" />
+        <property name="background" value="white" />
+        <property name="transition" value="border-color 0.2s" />
+      </properties>
+      <focus-state>
+        <property name="border-color" value="primary" />
+        <property name="outline" value="2px solid rgba(59, 130, 246, 0.1)" />
+      </focus-state>
+    </component>
+
+    <component name="Badge">
+      <variants>
+        <variant name="default" background="gray-100" color="gray-800" />
+        <variant name="primary" background="blue-100" color="blue-800" />
+        <variant name="secondary" background="gray-100" color="gray-600" />
+        <variant name="success" background="green-100" color="green-800" />
+        <variant name="warning" background="yellow-100" color="yellow-800" />
+        <variant name="danger" background="red-100" color="red-800" />
+      </variants>
+      <properties>
+        <property name="padding" value="4px 8px" />
+        <property name="border-radius" value="12px" />
+        <property name="font-size" value="12px" />
+        <property name="font-weight" value="500" />
+      </properties>
+    </component>
+
+    <component name="Switch">
+      <properties>
+        <property name="width" value="44px" />
+        <property name="height" value="24px" />
+        <property name="border-radius" value="12px" />
+        <property name="background-off" value="gray-200" />
+        <property name="background-on" value="primary" />
+        <property name="transition" value="background-color 0.2s" />
+      </properties>
+      <thumb>
+        <property name="size" value="20px" />
+        <property name="background" value="white" />
+        <property name="shadow" value="0 2px 4px rgba(0,0,0,0.2)" />
+        <property name="transition" value="transform 0.2s" />
+      </thumb>
+    </component>
+
+    <component name="Calendar">
+      <properties>
+        <property name="border" value="1px solid gray-200" />
+        <property name="border-radius" value="8px" />
+        <property name="padding" value="16px" />
+        <property name="background" value="white" />
+      </properties>
+      <day-cell>
+        <property name="size" value="36px" />
+        <property name="border-radius" value="8px" />
+        <property name="hover-background" value="gray-100" />
+        <property name="selected-background" value="primary" />
+        <property name="selected-color" value="white" />
+        <property name="disabled-color" value="gray-300" />
+      </day-cell>
+    </component>
+
+  </component-library>
+
+  <!-- DATA TYPES & SAMPLE DATA -->
+  <data-types>
+
+    <type name="User">
+      <field name="uid" type="string" sample="user_abc123" />
+      <field name="email" type="string" sample="tmattoneill@gmail.com" />
+      <field name="displayName" type="string" sample="Tom O'Neill" />
+      <field name="photoURL" type="string | null" sample="null" />
+    </type>
+
+    <type name="DigestEmail">
+      <field name="id" type="number" sample="456" />
+      <field name="digestId" type="number" sample="123" />
+      <field name="sender" type="string" sample="TechCrunch" />
+      <field name="subject" type="string" sample="OpenAI announces GPT-5 with revolutionary capabilities" />
+      <field name="receivedAt" type="datetime" sample="2025-10-23T10:30:00Z" />
+      <field name="summary" type="string" sample="OpenAI's latest model demonstrates significant improvements in reasoning and problem-solving capabilities..." />
+      <field name="fullContent" type="string" sample="Full article content here with detailed information about the announcement..." />
+      <field name="topics" type="array" sample='["AI", "Machine Learning", "Technology"]' />
+      <field name="keywords" type="array" sample='["GPT-5", "OpenAI", "reasoning", "breakthrough"]' />
+      <field name="originalLink" type="url" sample="https://techcrunch.com/2025/10/23/openai-gpt5" />
+    </type>
+
+    <type name="EmailDigest">
+      <field name="id" type="number" sample="123" />
+      <field name="date" type="date" sample="2025-10-23" />
+      <field name="emailsProcessed" type="number" sample="45" />
+      <field name="topicsIdentified" type="number" sample="8" />
+      <field name="emails" type="DigestEmail[]" sample="[...]" />
+      <field name="type" type="string" sample="thematic" />
+    </type>
+
+    <type name="ThematicDigest">
+      <field name="id" type="number" sample="789" />
+      <field name="userId" type="string" sample="user_abc123" />
+      <field name="date" type="date" sample="2025-10-23" />
+      <field name="emailDigestId" type="number" sample="123" />
+      <field name="sectionsCount" type="number" sample="5" />
+      <field name="totalSourceEmails" type="number" sample="45" />
+      <field name="processingMethod" type="string" sample="openai-thematic" />
+      <field name="sections" type="ThematicSection[]" sample="[...]" />
+    </type>
+
+    <type name="ThematicSection">
+      <field name="id" type="number" sample="1" />
+      <field name="thematicDigestId" type="number" sample="789" />
+      <field name="theme" type="string" sample="AI & Machine Learning" />
+      <field name="summary" type="string" sample="This week saw major announcements in AI development..." />
+      <field name="confidence" type="number" sample="92" />
+      <field name="keywords" type="array" sample='["AI", "LLM", "GPT", "neural networks"]' />
+      <field name="order" type="number" sample="1" />
+      <field name="sourceEmails" type="array" sample="[...]" />
+    </type>
+
+    <type name="MonitoredEmail">
+      <field name="id" type="number" sample="1" />
+      <field name="email" type="string" sample="newsletter@techcrunch.com" />
+      <field name="active" type="boolean" sample="true" />
+    </type>
+
+    <type name="UserSettings">
+      <field name="id" type="number" sample="1" />
+      <field name="dailyDigestEnabled" type="boolean" sample="true" />
+      <field name="topicClusteringEnabled" type="boolean" sample="true" />
+      <field name="emailNotificationsEnabled" type="boolean" sample="false" />
+      <field name="themeMode" type="string" sample="system" />
+      <field name="themeColor" type="string" sample="blue" />
+    </type>
+
+    <type name="NewsletterSender">
+      <field name="email" type="string" sample="newsletter@medium.com" />
+      <field name="name" type="string" sample="Medium Daily Digest" />
+      <field name="count" type="number" sample="18" />
+      <field name="latestSubject" type="string" sample="Today's top stories from Medium" />
+      <field name="hasUnsubscribe" type="boolean" sample="true" />
+    </type>
+
+  </data-types>
+
+  <!-- INTERACTION PATTERNS -->
+  <interactions>
+
+    <interaction name="Sign In Flow">
+      <step>User clicks "Sign In" or "Get Started" button</step>
+      <step>Frontend calls signIn() from AuthContext</step>
+      <step>API call to /api/auth/gmail-access returns Google OAuth URL</step>
+      <step>User redirected to Google authorization page</step>
+      <step>User grants Gmail permissions</step>
+      <step>Google redirects to /auth/callback with auth code</step>
+      <step>Backend exchanges code for tokens and creates user session</step>
+      <step>User redirected to /dashboard with ?connected=gmail parameter</step>
+      <step>Frontend shows success toast and loads user data</step>
+    </interaction>
+
+    <interaction name="Generate Digest">
+      <step>User clicks "Generate Digest" button on Dashboard</step>
+      <step>Button shows loading state with spinning icon</step>
+      <step>Frontend calls POST /api/digest/generate</step>
+      <step>Toast notification confirms generation started</step>
+      <step>Digest list automatically refreshes via query invalidation</step>
+      <step>New digest appears in grid when processing completes</step>
+    </interaction>
+
+    <interaction name="View Digest">
+      <step>User clicks digest card on Dashboard or History page</step>
+      <step>Navigate to /digest/:date route</step>
+      <step>Loading state displayed while fetching digest data</step>
+      <step>Digest content rendered (thematic or regular format)</step>
+      <step>User can expand/collapse sections and source emails</step>
+      <step>User can click external links to view original content</step>
+    </interaction>
+
+    <interaction name="Configure Email Sources">
+      <step>User navigates to Settings page</step>
+      <step>Clicks "Add new email source" button</step>
+      <step>Config modal opens with email input form</step>
+      <step>User enters email address and clicks "Add"</step>
+      <step>Email validated and added to monitored list</step>
+      <step>Toast confirmation shown</step>
+      <step>Modal remains open for adding more emails</step>
+      <step>User clicks "Save Changes" to close modal</step>
+    </interaction>
+
+    <interaction name="Toggle Setting">
+      <step>User clicks switch toggle in Settings</step>
+      <step>Switch animates to new position immediately (optimistic update)</step>
+      <step>Frontend calls PATCH /api/settings with updated value</step>
+      <step>Toast confirmation shown on success</step>
+      <step>If API call fails, switch reverts and error toast shown</step>
+    </interaction>
+
+    <interaction name="Change Theme">
+      <step>User selects theme mode (light/dark/system) in Settings</step>
+      <step>Theme applies immediately via ThemeProvider</step>
+      <step>CSS variables update to reflect new theme</step>
+      <step>Frontend calls PATCH /api/settings to persist preference</step>
+      <step>Theme setting saved to database for next session</step>
+    </interaction>
+
+    <interaction name="Expand Email in Digest">
+      <step>User clicks email subject or "Show more" button</step>
+      <step>isExpanded state toggles to true</step>
+      <step>Full content section animates open (max-height transition)</step>
+      <step>Original link displayed if available</step>
+      <step>Button text changes to "Show less"</step>
+      <step>User can click again to collapse</step>
+    </interaction>
+
+  </interactions>
+
+  <!-- API ENDPOINTS -->
+  <api-endpoints>
+    <endpoint method="POST" path="/api/auth/gmail-access" auth="optional">
+      <description>Initiates Gmail OAuth flow, returns authorization URL</description>
+      <response>{"auth_url": "https://accounts.google.com/o/oauth2/v2/auth?..."}</response>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/auth/validate" auth="required">
+      <description>Validates current JWT token and returns user info</description>
+      <response>{"valid": true, "uid": "user123", "email": "user@example.com"}</response>
+    </endpoint>
+
+    <endpoint method="POST" path="/api/auth/logout" auth="required">
+      <description>Logs out user and invalidates session</description>
+      <response>{"success": true}</response>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/digest/history" auth="required">
+      <description>Returns all available digests for current user</description>
+      <response>[{"id": 123, "date": "2025-10-23", "emailsProcessed": 45, "topicsIdentified": 8, ...}]</response>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/digest/available-dates" auth="required">
+      <description>Returns list of dates with available digests</description>
+      <response>["2025-10-23", "2025-10-22", "2025-10-21", ...]</response>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/digest/date/:date" auth="required">
+      <description>Returns full digest for specific date</description>
+      <response>{"id": 123, "date": "2025-10-23", "type": "thematic", "sections": [...], ...}</response>
+    </endpoint>
+
+    <endpoint method="POST" path="/api/digest/generate" auth="required">
+      <description>Triggers new digest generation for current user</description>
+      <response>{"success": true, "message": "Digest generation started"}</response>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/monitored-emails" auth="required">
+      <description>Returns list of monitored email addresses</description>
+      <response>[{"id": 1, "email": "newsletter@example.com", "active": true}, ...]</response>
+    </endpoint>
+
+    <endpoint method="POST" path="/api/monitored-emails" auth="required">
+      <description>Adds new email address to monitoring list</description>
+      <request>{"email": "newsletter@example.com"}</request>
+      <response>{"id": 1, "email": "newsletter@example.com", "active": true}</response>
+    </endpoint>
+
+    <endpoint method="DELETE" path="/api/monitored-emails/:id" auth="required">
+      <description>Removes email address from monitoring</description>
+      <response>{"success": true}</response>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/settings" auth="required">
+      <description>Returns user settings</description>
+      <response>{"id": 1, "dailyDigestEnabled": true, "topicClusteringEnabled": true, ...}</response>
+    </endpoint>
+
+    <endpoint method="PATCH" path="/api/settings" auth="required">
+      <description>Updates user settings</description>
+      <request>{"dailyDigestEnabled": false}</request>
+      <response>{"id": 1, "dailyDigestEnabled": false, ...}</response>
+    </endpoint>
+
+    <endpoint method="POST" path="/api/settings/api-key" auth="required">
+      <description>Stores OpenAI API key for user</description>
+      <request>{"apiKey": "sk-..."}</request>
+      <response>{"success": true}</response>
+    </endpoint>
+
+    <endpoint method="GET" path="/api/onboarding/scan-newsletters" auth="required">
+      <description>Scans Gmail for newsletter senders</description>
+      <response>{"newsletters": [{"email": "...", "name": "...", "count": 24, ...}]}</response>
+    </endpoint>
+
+    <endpoint method="POST" path="/api/onboarding/save-selections" auth="required">
+      <description>Saves onboarding selections (emails, frequency)</description>
+      <request>{"emails": [...], "frequency": "daily"}</request>
+      <response>{"success": true}</response>
+    </endpoint>
+  </api-endpoints>
+
+  <!-- RESPONSIVE BEHAVIOR -->
+  <responsive-design>
+    <breakpoint name="mobile" max-width="768px">
+      <layout>
+        <sidebar display="none" replaced-by="mobile-header-with-menu" />
+        <grid-columns default="1" />
+        <font-sizes scale="0.9" />
+        <padding reduced="true" />
+      </layout>
+    </breakpoint>
+
+    <breakpoint name="tablet" min-width="769px" max-width="1024px">
+      <layout>
+        <sidebar display="block" />
+        <grid-columns default="2" />
+        <font-sizes scale="1" />
+      </layout>
+    </breakpoint>
+
+    <breakpoint name="desktop" min-width="1025px">
+      <layout>
+        <sidebar display="block" width="256px" />
+        <grid-columns default="3" />
+        <max-content-width value="1152px" />
+      </layout>
+    </breakpoint>
+  </responsive-design>
+
+  <!-- ACCESSIBILITY FEATURES -->
+  <accessibility>
+    <keyboard-navigation>
+      <feature>All interactive elements are keyboard accessible</feature>
+      <feature>Tab order follows logical flow</feature>
+      <feature>Focus indicators visible on all interactive elements</feature>
+      <feature>Escape key closes modals and dropdowns</feature>
+    </keyboard-navigation>
+
+    <screen-readers>
+      <feature>Semantic HTML structure (header, nav, main, section)</feature>
+      <feature>ARIA labels on icon-only buttons</feature>
+      <feature>ARIA live regions for dynamic content updates</feature>
+      <feature>Alt text on all meaningful icons and images</feature>
+    </screen-readers>
+
+    <color-contrast>
+      <feature>WCAG AA compliant color contrast ratios</feature>
+      <feature>Dark mode with appropriate contrast adjustments</feature>
+      <feature>Text remains readable on all background colors</feature>
+    </color-contrast>
+  </accessibility>
+
+  <!-- PERFORMANCE OPTIMIZATIONS -->
+  <performance>
+    <data-fetching>
+      <strategy>React Query for caching and automatic refetching</strategy>
+      <strategy>Optimistic UI updates for better perceived performance</strategy>
+      <strategy>Infinite scroll/pagination for long lists (future enhancement)</strategy>
+    </data-fetching>
+
+    <rendering>
+      <strategy>Code splitting by route</strategy>
+      <strategy>Lazy loading for modal components</strategy>
+      <strategy>Memoization for expensive computations</strategy>
+      <strategy>Virtual scrolling for large lists (future enhancement)</strategy>
+    </rendering>
+
+    <assets>
+      <strategy>SVG icons for scalability and performance</strategy>
+      <strategy>Optimized Google Font loading</strategy>
+      <strategy>CSS-in-JS with Tailwind for minimal bundle size</strategy>
+    </assets>
+  </performance>
+
+</application>

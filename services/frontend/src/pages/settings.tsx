@@ -30,7 +30,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Sidebar } from "@/components/ui/sidebar";
 import { ConfigModal } from "@/components/ui/config-modal";
 import { MonitoredEmail, UserSettings } from "@/lib/types";
 import { apiRequest } from "@/lib/queryClient";
@@ -40,6 +39,7 @@ import { z } from "zod";
 import { Mail, Key, RefreshCw, Plus, Palette } from "lucide-react";
 import { ThemeColorSelector } from "@/components/ui/theme-toggle";
 import { useTheme } from "next-themes";
+import { DashboardLayout } from "@/components/layout";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -259,33 +259,33 @@ export default function Settings() {
 
   if (isMonitoredEmailsLoading || isUserSettingsLoading) {
     return (
-      <div className="min-h-screen flex flex-col md:flex-row bg-background">
-        <Sidebar />
-        <div className="flex-1 p-4 md:p-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-4 w-1/3"></div>
-            <div className="h-4 bg-gray-200 rounded mb-8 w-1/5"></div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-64 bg-white rounded-xl shadow-sm"></div>
+      <DashboardLayout>
+        <div className="flex-1 p-6">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 w-1/3 rounded bg-muted" />
+            <div className="h-4 w-1/5 rounded bg-muted" />
+            <div className="grid gap-6 md:grid-cols-2">
+              {[1, 2, 3, 4].map((item) => (
+                <div key={item} className="h-64 rounded-xl border border-dashed border-border" />
               ))}
             </div>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background">
-      <Sidebar />
-      
-      <div className="flex-1 p-4 md:p-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Settings</h1>
-        <p className="text-muted-foreground mb-8">Configure your email monitoring and digest preferences</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <DashboardLayout>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
+          <p className="text-sm text-muted-foreground">
+            Configure your monitoring sources, automation, and appearance.
+          </p>
+        </div>
+
+        <div className="grid gap-8 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -505,17 +505,17 @@ export default function Settings() {
             </CardContent>
           </Card>
         </div>
+
+        <ConfigModal
+          isOpen={isConfigModalOpen}
+          onClose={() => setIsConfigModalOpen(false)}
+          monitoredEmails={monitoredEmails}
+          userSettings={userSettings}
+          onAddEmail={handleAddEmail}
+          onRemoveEmail={handleRemoveEmail}
+          onUpdateSettings={handleUpdateSettings}
+        />
       </div>
-      
-      <ConfigModal 
-        isOpen={isConfigModalOpen}
-        onClose={() => setIsConfigModalOpen(false)}
-        monitoredEmails={monitoredEmails}
-        userSettings={userSettings}
-        onAddEmail={handleAddEmail}
-        onRemoveEmail={handleRemoveEmail}
-        onUpdateSettings={handleUpdateSettings}
-      />
-    </div>
+    </DashboardLayout>
   );
 }

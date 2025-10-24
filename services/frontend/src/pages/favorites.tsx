@@ -1,77 +1,64 @@
-import { useState, useEffect } from "react";
-import { useLocation } from 'wouter';
-import { Sidebar } from "@/components/ui/sidebar";
-import { PageHeader } from "@/components/ui/page-header";
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
+import { Bookmark } from "lucide-react";
+import { DashboardLayout } from "@/components/layout";
 import { DigestCard } from "@/components/ui/digest-card";
-import { useAuth } from '@/lib/AuthContext';
-import { DigestEmail } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { BookmarkIcon } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { DigestEmail } from "@/lib/types";
 
 export default function Favorites() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [favoriteEmails, setFavoriteEmails] = useState<DigestEmail[]>([]);
-  
-  // Redirect to login if not authenticated
+
   useEffect(() => {
     if (!authLoading && !user) {
-      setLocation('/login');
+      setLocation("/login");
     }
   }, [user, authLoading, setLocation]);
-  
-  // In a real implementation, we would fetch favorites from the API
+
   useEffect(() => {
-    // This is a placeholder for demonstration
     setFavoriteEmails([]);
   }, []);
-  
+
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background">
-      <Sidebar />
-      
-      <div className="flex-1 p-4 md:p-8">
-        <PageHeader 
-          title="Favorite Emails" 
-          date={new Date()}
-        />
-        
-        <div className="space-y-6">
-          {favoriteEmails.length > 0 ? (
-            favoriteEmails.map(email => (
-              <DigestCard 
-                key={email.id} 
-                email={email} 
-                onToggleFavorite={() => {}} 
-              />
-            ))
-          ) : (
-            <div className="text-center py-12 bg-card rounded-xl shadow-sm">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <BookmarkIcon className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">No favorites yet</h3>
-              <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                When you find emails you want to save for later, mark them as favorites
-                and they'll appear here for easy access.
-              </p>
-              <Button onClick={() => setLocation('/')}>
-                Back to Dashboard
-              </Button>
-            </div>
-          )}
+    <DashboardLayout headerProps={{ onAddClick: () => setLocation("/settings") }}>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 p-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold text-foreground">Favorite emails</h1>
+          <p className="text-sm text-muted-foreground">
+            Pin standout updates so you can revisit them without searching your inbox.
+          </p>
         </div>
-        
-        <div className="mt-8 bg-card rounded-xl shadow-sm p-6">
-          <div className="text-center py-6">
-            <h3 className="text-lg font-semibold text-foreground mb-2">Favorites Feature Coming Soon</h3>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              We're working on implementing the ability to save your favorite emails.
-              Soon, you'll be able to mark important emails and access them easily from this page.
-            </p>
+
+        {favoriteEmails.length > 0 ? (
+          <div className="space-y-6">
+            {favoriteEmails.map((email) => (
+              <DigestCard key={email.id} email={email} onToggleFavorite={() => {}} />
+            ))}
           </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border p-12 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted text-secondary">
+              <Bookmark className="h-8 w-8" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">No favorites yet</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              When you favourite a summary it will live here for quick access and follow-up.
+            </p>
+            <Button className="mt-6" onClick={() => setLocation("/dashboard")}>Back to dashboard</Button>
+          </div>
+        )}
+
+        <div className="rounded-xl bg-card p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-foreground">Feature roadmap</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We&apos;re wiring up shared collections so you can bookmark insights and share them with your
+            team. Watch this space for updates.
+          </p>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
