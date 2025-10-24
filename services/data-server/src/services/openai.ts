@@ -76,7 +76,13 @@ export async function processEmailWithAI(email: EmailInput): Promise<ProcessedEm
       throw new Error('No response from OpenAI');
     }
 
-    const analysis = JSON.parse(response);
+    // Strip markdown code fences if present (```json ... ```)
+    const cleanedResponse = response
+      .replace(/^```json\s*\n?/i, '')
+      .replace(/\n?```\s*$/i, '')
+      .trim();
+
+    const analysis = JSON.parse(cleanedResponse);
     
     return {
       sender: email.sender,
@@ -279,7 +285,13 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[]): Promise<a
       throw new Error('No response from OpenAI theme analysis');
     }
 
-    return JSON.parse(response);
+    // Strip markdown code fences if present (```json ... ```)
+    const cleanedResponse = response
+      .replace(/^```json\s*\n?/i, '')
+      .replace(/\n?```\s*$/i, '')
+      .trim();
+
+    return JSON.parse(cleanedResponse);
 
   } catch (error) {
     console.error('Error analyzing emails for themes:', error);
