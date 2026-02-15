@@ -642,6 +642,14 @@ If you see errors about `shared/schema`, the imports weren't updated correctly.
 **Project:** AI-powered email digest generation microservices application with React frontend, FastAPI gateway, Node.js data server, and Python/Celery email worker
 
 **Branch:** `ui-overhaul`
-**Last Updated:** 15/02/2026, 13:40:52
+**Last Updated:** 15/02/2026, 18:19:55
+
+### Active Todos
+- [ ] [high] Push ui-overhaul branch with CORS fixes to remote repository (`ui-overhaul`)
+- [ ] [high] Continue UI overhaul testing with all services verified running (`ui-overhaul`)
+- [ ] [medium] Set up Redis service to resolve email worker degraded state (`ui-overhaul`)
+- [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`ui-overhaul`)
+- [ ] [medium] Test cross-service communication after CORS middleware reordering (`ui-overhaul`)
+- [ ] [low] Consider merging ui-overhaul to main once testing is complete (`ui-overhaul`)
 
 <!-- DEVCTX:END -->
