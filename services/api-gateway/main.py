@@ -78,23 +78,25 @@ app = FastAPI(
 # Security
 security = HTTPBearer(auto_error=False)
 
-# Middleware setup (order matters!)
+# Middleware setup (order matters - last added = outermost = runs first!)
+# Inner middleware (runs last)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_REQUESTS)
 
 app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.ALLOWED_HOSTS
+)
+
+# CORS must be outermost to handle preflight OPTIONS before other middleware
+app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
-)
-
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=settings.ALLOWED_HOSTS
 )
 
 

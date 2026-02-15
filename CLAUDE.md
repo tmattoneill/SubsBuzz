@@ -633,3 +633,15 @@ If you see errors about `shared/schema`, the imports weren't updated correctly.
 
 **Version:** 2.0.0 (Microservices Architecture)
 **Last Updated:** October 2025
+
+<!-- DEVCTX:START -->
+## Project Context (auto-updated by devctx)
+
+> **IMPORTANT:** When starting a new conversation, greet the user with a brief summary of the project context below — current focus, branch, and any active todos. Keep it to 2-3 sentences. Do not skip this greeting.
+
+**Project:** AI-powered email digest generation microservices application with React frontend, FastAPI gateway, Node.js data server, and Python/Celery email worker
+
+**Branch:** `ui-overhaul`
+**Last Updated:** 15/02/2026, 13:40:52
+
+<!-- DEVCTX:END -->
