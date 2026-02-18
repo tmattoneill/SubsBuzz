@@ -639,17 +639,22 @@ If you see errors about `shared/schema`, the imports weren't updated correctly.
 
 > **IMPORTANT:** When starting a new conversation, greet the user with a brief summary of the project context below — current focus, branch, and any active todos. Keep it to 2-3 sentences. Do not skip this greeting.
 
-**Project:** AI-powered email digest generation microservices application with React frontend, FastAPI gateway, Node.js data server, and Python/Celery email worker
+**Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `ui-overhaul`
-**Last Updated:** 15/02/2026, 18:19:55
+**Branch:** `main`
+**Last Updated:** 18/02/2026, 22:23:00
 
 ### Active Todos
 - [ ] [high] Push ui-overhaul branch with CORS fixes to remote repository (`ui-overhaul`)
+- [ ] [high] Set up Redis service to resolve email worker degraded state (`main`)
 - [ ] [high] Continue UI overhaul testing with all services verified running (`ui-overhaul`)
-- [ ] [medium] Set up Redis service to resolve email worker degraded state (`ui-overhaul`)
+- [ ] [high] Commit the new deployment scripts (deploy.sh and promote.sh) to version control (`main`)
+- [ ] [high] Test the new deployment scripts in a staging environment (`main`)
 - [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`ui-overhaul`)
 - [ ] [medium] Test cross-service communication after CORS middleware reordering (`ui-overhaul`)
+- [ ] [medium] Commit the modified CLAUDE.md documentation updates (`main`)
+- [ ] [medium] Verify all microservices communicate properly after recent CORS fixes (`main`)
+- [ ] [medium] Complete UI overhaul testing with all services running (`main`)
 - [ ] [low] Consider merging ui-overhaul to main once testing is complete (`ui-overhaul`)
 
 <!-- DEVCTX:END -->
