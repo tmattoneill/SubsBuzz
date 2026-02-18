@@ -10,7 +10,7 @@ RUN apk add --no-cache curl
 COPY services/data-server/package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --only=production
 
 # Copy data server source code
 COPY services/data-server/ .
