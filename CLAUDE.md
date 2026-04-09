@@ -642,18 +642,22 @@ If you see errors about `shared/schema`, the imports weren't updated correctly.
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 09/04/2026, 18:46:24
+**Last Updated:** 09/04/2026, 18:49:57
 
 ### Active Todos
 - [ ] [high] Continue UI overhaul testing with all services verified running (`ui-overhaul`)
 - [ ] [high] Monitor OAuth session persistence in production to ensure 30-day DB-backed tokens work correctly (`main`)
+- [ ] [high] Create automated tests for the new DB-backed OAuth session token persistence to prevent regressions (`main`)
 - [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`ui-overhaul`)
 - [ ] [medium] Test cross-service communication after CORS middleware reordering (`ui-overhaul`)
 - [ ] [medium] Commit the modified CLAUDE.md documentation updates (`main`)
 - [ ] [medium] Verify all microservices communicate properly after recent CORS fixes (`main`)
 - [ ] [medium] Verify the 3AM UTC digest schedule is working properly by checking tomorrow's digest generation (`main`)
 - [ ] [medium] Add monitoring/alerting for Celery beat scheduler health to catch future scheduling issues (`main`)
+- [ ] [medium] Set up logging and monitoring for the Celery beat scheduler to track digest generation timing and failures (`main`)
+- [ ] [medium] Test the enhanced email processing pipeline with real email data to validate the richer per-email processing (`main`)
 - [ ] [low] Consider merging ui-overhaul to main once testing is complete (`ui-overhaul`)
 - [ ] [low] Document the OAuth persistence changes and 3AM schedule change in user-facing documentation (`main`)
+- [ ] [low] Test the Claude Code plan label persistence bug reproduction steps and document the workaround (`main`)
 
 <!-- DEVCTX:END -->
