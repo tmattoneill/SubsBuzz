@@ -67,6 +67,11 @@ class GmailClient:
             expires_val = oauth_data['expires_at']
             if isinstance(expires_val, str):
                 expires_val = datetime.fromisoformat(expires_val.replace('Z', '+00:00'))
+            # google-auth compares expiry to datetime.utcnow() (naive),
+            # so strip timezone info to avoid offset-naive/aware comparison errors
+            if hasattr(expires_val, 'tzinfo') and expires_val.tzinfo is not None:
+                from datetime import timezone as _tz
+                expires_val = expires_val.astimezone(_tz.utc).replace(tzinfo=None)
             credentials.expiry = expires_val
 
         return credentials
