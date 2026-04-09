@@ -1,35 +1,39 @@
-FROM node:18-alpine
+FROM node:18-alpine AS build
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
 RUN apk add --no-cache curl
 
-# Copy package files
+# Install all deps (including devDeps for tsc)
 COPY services/data-server/package*.json ./
+RUN npm install
 
-# Install dependencies
-RUN npm install --only=production
-
-# Copy data server source code
+# Copy source and build
 COPY services/data-server/ .
 COPY shared/ /app/shared/
-
-# Build TypeScript
 RUN npm run build
 
+# ── Production image ──────────────────────────────────────────────────────────
+FROM node:18-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache curl
+
+# Install production deps only
+COPY services/data-server/package*.json ./
+RUN npm install --omit=dev
+
+# Copy compiled output from build stage
+COPY --from=build /app/dist ./dist
+
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S datauser -u 1001
+RUN addgroup -g 1001 -S nodejs && adduser -S datauser -u 1001 -G nodejs
 USER datauser
 
-# Expose port
-EXPOSE 5000
+EXPOSE 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3001/health || exit 1
 
-# Start the server
 CMD ["node", "dist/index.js"]
