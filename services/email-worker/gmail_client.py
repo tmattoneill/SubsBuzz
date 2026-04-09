@@ -58,16 +58,18 @@ class GmailClient:
             'client_id': self.client_id,
             'client_secret': self.client_secret
         }
-        
+
+        # Build credentials without expiry (from_authorized_user_info expects a string
+        # for expiry but we may have a datetime object — set it on the object instead)
+        credentials = Credentials.from_authorized_user_info(token_data)
+
         if oauth_data.get('expires_at'):
-            # Convert expires_at to expiry if provided
-            if isinstance(oauth_data['expires_at'], str):
-                expires_at = datetime.fromisoformat(oauth_data['expires_at'].replace('Z', '+00:00'))
-            else:
-                expires_at = oauth_data['expires_at']
-            token_data['expiry'] = expires_at
-        
-        return Credentials.from_authorized_user_info(token_data)
+            expires_val = oauth_data['expires_at']
+            if isinstance(expires_val, str):
+                expires_val = datetime.fromisoformat(expires_val.replace('Z', '+00:00'))
+            credentials.expiry = expires_val
+
+        return credentials
     
     async def refresh_oauth_token(self, oauth_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
