@@ -5,11 +5,13 @@ services:
     build:
       context: .
       dockerfile: services/frontend/Dockerfile
+      args:
+        - VITE_API_URL=https://subsbuzz.com/api
+        - VITE_APP_URL=https://subsbuzz.com
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - REACT_APP_API_URL=/api
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]

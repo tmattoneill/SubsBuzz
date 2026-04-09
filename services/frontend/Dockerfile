@@ -1,5 +1,11 @@
 FROM node:18-alpine AS build
 
+# Build-time env vars (Vite bakes these in at build time)
+ARG VITE_API_URL
+ARG VITE_APP_URL
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_APP_URL=$VITE_APP_URL
+
 # Set working directory
 WORKDIR /app
 
