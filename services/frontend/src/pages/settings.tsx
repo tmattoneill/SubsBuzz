@@ -60,7 +60,7 @@ export default function Settings() {
     isLoading: isMonitoredEmailsLoading,
     refetch: refetchMonitoredEmails
   } = useQuery({
-    queryKey: ['/monitored-emails'],
+    queryKey: ['/api/monitored-emails'],
     refetchOnWindowFocus: false,
   });
 
@@ -70,7 +70,7 @@ export default function Settings() {
     isLoading: isUserSettingsLoading,
     refetch: refetchUserSettings
   } = useQuery({
-    queryKey: ['/settings'],
+    queryKey: ['/api/settings'],
     refetchOnWindowFocus: false,
   });
 
@@ -116,7 +116,7 @@ export default function Settings() {
   // Add email mutation
   const addEmailMutation = useMutation({
     mutationFn: async (email: string) => {
-      await apiRequest('POST', '/monitored-emails', { email });
+      await apiRequest('POST', '/api/monitored-emails', { email });
     },
     onSuccess: () => {
       toast({
@@ -137,7 +137,7 @@ export default function Settings() {
   // Remove email mutation
   const removeEmailMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest('DELETE', `/monitored-emails/${id}`);
+      await apiRequest('DELETE', `/api/monitored-emails/${id}`);
     },
     onSuccess: () => {
       toast({
@@ -158,7 +158,7 @@ export default function Settings() {
   // Update settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: async (settings: Partial<UserSettings>) => {
-      await apiRequest('PATCH', '/settings', settings);
+      await apiRequest('PATCH', '/api/settings', settings);
     },
     onSuccess: () => {
       toast({
@@ -178,7 +178,7 @@ export default function Settings() {
   // Update API key mutation
   const updateApiKeyMutation = useMutation({
     mutationFn: async (apiKey: string) => {
-      await apiRequest('POST', '/settings/api-key', { apiKey });
+      await apiRequest('POST', '/api/settings/api-key', { apiKey });
     },
     onSuccess: () => {
       toast({

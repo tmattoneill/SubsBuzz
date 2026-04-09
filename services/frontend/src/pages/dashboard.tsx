@@ -89,7 +89,7 @@ export default function Dashboard() {
 
   const generateDigestMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post("/digest/generate", {});
+      const response = await api.post("/api/digest/generate", {});
       return response;
     },
     onSuccess: () => {

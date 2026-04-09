@@ -642,14 +642,10 @@ If you see errors about `shared/schema`, the imports weren't updated correctly.
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 18/02/2026, 22:23:00
+**Last Updated:** 08/04/2026, 18:45:47
 
 ### Active Todos
-- [ ] [high] Push ui-overhaul branch with CORS fixes to remote repository (`ui-overhaul`)
-- [ ] [high] Set up Redis service to resolve email worker degraded state (`main`)
 - [ ] [high] Continue UI overhaul testing with all services verified running (`ui-overhaul`)
-- [ ] [high] Commit the new deployment scripts (deploy.sh and promote.sh) to version control (`main`)
-- [ ] [high] Test the new deployment scripts in a staging environment (`main`)
 - [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`ui-overhaul`)
 - [ ] [medium] Test cross-service communication after CORS middleware reordering (`ui-overhaul`)
 - [ ] [medium] Commit the modified CLAUDE.md documentation updates (`main`)

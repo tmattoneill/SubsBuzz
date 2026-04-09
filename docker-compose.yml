@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: services/frontend/Dockerfile
       args:
-        - VITE_API_URL=https://subsbuzz.com/api
+        - VITE_API_URL=https://subsbuzz.com
         - VITE_APP_URL=https://subsbuzz.com
     ports:
       - "3000:3000"

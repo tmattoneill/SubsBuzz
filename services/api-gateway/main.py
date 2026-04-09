@@ -157,13 +157,11 @@ async def root():
 
 
 # ==================== INCLUDE ROUTERS ====================
-# NOTE: nginx strips the /api/ prefix before proxying to this service,
-# so routes here use /auth, /digest, etc. (not /api/auth, /api/digest)
 
-app.include_router(auth_routes.router, prefix="/auth", tags=["Authentication"])
-app.include_router(digest.router, prefix="/digest", tags=["Digests"])
-app.include_router(monitored_emails.router, prefix="/monitored-emails", tags=["Monitored Emails"])
-app.include_router(settings_routes.router, prefix="/settings", tags=["Settings"])
+app.include_router(auth_routes.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(digest.router, prefix="/api/digest", tags=["Digests"])
+app.include_router(monitored_emails.router, prefix="/api/monitored-emails", tags=["Monitored Emails"])
+app.include_router(settings_routes.router, prefix="/api/settings", tags=["Settings"])
 
 
 if __name__ == "__main__":
