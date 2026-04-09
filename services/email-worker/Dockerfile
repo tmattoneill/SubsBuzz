@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import redis; redis.Redis(host='redis', port=6379).ping()" || exit 1
 
 # Start Celery worker
-CMD ["celery", "worker", "-A", "main", "--loglevel=info", "--concurrency=2"]
+CMD ["celery", "-A", "main", "worker", "--loglevel=info", "--concurrency=2"]
