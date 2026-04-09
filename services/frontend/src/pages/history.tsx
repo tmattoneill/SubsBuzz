@@ -115,8 +115,10 @@ export default function History() {
             </h2>
             {selectedDateDigest.type === "thematic" ? (
               <ThematicDigest digest={selectedDateDigest as FullThematicDigest} />
+            ) : selectedDateDigest.emails?.length > 0 ? (
+              selectedDateDigest.emails.map((email: any) => <DigestCard key={email.id} email={email} />)
             ) : (
-              <DigestCard digest={selectedDateDigest} />
+              <p className="text-sm text-muted-foreground">No emails found in this digest.</p>
             )}
           </div>
         ) : (
