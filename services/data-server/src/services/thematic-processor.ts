@@ -347,8 +347,10 @@ export async function processRawEmailsIntoThemes(
   // Convert raw emails to ProcessedEmail format
   const processedEmails: ProcessedEmail[] = rawEmails.map(email => ({
     sender: email.sender || 'Unknown',
+    source: email.source || email.sender || 'Unknown',
     subject: email.subject || 'No Subject',
     receivedAt: email.receivedAt ? new Date(email.receivedAt) : new Date(),
+    snippet: email.snippet || email.subject || '',
     summary: email.summary || `Email from ${email.sender}`,
     fullContent: email.fullContent || email.content || '',
     topics: Array.isArray(email.topics) ? email.topics : [],
