@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import redis; redis.Redis(host='redis', port=6379).ping()" || exit 1
 
 # Start Celery worker with beat scheduler (runs scheduled tasks + processes queue)
-CMD ["celery", "-A", "main", "worker", "--loglevel=info", "--concurrency=2", "--beat"]
+CMD ["celery", "-A", "main", "worker", "--loglevel=info", "--concurrency=2", "--beat", "--schedule=/tmp/celerybeat-schedule"]
