@@ -106,64 +106,15 @@ function fallbackTopicClustering(emails: ProcessedEmail[]): ThematicAnalysis {
 }
 
 /**
- * Stage 2: LLM Synthesis and Narrative Generation
+ * Stage 2: Pass through — Stage 1 AI summaries are already narrative quality.
+ * No template overwriting.
  */
 async function stageTwoSynthesis(
-  themes: ThematicTheme[], 
-  emails: ProcessedEmail[]
+  themes: ThematicTheme[],
+  _emails: ProcessedEmail[]
 ): Promise<ThematicTheme[]> {
-  console.log('📝 Stage 2: LLM Synthesis and Narrative Generation');
-  
-  // For each theme, enhance the summary with narrative style
-  const enhancedThemes = await Promise.all(
-    themes.map(async (theme, index) => {
-      try {
-        // Get the emails for this theme
-        const themeEmails = theme.emailIndexes.map(idx => emails[idx]);
-        
-        // Create a more detailed narrative summary
-        const detailedSummary = await createNarrativeSummary(theme, themeEmails);
-        
-        return {
-          ...theme,
-          summary: detailedSummary,
-          confidence: Math.min(theme.confidence + 10, 95) // Boost confidence for enhanced summaries
-        };
-        
-      } catch (error) {
-        console.error(`Error enhancing theme ${theme.name}:`, error);
-        return theme; // Return original theme if enhancement fails
-      }
-    })
-  );
-
-  return enhancedThemes;
-}
-
-/**
- * Create narrative summary for a theme
- */
-async function createNarrativeSummary(
-  theme: ThematicTheme, 
-  themeEmails: ProcessedEmail[]
-): Promise<string> {
-  
-  if (themeEmails.length === 0) {
-    return theme.summary;
-  }
-
-  // If only one email, use a simple template
-  if (themeEmails.length === 1) {
-    const email = themeEmails[0];
-    return `${theme.name}: ${email.summary}`;
-  }
-
-  // For multiple emails, create a narrative that connects them
-  const emailSummaries = themeEmails.map(email => 
-    `${email.sender}: ${email.summary}`
-  ).join(' • ');
-
-  return `${theme.name}: This theme encompasses ${themeEmails.length} related communications. ${emailSummaries}`;
+  console.log('📝 Stage 2: Keeping Stage 1 AI-generated summaries');
+  return themes;
 }
 
 /**
