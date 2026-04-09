@@ -615,6 +615,7 @@ export class DatabaseStorage implements IStorage {
           sectionsCount: digest.sectionsCount,
           totalSourceEmails: digest.totalSourceEmails,
           processingMethod: digest.processingMethod,
+          dailySummary: digest.dailySummary ?? null,
         })
         .where(eq(thematicDigests.id, existingId))
         .returning();

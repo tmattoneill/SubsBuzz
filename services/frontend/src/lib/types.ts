@@ -27,8 +27,10 @@ export interface DigestEmail {
   id: number;
   digestId: number;
   sender: string;
+  source?: string;     // Display name of sender
   subject: string;
   receivedAt: string;
+  snippet?: string;    // ≤25-word summary
   summary: string;
   fullContent: string;
   topics: string[];
@@ -85,6 +87,7 @@ export interface ThematicDigest {
   sectionsCount: number;
   totalSourceEmails: number;
   processingMethod: string;
+  dailySummary?: string;
   createdAt?: string;
 }
 

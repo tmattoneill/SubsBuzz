@@ -6,7 +6,7 @@
  */
 
 import { storage } from './storage';
-import { analyzeEmailForThemes, ProcessedEmail } from './openai';
+import { analyzeEmailForThemes, generateDailySummary, ProcessedEmail } from './openai';
 import {
   InsertThematicDigest,
   InsertThematicSection,
@@ -18,6 +18,7 @@ export interface ThematicProcessingResult {
   sectionsCount: number;
   totalSourceEmails: number;
   processingMethod: string;
+  dailySummary: string;
 }
 
 export interface ThematicTheme {
@@ -173,7 +174,8 @@ async function stageThreeStorage(
   emailDigestId: number,
   themes: ThematicTheme[],
   emails: ProcessedEmail[],
-  processingMethod: string
+  processingMethod: string,
+  dailySummary: string
 ): Promise<number> {
   console.log('💾 Stage 3: Database Storage and Source Linking');
   
@@ -185,7 +187,8 @@ async function stageThreeStorage(
       emailDigestId,
       sectionsCount: themes.length,
       totalSourceEmails: emails.length,
-      processingMethod
+      processingMethod,
+      dailySummary
     };
 
     const thematicDigest = await storage.createThematicDigest(thematicDigestData);
@@ -271,6 +274,10 @@ export async function processEmailsIntoThemes(
     const enhancedThemes = await stageTwoSynthesis(analysis.themes, emails);
     console.log(`📝 Stage 2 complete: Enhanced ${enhancedThemes.length} themes`);
 
+    // Stage 2.5: Generate overall daily synthesis paragraph
+    const dailySummary = await generateDailySummary(enhancedThemes, emails.length, apiKey);
+    console.log(`📰 Daily summary: ${dailySummary ? dailySummary.slice(0, 80) + '...' : '(none)'}`);
+
     // If no emailDigestId provided, we need to create a basic digest first
     let finalEmailDigestId = emailDigestId;
     if (!finalEmailDigestId) {
@@ -305,7 +312,8 @@ export async function processEmailsIntoThemes(
       finalEmailDigestId,
       enhancedThemes,
       emails,
-      analysis.processingMethod
+      analysis.processingMethod,
+      dailySummary
     );
 
     console.log(`💾 Stage 3 complete: Thematic digest stored with ID ${thematicDigestId}`);
@@ -314,7 +322,8 @@ export async function processEmailsIntoThemes(
       thematicDigestId,
       sectionsCount: enhancedThemes.length,
       totalSourceEmails: emails.length,
-      processingMethod: analysis.processingMethod
+      processingMethod: analysis.processingMethod,
+      dailySummary
     };
 
     console.log(`🎉 Thematic processing complete:`, result);

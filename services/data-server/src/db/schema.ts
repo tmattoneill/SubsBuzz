@@ -62,8 +62,10 @@ export const digestEmails = pgTable("digest_emails", {
   id: serial("id").primaryKey(),
   digestId: integer("digest_id").notNull(),
   sender: text("sender").notNull(),
+  source: text("source"),             // Display name of sender (e.g. "The Washington Post")
   subject: text("subject").notNull(),
   receivedAt: timestamp("received_at").notNull(),
+  snippet: text("snippet"),           // 25-word summary
   summary: text("summary").notNull(),
   fullContent: text("full_content").notNull(),
   topics: text("topics").array().notNull(),
@@ -133,6 +135,7 @@ export const thematicDigests = pgTable("thematic_digests", {
   sectionsCount: integer("sections_count").notNull(),
   totalSourceEmails: integer("total_source_emails").notNull(),
   processingMethod: text("processing_method").notNull(), // "nlp", "llm", "hybrid"
+  dailySummary: text("daily_summary"),  // Overall synthesis paragraph for the day
   createdAt: timestamp("created_at").defaultNow(),
 });
 

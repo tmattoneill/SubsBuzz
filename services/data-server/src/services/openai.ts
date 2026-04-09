@@ -27,12 +27,14 @@ export interface EmailInput {
 
 export interface ProcessedEmail {
   sender: string;
+  source: string;      // Display name (e.g. "The Washington Post")
   subject: string;
   receivedAt: Date;
+  snippet: string;     // ≤25-word summary
   summary: string;
   fullContent: string;
-  topics: string[];
-  keywords: string[];
+  topics: string[];    // Other articles/topics referenced
+  keywords: string[];  // External links
   originalLink?: string;
 }
 
@@ -61,26 +63,35 @@ export async function processEmailWithAI(email: EmailInput, apiKey?: string | nu
       messages: [
         {
           role: 'system',
-          content: `You are an expert email analyst. Analyze the email and provide:
-          1. A concise summary (2-3 sentences)
-          2. Main topics (3-5 topics)
-          3. Key keywords (5-8 keywords)
+          content: `You are a helpful assistant who scans and summarises email newsletters from specific senders.
 
-          Return as JSON: {
-            "summary": "...",
-            "topics": ["topic1", "topic2", ...],
-            "keywords": ["keyword1", "keyword2", ...]
-          }`
+Style: Concise and professional. Maintain the tone of the original email. If in doubt, be concise.
+
+Processing rules:
+- IGNORE anything to do with subscriptions, marketing, signing up, or other promotional items
+- IGNORE content containing words like "subscribe", "sign up", "preferences" and similar phrases
+- FOCUS solely on content and information
+
+Return JSON with exactly these fields:
+{
+  "source": "Sender display name (not the email address — e.g. 'The Washington Post', not 'info@e.mail.washingtonpost.com')",
+  "subject": "Email subject, or write a short descriptive subject if missing",
+  "snippet": "25 words or less — the single most important point",
+  "summary": "The main point(s) in fewer than 100 words, focusing on content not promotional material",
+  "otherTopics": ["other article or topic referenced in this email"],
+  "externalLinks": ["relevant external link or URL mentioned"]
+}`
         },
         {
           role: 'user',
-          content: `Email from: ${email.sender}
-          Subject: ${email.subject}
-          Content: ${truncatedContent}`
+          content: `From: ${email.sender}
+Subject: ${email.subject}
+Date: ${email.receivedAt.toISOString()}
+Content: ${truncatedContent}`
         }
       ],
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: 700
     });
 
     const response = completion.choices[0]?.message?.content;
@@ -95,15 +106,17 @@ export async function processEmailWithAI(email: EmailInput, apiKey?: string | nu
       .trim();
 
     const analysis = JSON.parse(cleanedResponse);
-    
+
     return {
       sender: email.sender,
+      source: analysis.source || email.sender,
       subject: email.subject,
       receivedAt: email.receivedAt,
+      snippet: analysis.snippet || '',
       summary: analysis.summary,
       fullContent: email.content,
-      topics: Array.isArray(analysis.topics) ? analysis.topics : [],
-      keywords: Array.isArray(analysis.keywords) ? analysis.keywords : [],
+      topics: Array.isArray(analysis.otherTopics) ? analysis.otherTopics : [],
+      keywords: Array.isArray(analysis.externalLinks) ? analysis.externalLinks : [],
       originalLink: email.originalLink
     };
 
@@ -114,12 +127,14 @@ export async function processEmailWithAI(email: EmailInput, apiKey?: string | nu
     // Fallback to basic processing
     return {
       sender: email.sender,
+      source: email.sender,
       subject: email.subject,
       receivedAt: email.receivedAt,
+      snippet: email.subject,
       summary: `Email from ${email.sender} regarding ${email.subject}`,
       fullContent: email.content,
-      topics: [email.subject.split(' ')[0]],
-      keywords: email.subject.split(' ').slice(0, 3),
+      topics: [],
+      keywords: [],
       originalLink: email.originalLink
     };
   }
@@ -156,8 +171,10 @@ export async function generateDigest(userId: string, emails: EmailInput[], apiKe
       const digestEmailData: InsertDigestEmail = {
         digestId: digest.id,
         sender: email.sender,
+        source: email.source || null,
         subject: email.subject,
         receivedAt: email.receivedAt,
+        snippet: email.snippet || null,
         summary: email.summary,
         fullContent: email.fullContent,
         topics: email.topics,
@@ -333,6 +350,45 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
       }));
 
     return { themes };
+  }
+}
+
+/**
+ * Generate an overall daily synthesis paragraph from themes
+ */
+export async function generateDailySummary(
+  themes: { name: string; summary: string }[],
+  totalEmails: number,
+  apiKey?: string | null
+): Promise<string> {
+  if (themes.length === 0) return '';
+
+  try {
+    const client = getClient(apiKey);
+    const themeDescriptions = themes
+      .map(t => `- ${t.name}: ${t.summary}`)
+      .join('\n');
+
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a daily briefing analyst. Write a single concise paragraph (2-3 sentences max) summarizing the key themes and trends across today's newsletters. Focus on what matters — the trends, insights, and topics worth knowing. Be direct and informative.`
+        },
+        {
+          role: 'user',
+          content: `Today's digest has ${totalEmails} newsletter${totalEmails !== 1 ? 's' : ''} across ${themes.length} themes:\n\n${themeDescriptions}\n\nWrite a 2-3 sentence executive summary of today's key trends.`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 200
+    });
+
+    return completion.choices[0]?.message?.content?.trim() || '';
+  } catch (error: any) {
+    console.error(`Error generating daily summary: ${error?.message || error}`);
+    return '';
   }
 }
 

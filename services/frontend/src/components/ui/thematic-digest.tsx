@@ -102,22 +102,17 @@ function ThematicSection({ section, isExpanded, onToggleExpanded }: ThematicSect
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-medium">
-                          {getSenderInitials(sourceEmail.email.sender)}
+                          {getSenderInitials(sourceEmail.email.source || sourceEmail.email.sender)}
                         </div>
-                        <span className="text-gray-600 dark:text-gray-400 truncate">
-                          {sourceEmail.email.sender}
+                        <span className="font-medium text-gray-700 dark:text-gray-300 truncate">
+                          {sourceEmail.email.source || sourceEmail.email.sender}
                         </span>
                         <span className="text-xs text-gray-400">
                           {formatTime(sourceEmail.email.receivedAt)}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
-                        {sourceEmail.relevanceScore && (
-                          <span className="text-xs bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 px-2 py-1 rounded">
-                            {sourceEmail.relevanceScore}% relevant
-                          </span>
-                        )}
                         {sourceEmail.email.originalLink && (
                           <Button
                             variant="ghost"
@@ -125,9 +120,9 @@ function ThematicSection({ section, isExpanded, onToggleExpanded }: ThematicSect
                             className="h-6 w-6 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                             asChild
                           >
-                            <a 
-                              href={sourceEmail.email.originalLink} 
-                              target="_blank" 
+                            <a
+                              href={sourceEmail.email.originalLink}
+                              target="_blank"
                               rel="noopener noreferrer"
                               title="View original email"
                             >
@@ -137,13 +132,13 @@ function ThematicSection({ section, isExpanded, onToggleExpanded }: ThematicSect
                         )}
                       </div>
                     </div>
-                    
+
                     <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-1 break-words">
                       {sourceEmail.email.subject}
                     </h5>
-                    
+
                     <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed break-words">
-                      {sourceEmail.email.summary}
+                      {sourceEmail.email.snippet || sourceEmail.email.summary}
                     </p>
                   </div>
                 ))}
@@ -189,24 +184,27 @@ export function ThematicDigest({ digest }: ThematicDigestProps) {
       {/* Digest overview */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-blue-200 dark:border-gray-600">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between mb-3">
             <div>
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
-                Daily Thematic Summary
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-1">
+                Today's Briefing
               </h2>
-              <p className="text-gray-600 dark:text-gray-300">
-                {digest.sectionsCount} themes identified from {digest.totalSourceEmails} emails
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {digest.totalSourceEmails} newsletter{digest.totalSourceEmails !== 1 ? 's' : ''} · {digest.sectionsCount} theme{digest.sectionsCount !== 1 ? 's' : ''}
               </p>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Processing Method
-              </div>
-              <div className="text-lg font-semibold text-blue-600 dark:text-blue-400 capitalize">
-                {digest.processingMethod}
+              <div className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Method</div>
+              <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 capitalize">
+                {digest.processingMethod?.replace('-', ' ')}
               </div>
             </div>
           </div>
+          {digest.dailySummary && (
+            <p className="text-gray-700 dark:text-gray-200 leading-relaxed text-base border-t border-blue-200 dark:border-gray-600 pt-3">
+              {digest.dailySummary}
+            </p>
+          )}
         </CardContent>
       </Card>
 
