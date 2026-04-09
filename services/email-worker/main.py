@@ -12,6 +12,7 @@ This service handles:
 import os
 import asyncio
 from celery import Celery
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -30,11 +31,11 @@ app.config_from_object({
     'beat_schedule': {
         'daily-digest-generation': {
             'task': 'tasks.generate_daily_digests',
-            'schedule': '0 7 * * *',  # Daily at 7 AM
+            'schedule': crontab(hour=7, minute=0),  # Daily at 7 AM UTC
         },
         'refresh-oauth-tokens': {
             'task': 'tasks.refresh_oauth_tokens',
-            'schedule': '0 */6 * * *',  # Every 6 hours
+            'schedule': crontab(minute=0, hour='*/6'),  # Every 6 hours
         },
     },
 })
