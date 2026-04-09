@@ -47,8 +47,15 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       originalLink: email.original_link || email.originalLink
     }));
 
+    // Use the user's stored API key if available, fall back to env var
+    let userApiKey: string | null = null;
+    try {
+      const userSettings = await storage.getUserSettings(user_id);
+      userApiKey = userSettings?.openaiApiKey || null;
+    } catch (_) { /* non-fatal */ }
+
     // Generate digest using existing OpenAI service
-    const digestResult = await generateDigest(user_id, transformedEmails);
+    const digestResult = await generateDigest(user_id, transformedEmails, userApiKey);
 
     // Automatically run thematic processing (non-fatal if it fails)
     try {

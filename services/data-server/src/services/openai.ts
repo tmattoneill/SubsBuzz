@@ -41,17 +41,22 @@ export interface DigestResult {
   processedEmails: ProcessedEmail[];
 }
 
+function getClient(apiKey?: string | null): OpenAI {
+  return apiKey ? new OpenAI({ apiKey }) : openai;
+}
+
 /**
  * Process individual email with OpenAI
  */
-export async function processEmailWithAI(email: EmailInput): Promise<ProcessedEmail> {
+export async function processEmailWithAI(email: EmailInput, apiKey?: string | null): Promise<ProcessedEmail> {
   console.log(`🤖 Processing email: ${email.subject}`);
   
   try {
+    const client = getClient(apiKey);
     // Truncate content to avoid excessive token usage
     const truncatedContent = email.content?.slice(0, 4000) || '';
 
-    const completion = await openai.chat.completions.create({
+    const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
@@ -123,7 +128,7 @@ export async function processEmailWithAI(email: EmailInput): Promise<ProcessedEm
 /**
  * Generate digest from processed emails
  */
-export async function generateDigest(userId: string, emails: EmailInput[]): Promise<DigestResult> {
+export async function generateDigest(userId: string, emails: EmailInput[], apiKey?: string | null): Promise<DigestResult> {
   console.log(`📊 Generating digest for user ${userId} with ${emails.length} emails`);
   
   if (emails.length === 0) {
@@ -133,7 +138,7 @@ export async function generateDigest(userId: string, emails: EmailInput[]): Prom
   try {
     // Process all emails with AI
     const processedEmails = await Promise.all(
-      emails.map(email => processEmailWithAI(email))
+      emails.map(email => processEmailWithAI(email, apiKey))
     );
 
     // Create digest record
