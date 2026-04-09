@@ -10,6 +10,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "rootDir": "./src",
     "outDir": "./dist",
     "removeComments": true,
     "strict": true,
@@ -34,8 +35,7 @@
     "types": ["node"]
   },
   "include": [
-    "src/**/*",
-    "../../../shared/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",

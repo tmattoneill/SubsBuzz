@@ -10,7 +10,6 @@ RUN npm install
 
 # Copy source and build
 COPY services/data-server/ .
-COPY shared/ /app/shared/
 RUN npm run build
 
 # ── Production image ──────────────────────────────────────────────────────────
