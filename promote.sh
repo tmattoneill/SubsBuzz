@@ -1,11 +1,15 @@
 #!/bin/bash
 # promote.sh — Promote main → subsbuzz.com (production)
 #
-# Goal: `ssh subsbuzz-prod "rm -rf /home/webdev/sites/subsbuzz.com" && ./promote.sh`
+# Goal: `ssh subsbuzz "rm -rf /home/webdev/sites/subsbuzz.com" && ./promote.sh`
 # should produce a fully working production site.
 #
+# Note: dev and prod live on the SAME server (SSH alias `subsbuzz`), in
+# different directories, on different ports. The dev/prod compose files
+# don't collide because they bind to disjoint host ports.
+#
 # Mirrors deploy.sh, but:
-#   - Targets the prod SSH alias and prod directory.
+#   - Targets the prod directory.
 #   - Refuses to run unless you're on `main` with a clean tree.
 #   - Requires an explicit `yes` confirmation (this is PROD).
 #   - Sends `.env.prod` → `.env` and `docker-compose.yml` → `docker-compose.yml`.
@@ -16,7 +20,7 @@
 set -euo pipefail
 
 # ── Config ────────────────────────────────────────────────────────────────────
-SSH_ALIAS="subsbuzz-prod"
+SSH_ALIAS="subsbuzz"
 REMOTE_DIR="/home/webdev/sites/subsbuzz.com"
 GIT_REPO="https://github.com/tmattoneill/SubsBuzz.git"
 REQUIRED_BRANCH="main"
