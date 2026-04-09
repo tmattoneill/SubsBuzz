@@ -8,6 +8,10 @@ import OpenAI from 'openai';
 import { storage } from './storage';
 import { InsertEmailDigest, InsertDigestEmail } from '../db/schema.js';
 
+if (!process.env.OPENAI_API_KEY) {
+  console.warn('⚠️  OPENAI_API_KEY is not set — AI summarisation will use fallback text');
+}
+
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -44,6 +48,9 @@ export async function processEmailWithAI(email: EmailInput): Promise<ProcessedEm
   console.log(`🤖 Processing email: ${email.subject}`);
   
   try {
+    // Truncate content to avoid excessive token usage
+    const truncatedContent = email.content?.slice(0, 4000) || '';
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -53,7 +60,7 @@ export async function processEmailWithAI(email: EmailInput): Promise<ProcessedEm
           1. A concise summary (2-3 sentences)
           2. Main topics (3-5 topics)
           3. Key keywords (5-8 keywords)
-          
+
           Return as JSON: {
             "summary": "...",
             "topics": ["topic1", "topic2", ...],
@@ -64,7 +71,7 @@ export async function processEmailWithAI(email: EmailInput): Promise<ProcessedEm
           role: 'user',
           content: `Email from: ${email.sender}
           Subject: ${email.subject}
-          Content: ${email.content}`
+          Content: ${truncatedContent}`
         }
       ],
       temperature: 0.7,
@@ -95,9 +102,10 @@ export async function processEmailWithAI(email: EmailInput): Promise<ProcessedEm
       originalLink: email.originalLink
     };
 
-  } catch (error) {
-    console.error('Error processing email with OpenAI:', error);
-    
+  } catch (error: any) {
+    console.error(`Error processing email with OpenAI: ${error?.message || error}`);
+    if (error?.status) console.error(`OpenAI HTTP status: ${error.status}`);
+
     // Fallback to basic processing
     return {
       sender: email.sender,

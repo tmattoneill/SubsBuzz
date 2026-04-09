@@ -48,9 +48,22 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
     }));
 
     // Generate digest using existing OpenAI service
-    const digest = await generateDigest(user_id, transformedEmails);
+    const digestResult = await generateDigest(user_id, transformedEmails);
 
-    return res.status(201).json(apiResponse(digest, 'Digest created successfully'));
+    // Automatically run thematic processing (non-fatal if it fails)
+    try {
+      const { thematicProcessor } = await import('../services/thematic-processor.js');
+      await thematicProcessor.processEmailsIntoThemes(
+        user_id,
+        digestResult.processedEmails,
+        digestResult.digest.id
+      );
+      console.log('✅ Thematic digest created');
+    } catch (thematicError: any) {
+      console.error(`Thematic processing failed (non-fatal): ${thematicError?.message || thematicError}`);
+    }
+
+    return res.status(201).json(apiResponse(digestResult, 'Digest created successfully'));
     
   } catch (error: any) {
     console.error('Error creating digest:', error);
