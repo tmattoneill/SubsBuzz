@@ -23,15 +23,18 @@ FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
+COPY services/frontend/nginx-global.conf /etc/nginx/nginx.conf
 COPY services/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Create non-root user
 RUN addgroup -g 1001 -S nginx-user
 RUN adduser -S nginx-user -u 1001 -G nginx-user
 
-# Set permissions
-RUN chown -R nginx-user:nginx-user /var/cache/nginx /var/run /var/log/nginx /usr/share/nginx/html
-RUN chmod -R 755 /usr/share/nginx/html
+# Set permissions (include /tmp for pid and temp files)
+RUN chown -R nginx-user:nginx-user /var/cache/nginx /var/log/nginx /usr/share/nginx/html \
+    && chmod -R 755 /usr/share/nginx/html \
+    && mkdir -p /tmp/client_temp /tmp/proxy_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp \
+    && chown -R nginx-user:nginx-user /tmp/client_temp /tmp/proxy_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp
 
 # Switch to non-root user
 USER nginx-user
