@@ -74,7 +74,7 @@ async def proxy_to_data_server(
         )
 
 
-@router.get("/", response_model=MonitoredEmailResponse)
+@router.get("", response_model=MonitoredEmailResponse)
 async def get_monitored_emails(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
@@ -104,7 +104,7 @@ async def get_monitored_emails(
         )
 
 
-@router.post("/", response_model=MonitoredEmailResponse)
+@router.post("", response_model=MonitoredEmailResponse)
 async def add_monitored_email(
     request: MonitoredEmailRequest,
     current_user: Dict[str, Any] = Depends(get_current_user)

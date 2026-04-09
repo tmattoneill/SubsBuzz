@@ -87,6 +87,7 @@ export const userSettings = pgTable("user_settings", {
   emailNotificationsEnabled: boolean("email_notifications_enabled").notNull().default(false),
   themeMode: text("theme_mode").default("system"), // "light", "dark", "system"
   themeColor: text("theme_color").default("blue"), // "blue", "green", "purple", "teal", "red", "orange"
+  openaiApiKey: text("openai_api_key"),
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({

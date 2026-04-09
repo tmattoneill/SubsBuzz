@@ -33,6 +33,10 @@ class SettingsUpdateRequest(BaseModel):
     themeColor: Optional[str] = None  # Color scheme preference
 
 
+class ApiKeyRequest(BaseModel):
+    apiKey: str
+
+
 # Helper function to proxy requests to Data Server
 async def proxy_to_data_server(
     method: str,
@@ -72,7 +76,7 @@ async def proxy_to_data_server(
         )
 
 
-@router.get("/", response_model=SettingsResponse)
+@router.get("", response_model=SettingsResponse)
 async def get_user_settings(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
@@ -108,7 +112,7 @@ async def get_user_settings(
         )
 
 
-@router.patch("/", response_model=SettingsResponse)
+@router.patch("", response_model=SettingsResponse)
 async def update_user_settings(
     request: SettingsUpdateRequest,
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -300,4 +304,30 @@ async def update_theme_preferences(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update theme preferences"
+        )
+
+
+@router.post("/api-key")
+async def update_api_key(
+    request: ApiKeyRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Store the user's OpenAI API key in their settings"""
+    user_id = current_user["uid"]
+
+    try:
+        result = await proxy_to_data_server(
+            "PATCH",
+            f"storage/user-settings/{user_id}",
+            json_data={"openaiApiKey": request.apiKey}
+        )
+        return {"success": True, "message": "API key updated"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating API key: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update API key"
         )
