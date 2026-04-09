@@ -247,14 +247,33 @@ INTERNAL_API_SECRET=...
 
 **Location:** `services/frontend/`
 
-**Technology:** React, Docker, Nginx (production)
+**Technology:** React + TypeScript + Vite, Tailwind CSS, served by Nginx in production
 
-**Note:** Frontend source code is not currently in this repository. The `services/frontend/` directory contains only the production Docker container configuration.
+**Commands:**
+```bash
+cd services/frontend
 
-**For Development:**
-- Frontend should be developed separately
-- Use API Gateway at `http://localhost:8000` as backend
-- CORS is configured for `http://localhost:5500`
+npm install              # Install dependencies
+npm run dev              # Vite dev server (port 5500)
+npm run build            # Production build → dist/
+npm run preview          # Preview production build
+```
+
+**Key Files:**
+- `src/main.tsx` - React entry point
+- `src/App.tsx` - Root component / router
+- `src/pages/` - Route pages (dashboard, digest, history, settings, login, etc.)
+- `src/components/` - UI components (`dashboard/`, `layout/`, `ui/`, `ErrorBoundary.tsx`)
+- `src/hooks/` - Custom React hooks
+- `src/lib/` - Client-side utilities and API helpers
+- `vite.config.ts` - Vite build config
+- `tailwind.config.ts` - Tailwind config
+- `Dockerfile` - Multi-stage build (Vite build → Nginx serve)
+- `nginx.conf` / `nginx-global.conf` - Production Nginx configs
+
+**Backend Integration:**
+- Talks to API Gateway at `http://localhost:8000` in dev
+- CORS for the dev origin is configured in the API Gateway
 
 **For Production:**
 ```bash
@@ -596,14 +615,14 @@ cat .env.dev
 ls -la services/
 ```
 
-### Import Errors After Cleanup
+### Schema Import Path
 
-All schema imports should now point to:
+All schema imports inside the data-server should resolve to:
 ```typescript
-import { ... } from '../db/schema.js';  // In data-server files
+import { ... } from '../db/schema.js';  // In data-server source files
 ```
 
-If you see errors about `shared/schema`, the imports weren't updated correctly.
+The canonical schema lives at `services/data-server/src/db/schema.ts` and is referenced by `services/data-server/drizzle.config.ts`. There is no longer a root-level `shared/` directory.
 
 ---
 
