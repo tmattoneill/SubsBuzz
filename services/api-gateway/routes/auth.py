@@ -133,26 +133,47 @@ async def firebase_auth(request: FirebaseAuthRequest):
         )
 
 
-@router.post("/refresh", response_model=AuthResponse)
-async def refresh_token(current_user: Dict[str, Any] = Depends(get_current_user)):
+class RefreshRequest(BaseModel):
+    """Request model for token refresh via session token"""
+    sessionToken: str
+
+
+@router.post("/refresh")
+async def refresh_token(request: RefreshRequest):
     """
-    Refresh JWT token for authenticated user
+    Refresh JWT token using a long-lived session token stored in the database.
+    Does not require a valid JWT — the session token is the credential.
     """
     try:
-        # Create new JWT token
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{settings.DATA_SERVER_URL}/api/storage/session-validate",
+                json={"sessionToken": request.sessionToken},
+                headers={"x-internal-api-key": settings.INTERNAL_API_SECRET}
+            )
+
+        if not resp.is_success:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired session token"
+            )
+
+        user_data = resp.json().get("data", {})
         new_token = create_jwt_token({
-            "uid": current_user["uid"],
-            "email": current_user["email"],
-            "email_verified": current_user.get("email_verified", False)
+            "uid": user_data["uid"],
+            "email": user_data["email"],
+            "email_verified": False
         })
-        
-        return AuthResponse(
-            success=True,
-            token=new_token,
-            user=current_user,
-            message="Token refreshed successfully"
-        )
-        
+
+        return {
+            "success": True,
+            "token": new_token,
+            "user": {"uid": user_data["uid"], "email": user_data["email"]},
+            "message": "Token refreshed successfully"
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Token refresh failed: {e}")
         raise HTTPException(
@@ -325,18 +346,32 @@ async def oauth_callback(request: OAuthCallbackRequest):
                 )
 
             # Create JWT token for user
+            uid = user_info["id"]
             jwt_token = create_jwt_token({
-                "uid": user_info["id"],
+                "uid": uid,
                 "email": user_info["email"],
                 "email_verified": user_info.get("verified_email", False)
             })
-            
+
+            # Create a long-lived session token (30-day, stored in DB)
+            session_token = None
+            try:
+                session_resp = await client.post(
+                    f"{settings.DATA_SERVER_URL}/api/storage/session-token/{uid}",
+                    headers={"x-internal-api-key": settings.INTERNAL_API_SECRET}
+                )
+                if session_resp.is_success:
+                    session_token = session_resp.json().get("data", {}).get("sessionToken")
+            except Exception as e:
+                logger.warning(f"Failed to create session token: {e}")
+
             return {
                 "success": True,
                 "message": "Gmail connected successfully",
                 "token": jwt_token,
+                "sessionToken": session_token,
                 "user": {
-                    "uid": user_info["id"],
+                    "uid": uid,
                     "email": user_info["email"],
                     "name": user_info.get("name"),
                     "picture": user_info.get("picture"),

@@ -106,19 +106,19 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshToken = tokenManager.getRefreshToken();
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
+        const sessionToken = tokenManager.getRefreshToken();
+        if (!sessionToken) {
+          throw new Error('No session token available');
         }
 
-        // Call refresh endpoint
+        // Call refresh endpoint with long-lived session token
         const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
-          refreshToken,
+          sessionToken,
         });
 
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
-        tokenManager.setTokens(accessToken, newRefreshToken);
-        processQueue(null, accessToken);
+        const newAccessToken = response.data.token || response.data.accessToken;
+        tokenManager.setTokens(newAccessToken, sessionToken); // session token stays the same
+        processQueue(null, newAccessToken);
 
         // Retry original request
         return apiClient(originalRequest);

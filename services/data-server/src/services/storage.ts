@@ -34,7 +34,7 @@ import {
 } from '../db/schema.js';
 import { db } from '../db';
 import { eq, desc, and, sql } from 'drizzle-orm';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 
 // Helper function to generate userId from email
 export function getUserId(email: string): string {
@@ -73,6 +73,8 @@ export interface IStorage {
   updateOAuthToken(uid: string, updates: Partial<OAuthToken>): Promise<OAuthToken | undefined>;
   getExpiringOAuthTokens(beforeDate: Date): Promise<OAuthToken[]>;
   getUsersWithMonitoredEmails(): Promise<{ id: string; email: string; }[]>;
+  createSessionToken(uid: string): Promise<{ sessionToken: string; sessionExpiresAt: Date }>;
+  validateSessionToken(sessionToken: string): Promise<{ uid: string; email: string } | null>;
   
   // Thematic digests
   getThematicDigests(userId: string): Promise<ThematicDigest[]>;
@@ -475,6 +477,42 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error getting users with monitored emails:', error);
       return [];
+    }
+  }
+
+  async createSessionToken(uid: string): Promise<{ sessionToken: string; sessionExpiresAt: Date }> {
+    const sessionToken = randomUUID();
+    const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    const database = this.ensureDb();
+    await database.update(oauthTokens)
+      .set({ sessionToken, sessionExpiresAt, updatedAt: new Date() })
+      .where(eq(oauthTokens.uid, uid));
+
+    return { sessionToken, sessionExpiresAt };
+  }
+
+  async validateSessionToken(sessionToken: string): Promise<{ uid: string; email: string } | null> {
+    try {
+      const database = this.ensureDb();
+      const results = await database.select({
+        uid: oauthTokens.uid,
+        email: oauthTokens.email,
+        sessionExpiresAt: oauthTokens.sessionExpiresAt
+      })
+      .from(oauthTokens)
+      .where(eq(oauthTokens.sessionToken, sessionToken))
+      .limit(1);
+
+      if (results.length === 0) return null;
+
+      const record = results[0];
+      if (!record.sessionExpiresAt || record.sessionExpiresAt < new Date()) return null;
+
+      return { uid: record.uid, email: record.email };
+    } catch (error) {
+      console.error('Error validating session token:', error);
+      return null;
     }
   }
 

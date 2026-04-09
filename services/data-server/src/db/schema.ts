@@ -113,6 +113,8 @@ export const oauthTokens = pgTable("oauth_tokens", {
   refreshToken: text("refresh_token"),
   expiresAt: timestamp("expires_at"),
   scope: text("scope"),
+  sessionToken: text("session_token"),       // Long-lived opaque session token (UUID)
+  sessionExpiresAt: timestamp("session_expires_at"),  // 30-day expiry
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

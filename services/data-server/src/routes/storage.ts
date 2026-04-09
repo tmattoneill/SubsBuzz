@@ -303,6 +303,29 @@ router.get('/oauth-tokens/expiring', asyncHandler(async (req: Request, res: Resp
   }
 }));
 
+// Create session token for user (called after OAuth login)
+router.post('/session-token/:uid', asyncHandler(async (req: Request, res: Response) => {
+  const { uid } = req.params;
+  const result = await storage.createSessionToken(uid);
+  return res.json(apiResponse(result, 'Session token created'));
+}));
+
+// Validate session token (called by api-gateway on refresh)
+router.post('/session-validate', asyncHandler(async (req: Request, res: Response) => {
+  const { sessionToken } = req.body;
+
+  if (!sessionToken) {
+    return res.status(400).json(apiError('sessionToken is required', 'MISSING_FIELDS'));
+  }
+
+  const user = await storage.validateSessionToken(sessionToken);
+  if (!user) {
+    return res.status(401).json(apiError('Invalid or expired session token', 'INVALID_SESSION'));
+  }
+
+  return res.json(apiResponse(user));
+}));
+
 // ==================== THEMATIC DIGESTS ====================
 
 // Get thematic digests for a user

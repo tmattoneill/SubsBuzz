@@ -28,8 +28,8 @@ const AuthCallback: React.FC = () => {
         });
 
         if (result.success && result.token) {
-          // Store the token explicitly to ensure it's available
-          tokenManager.setTokens(result.token);
+          // Store access token + long-lived session token (used for silent refresh)
+          tokenManager.setTokens(result.token, result.sessionToken || undefined);
           
           toast({
             title: "Authentication Successful",

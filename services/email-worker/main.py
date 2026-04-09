@@ -31,7 +31,7 @@ app.config_from_object({
     'beat_schedule': {
         'daily-digest-generation': {
             'task': 'tasks.generate_daily_digests',
-            'schedule': crontab(hour=7, minute=0),  # Daily at 7 AM UTC
+            'schedule': crontab(hour=3, minute=0),  # Daily at 3 AM UTC
         },
         'refresh-oauth-tokens': {
             'task': 'tasks.refresh_oauth_tokens',
