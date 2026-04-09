@@ -93,6 +93,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!services/frontend/src/lib/
 lib64/
 parts/
 sdist/
