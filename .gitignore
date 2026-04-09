@@ -250,6 +250,7 @@ public/build/
 *.sql
 *.dump
 dump-*.sql
+!infrastructure/postgres/*.sql
 
 # Database backups
 backups/

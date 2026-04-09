@@ -9,7 +9,7 @@ set -e
 DEV_DIR="/home/webdev/sites/dev.subsbuzz.com"
 PROD_DIR="/home/webdev/sites/subsbuzz.com"
 DEV_COMPOSE="docker-compose.dev.yml"
-PROD_COMPOSE="docker-compose.prod.yml"
+PROD_COMPOSE="docker-compose.yml"
 
 # ── Colours ───────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
@@ -58,16 +58,16 @@ fi
 # ── 5. Build and start prod containers ───────────────────────────────────────
 info "Building production containers..."
 cd $PROD_DIR
-docker compose -f $PROD_COMPOSE down --remove-orphans
-docker compose -f $PROD_COMPOSE build --no-cache
-docker compose -f $PROD_COMPOSE up -d
+docker compose -f $PROD_COMPOSE --env-file .env.prod down --remove-orphans
+docker compose -f $PROD_COMPOSE --env-file .env.prod build --no-cache
+docker compose -f $PROD_COMPOSE --env-file .env.prod up -d
 
 info "Waiting for services..."
 sleep 5
 
 # ── 6. Health checks ──────────────────────────────────────────────────────────
 info "Running health checks..."
-docker compose -f $PROD_COMPOSE ps
+docker compose -f $PROD_COMPOSE --env-file .env.prod ps
 
 curl -sf http://localhost:8000/health && echo "✓ API Gateway (prod) healthy" || warn "✗ API Gateway not responding"
 curl -sf http://localhost:3001/health && echo "✓ Data Server (prod) healthy" || warn "✗ Data Server not responding"

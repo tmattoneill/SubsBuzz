@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   frontend:
-    build: 
+    build:
       context: .
       dockerfile: services/frontend/Dockerfile
     ports:
@@ -16,7 +16,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
   api-gateway:
     build:
       context: .
@@ -24,13 +27,15 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - DATA_SERVER_URL=http://data-server:3001
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
     depends_on:
-      - data-server
-      - redis
+      data-server:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -49,10 +54,10 @@ services:
       - PORT=3001
       - DATABASE_URL=${DATABASE_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - JWT_SECRET=${JWT_SECRET}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
@@ -72,10 +77,12 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
     depends_on:
-      - redis
-      - data-server
+      redis:
+        condition: service_healthy
+      data-server:
+        condition: service_healthy
     restart: unless-stopped
-    
+
   postgres:
     image: postgres:15-alpine
     environment:
@@ -84,16 +91,16 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d subsbuzz"]
       interval: 30s
       timeout: 10s
       retries: 3
-    
+
   redis:
     image: redis:7-alpine
     ports:
@@ -106,6 +113,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    command: redis-server --appendonly yes
 
 volumes:
   postgres_data:

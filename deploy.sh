@@ -28,7 +28,7 @@ COMMIT_MSG="${1:-"deploy: $(date '+%Y-%m-%d %H:%M')"}"
 info "Checking git status..."
 if [[ -n $(git status --porcelain) ]]; then
     info "Staging and committing changes..."
-    git add -A
+    git add -A -- ':!.env' ':!.env.*'
     git commit -m "$COMMIT_MSG"
 else
     info "No local changes to commit"
@@ -52,19 +52,19 @@ ssh $SSH_ALIAS bash << EOF
     git reset --hard origin/$BRANCH
 
     echo "── Building and starting containers ──"
-    docker compose -f $COMPOSE_FILE down --remove-orphans
-    docker compose -f $COMPOSE_FILE build --no-cache
-    docker compose -f $COMPOSE_FILE up -d
+    docker compose -f $COMPOSE_FILE --env-file .env.dev down --remove-orphans
+    docker compose -f $COMPOSE_FILE --env-file .env.dev build --no-cache
+    docker compose -f $COMPOSE_FILE --env-file .env.dev up -d
 
     echo "── Waiting for services to start ──"
     sleep 5
 
     echo "── Container status ──"
-    docker compose -f $COMPOSE_FILE ps
+    docker compose -f $COMPOSE_FILE --env-file .env.dev ps
 
     echo "── Health checks ──"
     curl -sf http://localhost:8001/health && echo "✓ API Gateway healthy" || echo "✗ API Gateway not responding"
-    curl -sf http://localhost:3001/health && echo "✓ Data Server healthy" || echo "✗ Data Server not responding"
+    curl -sf http://localhost:3002/health && echo "✓ Data Server healthy" || echo "✗ Data Server not responding"
     curl -sf http://localhost:5501         && echo "✓ Frontend healthy"    || echo "✗ Frontend not responding"
 EOF
 
