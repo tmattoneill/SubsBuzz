@@ -74,10 +74,13 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=debug
       - ENABLE_SQL_LOGGING=false
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
