@@ -3,7 +3,7 @@
  * PostgreSQL schema definitions using Drizzle ORM
  */
 
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -27,7 +27,7 @@ export const monitoredEmails = pgTable("monitored_emails", {
   userId: text("user_id").notNull(),
   email: text("email").notNull(),
   active: boolean("active").notNull().default(true),
-});
+}, (t) => [unique("monitored_emails_user_email_unique").on(t.userId, t.email)]);
 
 export const insertMonitoredEmailSchema = createInsertSchema(monitoredEmails).pick({
   userId: true,

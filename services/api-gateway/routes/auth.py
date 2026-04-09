@@ -323,7 +323,18 @@ async def oauth_callback(request: OAuthCallbackRequest):
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to store OAuth tokens"
                 )
-            
+
+            # Auto-add the connected Gmail address as a monitored email source
+            try:
+                await client.post(
+                    f"{settings.DATA_SERVER_URL}/api/storage/monitored-emails",
+                    json={"userId": user_info["id"], "email": user_info["email"], "active": True},
+                    headers={"x-internal-api-key": settings.INTERNAL_API_SECRET}
+                )
+                logger.info(f"Auto-added monitored email: {user_info['email']}")
+            except Exception as e:
+                logger.warning(f"Failed to auto-add monitored email (non-fatal): {e}")
+
             # Create JWT token for user
             jwt_token = create_jwt_token({
                 "uid": user_info["id"],

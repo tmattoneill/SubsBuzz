@@ -119,7 +119,7 @@ export class DatabaseStorage implements IStorage {
     };
 
     const database = this.ensureDb();
-    const results = await database.insert(monitoredEmails).values(emailToInsert).returning();
+    const results = await database.insert(monitoredEmails).values(emailToInsert).onConflictDoNothing().returning();
     return results[0];
   }
   
