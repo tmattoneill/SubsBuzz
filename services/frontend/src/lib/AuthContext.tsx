@@ -120,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       
       // Call backend logout endpoint
-      await api.post('/api/auth/logout', {});
+      await api.post('/auth/logout', {});
       
     } catch (error) {
       console.error('Error signing out:', error);

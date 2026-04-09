@@ -22,7 +22,7 @@ const AuthCallback: React.FC = () => {
         }
 
         // Send the code to our API Gateway for processing
-        const result = await api.post('/api/auth/oauth-callback', {
+        const result = await api.post('/auth/oauth-callback', {
           code,
           state: state || ''
         });
