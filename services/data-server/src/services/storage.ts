@@ -582,8 +582,8 @@ export class DatabaseStorage implements IStorage {
     const existingDigest = await this.hasThematicDigestForDate(digest.userId, targetDate);
     
     if (existingDigest) {
-      console.log(`Thematic digest already exists for user ${digest.userId} on date ${targetDate.toISOString().split('T')[0]}`);
-      // Get the existing digest and return it
+      console.log(`Thematic digest already exists for user ${digest.userId} on date ${targetDate.toISOString().split('T')[0]} — replacing sections`);
+      // Get the existing digest
       const existingResults = await database.select().from(thematicDigests)
         .where(and(
           eq(thematicDigests.userId, digest.userId),
@@ -592,8 +592,34 @@ export class DatabaseStorage implements IStorage {
         ))
         .orderBy(desc(thematicDigests.date))
         .limit(1);
-      
-      return existingResults[0];
+
+      const existingId = existingResults[0].id;
+
+      // Clear old source email links for all sections of this digest
+      const oldSections = await database.select({ id: thematicSections.id })
+        .from(thematicSections)
+        .where(eq(thematicSections.thematicDigestId, existingId));
+      for (const sec of oldSections) {
+        await database.delete(themeSourceEmails)
+          .where(eq(themeSourceEmails.thematicSectionId, sec.id));
+      }
+      // Clear old sections
+      await database.delete(thematicSections)
+        .where(eq(thematicSections.thematicDigestId, existingId));
+
+      // Update digest metadata so it reflects the latest run
+      const updated = await database.update(thematicDigests)
+        .set({
+          date: digest.date ?? new Date(),
+          emailDigestId: digest.emailDigestId,
+          sectionsCount: digest.sectionsCount,
+          totalSourceEmails: digest.totalSourceEmails,
+          processingMethod: digest.processingMethod,
+        })
+        .where(eq(thematicDigests.id, existingId))
+        .returning();
+
+      return updated[0];
     }
     
     const results = await database.insert(thematicDigests)
