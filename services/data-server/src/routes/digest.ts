@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/error';
-import { generateDigest, getLatestDigest, getLatestThematicDigest } from '../services/openai';
+import { generateDigest, getLatestDigest, getLatestThematicDigest, checkOpenAIHealth } from '../services/openai';
 import { storage } from '../services/storage';
 import { queueDigestGeneration } from '../services/celery-client';
 
@@ -372,6 +372,19 @@ router.get('/stats/:userId', asyncHandler(async (req: Request, res: Response) =>
       `Failed to get digest statistics: ${error.message}`,
       'STATS_RETRIEVAL_FAILED'
     ));
+  }
+}));
+
+// ==================== OPENAI HEALTH ====================
+
+// Test OpenAI connectivity and API key validity
+router.get('/openai-health', asyncHandler(async (req: Request, res: Response) => {
+  const healthy = await checkOpenAIHealth();
+
+  if (healthy) {
+    return res.json({ success: true, message: 'OpenAI API key is valid and reachable' });
+  } else {
+    return res.status(503).json({ success: false, message: 'OpenAI API is not available — check OPENAI_API_KEY' });
   }
 }));
 

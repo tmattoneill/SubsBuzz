@@ -215,6 +215,24 @@ export default function Settings() {
     updateApiKeyMutation.mutate(data.apiKey);
   };
 
+  // Test API key
+  const [isTestingApiKey, setIsTestingApiKey] = useState(false);
+  const handleTestApiKey = async () => {
+    setIsTestingApiKey(true);
+    try {
+      await apiRequest('GET', '/api/settings/test-api-key');
+      toast({ title: "API key is valid", description: "OpenAI is reachable and responding correctly." });
+    } catch (error: any) {
+      toast({
+        title: "API key test failed",
+        description: error.message || "Could not reach OpenAI. Check your API key.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingApiKey(false);
+    }
+  };
+
   // Submit Gmail settings form
   const onGmailSubmit = (data: z.infer<typeof gmailSchema>) => {
     toast({
@@ -366,20 +384,38 @@ export default function Settings() {
                       </FormItem>
                     )}
                   />
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-primary text-white hover:bg-blue-600"
-                    disabled={updateApiKeyMutation.isPending}
-                  >
-                    {updateApiKeyMutation.isPending ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      "Update API Key"
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={handleTestApiKey}
+                      disabled={isTestingApiKey || updateApiKeyMutation.isPending}
+                    >
+                      {isTestingApiKey ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Testing...
+                        </>
+                      ) : (
+                        "Test"
+                      )}
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 bg-primary text-white hover:bg-blue-600"
+                      disabled={updateApiKeyMutation.isPending || isTestingApiKey}
+                    >
+                      {updateApiKeyMutation.isPending ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        "Update API Key"
+                      )}
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </CardContent>

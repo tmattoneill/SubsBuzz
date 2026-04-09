@@ -307,6 +307,26 @@ async def update_theme_preferences(
         )
 
 
+@router.get("/test-api-key")
+async def test_api_key(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Test whether the configured OpenAI API key is valid"""
+    try:
+        result = await proxy_to_data_server("GET", "digest/openai-health")
+        return result
+    except HTTPException as e:
+        if e.status_code == 503:
+            return {"success": False, "message": "OpenAI API key is not valid or not configured"}
+        raise
+    except Exception as e:
+        logger.error(f"Error testing API key: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to test API key"
+        )
+
+
 @router.post("/api-key")
 async def update_api_key(
     request: ApiKeyRequest,
