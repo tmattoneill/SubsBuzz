@@ -192,8 +192,7 @@ async function stageThreeStorage(
     console.log(`✅ Created thematic digest with ID ${thematicDigest.id}`);
 
     // Create sections for each theme
-    for (let i = 0; i < themes.length; i++) {
-      const theme = themes[i];
+    for (const [i, theme] of themes.entries()) {
       
       const sectionData: InsertThematicSection = {
         thematicDigestId: thematicDigest.id,
@@ -214,8 +213,9 @@ async function stageThreeStorage(
           // Find the digest email ID by matching email properties
           const digestEmails = await storage.getDigestEmails(emailDigestId);
           const email = emails[emailIndex];
-          
-          const matchingDigestEmail = digestEmails.find(de => 
+          if (!email) continue;
+
+          const matchingDigestEmail = digestEmails.find(de =>
             de.sender === email.sender && 
             de.subject === email.subject
           );

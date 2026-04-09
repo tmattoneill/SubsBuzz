@@ -23,7 +23,7 @@ import { errorHandler } from './middleware/error';
 import { initializeDatabase } from './db';
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = parseInt(process.env.PORT ?? '3001', 10);
 
 // Initialize database connection
 try {

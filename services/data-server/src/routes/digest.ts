@@ -46,15 +46,15 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       receivedAt: new Date(email.received_at || email.receivedAt), // Handle both snake_case and camelCase
       originalLink: email.original_link || email.originalLink
     }));
-    
+
     // Generate digest using existing OpenAI service
     const digest = await generateDigest(user_id, transformedEmails);
-    
-    res.status(201).json(apiResponse(digest, 'Digest created successfully'));
+
+    return res.status(201).json(apiResponse(digest, 'Digest created successfully'));
     
   } catch (error: any) {
     console.error('Error creating digest:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to create digest: ${error.message}`,
       'DIGEST_CREATION_FAILED'
     ));
@@ -89,7 +89,7 @@ router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
     // Queue the digest generation task to Celery worker
     const taskId = await queueDigestGeneration(user_id);
 
-    res.json(apiResponse({
+    return res.json(apiResponse({
       message: 'Digest generation started successfully',
       user_id,
       monitored_emails_count: monitoredEmails.length,
@@ -99,7 +99,7 @@ router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('Error auto-generating digest:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to generate digest: ${error.message}`,
       'DIGEST_GENERATION_FAILED'
     ));
@@ -120,7 +120,7 @@ router.post('/generate/:userId', asyncHandler(async (req: Request, res: Response
   try {
     // This would typically trigger the email worker
     // For now, return a placeholder response
-    res.json(apiResponse({
+    return res.json(apiResponse({
       message: 'Digest generation triggered',
       userId,
       monitoredEmails: monitored_emails.length,
@@ -129,7 +129,7 @@ router.post('/generate/:userId', asyncHandler(async (req: Request, res: Response
     
   } catch (error: any) {
     console.error('Error triggering digest generation:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to trigger digest generation: ${error.message}`,
       'DIGEST_GENERATION_FAILED'
     ));
@@ -151,12 +151,12 @@ router.get('/latest/:userId', asyncHandler(async (req: Request, res: Response) =
     if (!latestDigest) {
       return res.status(404).json(apiError('No digests found for user', 'NOT_FOUND'));
     }
-    
-    res.json(apiResponse(latestDigest));
+
+    return res.json(apiResponse(latestDigest));
     
   } catch (error: any) {
     console.error('Error getting latest digest:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get latest digest: ${error.message}`,
       'DIGEST_RETRIEVAL_FAILED'
     ));
@@ -175,12 +175,12 @@ router.get('/detailed/:userId', asyncHandler(async (req: Request, res: Response)
     if (!detailedDigest) {
       return res.status(404).json(apiError('No detailed digests found for user', 'NOT_FOUND'));
     }
-    
-    res.json(apiResponse(detailedDigest));
+
+    return res.json(apiResponse(detailedDigest));
     
   } catch (error: any) {
     console.error('Error getting detailed digest:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get detailed digest: ${error.message}`,
       'DIGEST_RETRIEVAL_FAILED'
     ));
@@ -205,10 +205,10 @@ router.get('/history/:userId', asyncHandler(async (req: Request, res: Response) 
       paginatedDigests = digests.slice(offsetNum, offsetNum + limitNum);
     }
     
-    res.json(apiResponse({
+    return res.json(apiResponse({
       digests: paginatedDigests,
       total: digests.length,
-      ...(limit && { 
+      ...(limit && {
         limit: parseInt(limit as string),
         offset: parseInt(offset as string) || 0
       })
@@ -216,7 +216,7 @@ router.get('/history/:userId', asyncHandler(async (req: Request, res: Response) 
     
   } catch (error: any) {
     console.error('Error getting digest history:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get digest history: ${error.message}`,
       'HISTORY_RETRIEVAL_FAILED'
     ));
@@ -277,11 +277,11 @@ router.get('/date/:userId/:date', asyncHandler(async (req: Request, res: Respons
       }))
     };
     
-    res.json(apiResponse(response));
-    
+    return res.json(apiResponse(response));
+
   } catch (error: any) {
     console.error('Error getting digest by date:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get digest for date: ${error.message}`,
       'DATE_DIGEST_FAILED'
     ));
@@ -308,8 +308,8 @@ router.post('/thematic/process', asyncHandler(async (req: Request, res: Response
     const { thematicProcessor } = await import('../services/thematic-processor.js');
     
     const thematicDigestId = await thematicProcessor.processEmailsIntoThemes(userId, emails);
-    
-    res.status(201).json(apiResponse({
+
+    return res.status(201).json(apiResponse({
       thematicDigestId,
       emailsProcessed: emails.length,
       userId
@@ -317,7 +317,7 @@ router.post('/thematic/process', asyncHandler(async (req: Request, res: Response
     
   } catch (error: any) {
     console.error('Error processing thematic digest:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to process thematic digest: ${error.message}`,
       'THEMATIC_PROCESSING_FAILED'
     ));
@@ -351,11 +351,11 @@ router.get('/stats/:userId', asyncHandler(async (req: Request, res: Response) =>
       period: period || 'all-time'
     };
     
-    res.json(apiResponse(stats));
-    
+    return res.json(apiResponse(stats));
+
   } catch (error: any) {
     console.error('Error getting digest statistics:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get digest statistics: ${error.message}`,
       'STATS_RETRIEVAL_FAILED'
     ));

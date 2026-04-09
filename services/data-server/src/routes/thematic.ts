@@ -43,18 +43,18 @@ router.get('/digests/:userId', asyncHandler(async (req: Request, res: Response) 
       paginatedDigests = digests.slice(offsetNum, offsetNum + limitNum);
     }
     
-    res.json(apiResponse({
+    return res.json(apiResponse({
       digests: paginatedDigests,
       total: digests.length,
-      ...(limit && { 
+      ...(limit && {
         limit: parseInt(limit as string),
         offset: parseInt(offset as string) || 0
       })
     }));
-    
+
   } catch (error: any) {
     console.error('Error getting thematic digests:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get thematic digests: ${error.message}`,
       'THEMATIC_RETRIEVAL_FAILED'
     ));
@@ -78,12 +78,12 @@ router.get('/digest/:userId/:id', asyncHandler(async (req: Request, res: Respons
     if (!digest) {
       return res.status(404).json(apiError('Thematic digest not found', 'NOT_FOUND'));
     }
-    
-    res.json(apiResponse(digest));
-    
+
+    return res.json(apiResponse(digest));
+
   } catch (error: any) {
     console.error('Error getting thematic digest:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get thematic digest: ${error.message}`,
       'THEMATIC_RETRIEVAL_FAILED'
     ));
@@ -102,12 +102,12 @@ router.get('/latest/:userId', asyncHandler(async (req: Request, res: Response) =
     if (!digest) {
       return res.status(404).json(apiError('No thematic digests found', 'NOT_FOUND'));
     }
-    
-    res.json(apiResponse(digest));
-    
+
+    return res.json(apiResponse(digest));
+
   } catch (error: any) {
     console.error('Error getting latest thematic digest:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get latest thematic digest: ${error.message}`,
       'THEMATIC_RETRIEVAL_FAILED'
     ));
@@ -122,11 +122,11 @@ router.get('/exists/:userId/:date', asyncHandler(async (req: Request, res: Respo
   
   try {
     const exists = await storage.hasThematicDigestForDate(userId, new Date(date));
-    res.json(apiResponse({ exists, date, userId }));
-    
+    return res.json(apiResponse({ exists, date, userId }));
+
   } catch (error: any) {
     console.error('Error checking thematic digest existence:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to check thematic digest existence: ${error.message}`,
       'EXISTENCE_CHECK_FAILED'
     ));
@@ -147,11 +147,11 @@ router.get('/sections/:thematicDigestId', asyncHandler(async (req: Request, res:
   
   try {
     const sections = await storage.getThematicSections(thematicDigestId);
-    res.json(apiResponse(sections));
-    
+    return res.json(apiResponse(sections));
+
   } catch (error: any) {
     console.error('Error getting thematic sections:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get thematic sections: ${error.message}`,
       'SECTIONS_RETRIEVAL_FAILED'
     ));
@@ -185,11 +185,11 @@ router.post('/sections', asyncHandler(async (req: Request, res: Response) => {
       order
     });
     
-    res.status(201).json(apiResponse(section, 'Thematic section created'));
-    
+    return res.status(201).json(apiResponse(section, 'Thematic section created'));
+
   } catch (error: any) {
     console.error('Error creating thematic section:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to create thematic section: ${error.message}`,
       'SECTION_CREATION_FAILED'
     ));
@@ -210,11 +210,11 @@ router.get('/section/:sectionId/sources', asyncHandler(async (req: Request, res:
   
   try {
     const sourceEmails = await storage.getThemeSourceEmails(sectionId);
-    res.json(apiResponse(sourceEmails));
-    
+    return res.json(apiResponse(sourceEmails));
+
   } catch (error: any) {
     console.error('Error getting source emails:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get source emails: ${error.message}`,
       'SOURCE_EMAILS_FAILED'
     ));
@@ -241,11 +241,11 @@ router.post('/section/sources', asyncHandler(async (req: Request, res: Response)
       relevanceScore: relevanceScore || 50
     });
     
-    res.status(201).json(apiResponse(link, 'Source email linked to section'));
-    
+    return res.status(201).json(apiResponse(link, 'Source email linked to section'));
+
   } catch (error: any) {
     console.error('Error linking source email:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to link source email: ${error.message}`,
       'SOURCE_LINK_FAILED'
     ));
@@ -277,17 +277,17 @@ router.post('/process', asyncHandler(async (req: Request, res: Response) => {
     
     const thematicDigestId = await thematicProcessor.processEmailsIntoThemes(userId, emails);
     
-    res.status(201).json(apiResponse({
+    return res.status(201).json(apiResponse({
       thematicDigestId,
       emailDigestId,
       emailsProcessed: emails.length,
       userId,
       processingMethod: 'category-classification'
     }, 'Thematic digest processed successfully'));
-    
+
   } catch (error: any) {
     console.error('Error processing thematic digest:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to process thematic digest: ${error.message}`,
       'THEMATIC_PROCESSING_FAILED'
     ));
@@ -342,11 +342,11 @@ router.get('/analytics/:userId', asyncHandler(async (req: Request, res: Response
       period: period || 'all-time'
     };
     
-    res.json(apiResponse(analytics));
-    
+    return res.json(apiResponse(analytics));
+
   } catch (error: any) {
     console.error('Error getting thematic analytics:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get thematic analytics: ${error.message}`,
       'ANALYTICS_FAILED'
     ));
@@ -378,15 +378,15 @@ router.get('/themes/:userId', asyncHandler(async (req: Request, res: Response) =
       .slice(0, parseInt(limit as string))
       .map(([theme, count]) => ({ theme, count }));
     
-    res.json(apiResponse({
+    return res.json(apiResponse({
       themes: sortedThemes,
       totalUniqueThemes: Object.keys(themeFrequency).length,
       totalThemeInstances: Object.values(themeFrequency).reduce((sum, count) => sum + count, 0)
     }));
-    
+
   } catch (error: any) {
     console.error('Error getting theme analysis:', error);
-    res.status(500).json(apiError(
+    return res.status(500).json(apiError(
       `Failed to get theme analysis: ${error.message}`,
       'THEME_ANALYSIS_FAILED'
     ));

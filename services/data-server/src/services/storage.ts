@@ -4,9 +4,10 @@
  * Wraps the existing storage implementation for use in the data server
  */
 
-import { 
-  monitoredEmails, 
-  emailDigests, 
+import {
+  users,
+  monitoredEmails,
+  emailDigests,
   digestEmails,
   userSettings,
   oauthTokens,
@@ -105,18 +106,20 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getMonitoredEmail(id: number): Promise<MonitoredEmail | undefined> {
-    const results = await db.select().from(monitoredEmails).where(eq(monitoredEmails.id, id));
+    const database = this.ensureDb();
+    const results = await database.select().from(monitoredEmails).where(eq(monitoredEmails.id, id));
     return results.length > 0 ? results[0] : undefined;
   }
-  
+
   async addMonitoredEmail(email: InsertMonitoredEmail): Promise<MonitoredEmail> {
     // Ensure active is set (required by the schema)
     const emailToInsert = {
       ...email,
       active: email.active !== undefined ? email.active : true
     };
-    
-    const results = await db.insert(monitoredEmails).values(emailToInsert).returning();
+
+    const database = this.ensureDb();
+    const results = await database.insert(monitoredEmails).values(emailToInsert).returning();
     return results[0];
   }
   
@@ -128,19 +131,22 @@ export class DatabaseStorage implements IStorage {
   
   // Email digests methods
   async getEmailDigests(userId: string): Promise<EmailDigest[]> {
-    return await db.select().from(emailDigests)
+    const database = this.ensureDb();
+    return await database.select().from(emailDigests)
       .where(eq(emailDigests.userId, userId))
       .orderBy(desc(emailDigests.date));
   }
-  
+
   async getEmailDigest(userId: string, id: number): Promise<EmailDigest | undefined> {
-    const results = await db.select().from(emailDigests)
+    const database = this.ensureDb();
+    const results = await database.select().from(emailDigests)
       .where(and(eq(emailDigests.id, id), eq(emailDigests.userId, userId)));
     return results.length > 0 ? results[0] : undefined;
   }
-  
+
   async getLatestEmailDigest(userId: string): Promise<EmailDigest | undefined> {
-    const results = await db.select().from(emailDigests)
+    const database = this.ensureDb();
+    const results = await database.select().from(emailDigests)
       .where(eq(emailDigests.userId, userId))
       .orderBy(desc(emailDigests.date))
       .limit(1);
@@ -159,19 +165,20 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`🔍 Date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
 
+    const database = this.ensureDb();
     // Try a simpler DATE() approach first
-    const results = await db.select().from(emailDigests)
+    const results = await database.select().from(emailDigests)
       .where(and(
         eq(emailDigests.userId, userId),
         sql`DATE(${emailDigests.date}) = ${date}`
       ))
       .orderBy(desc(emailDigests.date))
       .limit(1);
-    
+
     // If that doesn't work, fall back to range query
     if (results.length === 0) {
       console.log(`🔍 No results with DATE() approach, trying range query...`);
-      const rangeResults = await db.select().from(emailDigests)
+      const rangeResults = await database.select().from(emailDigests)
         .where(and(
           eq(emailDigests.userId, userId),
           sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
@@ -193,7 +200,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDigestByDateRange(userId: string, startDate: Date, endDate: Date): Promise<EmailDigest | undefined> {
-    const results = await db.select().from(emailDigests)
+    const database = this.ensureDb();
+    const results = await database.select().from(emailDigests)
       .where(and(
         eq(emailDigests.userId, userId),
         sql`${emailDigests.date} >= ${startDate.toISOString()}`,
@@ -211,28 +219,30 @@ export class DatabaseStorage implements IStorage {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     
-    const results = await db.select().from(emailDigests)
+    const database = this.ensureDb();
+    const results = await database.select().from(emailDigests)
       .where(and(
         eq(emailDigests.userId, userId),
         sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
         sql`${emailDigests.date} <= ${endOfDay.toISOString()}`
       ))
       .limit(1);
-    
+
     return results.length > 0;
   }
 
   async getAvailableDigestDates(userId: string): Promise<string[]> {
+    const database = this.ensureDb();
     // Get all dates with regular email digests
-    const emailDigestDates = await db.select({
+    const emailDigestDates = await database.select({
       date: sql<string>`DATE(${emailDigests.date})`
     }).from(emailDigests)
       .where(eq(emailDigests.userId, userId))
       .groupBy(sql`DATE(${emailDigests.date})`)
       .orderBy(desc(sql`DATE(${emailDigests.date})`));
 
-    // Get all dates with thematic digests  
-    const thematicDigestDates = await db.select({
+    // Get all dates with thematic digests
+    const thematicDigestDates = await database.select({
       date: sql<string>`DATE(${thematicDigests.date})`
     }).from(thematicDigests)
       .where(eq(thematicDigests.userId, userId))
@@ -257,65 +267,69 @@ export class DatabaseStorage implements IStorage {
     // Check if a digest already exists for this user and date
     const targetDate = digestToInsert.date;
     const existingDigest = await this.hasDigestForDate(digestToInsert.userId, targetDate);
-    
+    const database = this.ensureDb();
+
     if (existingDigest) {
       console.log(`🔄 Overwriting existing digest for user ${digestToInsert.userId} on date ${targetDate.toISOString().split('T')[0]}`);
-      
+
       // Delete existing digests for this date (maintaining one-per-day rule)
       const startOfDay = new Date(targetDate);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(targetDate);
       endOfDay.setHours(23, 59, 59, 999);
-      
+
       // Get existing digest IDs to clean up related digest_emails
-      const existingDigests = await db.select().from(emailDigests)
+      const existingDigests = await database.select().from(emailDigests)
         .where(and(
           eq(emailDigests.userId, digestToInsert.userId),
           sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
           sql`${emailDigests.date} <= ${endOfDay.toISOString()}`
         ));
-      
+
       // Delete related digest emails first
       for (const existingDigest of existingDigests) {
-        await db.delete(digestEmails).where(eq(digestEmails.digestId, existingDigest.id));
+        await database.delete(digestEmails).where(eq(digestEmails.digestId, existingDigest.id));
       }
-      
+
       // Delete existing digests for this date
-      await db.delete(emailDigests)
+      await database.delete(emailDigests)
         .where(and(
           eq(emailDigests.userId, digestToInsert.userId),
           sql`${emailDigests.date} >= ${startOfDay.toISOString()}`,
           sql`${emailDigests.date} <= ${endOfDay.toISOString()}`
         ));
-      
+
       console.log(`✅ Cleaned up ${existingDigests.length} existing digest(s) for ${targetDate.toISOString().split('T')[0]}`);
     }
-    
-    const results = await db.insert(emailDigests).values(digestToInsert).returning();
+
+    const results = await database.insert(emailDigests).values(digestToInsert).returning();
     console.log(`✅ Created new digest ${results[0].id} for user ${digestToInsert.userId} on ${targetDate.toISOString().split('T')[0]}`);
     return results[0];
   }
   
   // Digest emails methods
   async getDigestEmails(digestId: number): Promise<DigestEmail[]> {
-    return await db.select().from(digestEmails).where(eq(digestEmails.digestId, digestId));
+    const database = this.ensureDb();
+    return await database.select().from(digestEmails).where(eq(digestEmails.digestId, digestId));
   }
-  
+
   async addDigestEmail(email: InsertDigestEmail): Promise<DigestEmail> {
     // Ensure originalLink is not undefined (schema expects string | null)
     const emailToInsert = {
       ...email,
       originalLink: email.originalLink === undefined ? null : email.originalLink
     };
-    
-    const results = await db.insert(digestEmails).values(emailToInsert).returning();
+
+    const database = this.ensureDb();
+    const results = await database.insert(digestEmails).values(emailToInsert).returning();
     return results[0];
   }
   
   // User settings methods
   async getUserSettings(userId: string): Promise<UserSettings> {
-    const results = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
-    
+    const database = this.ensureDb();
+    const results = await database.select().from(userSettings).where(eq(userSettings.userId, userId));
+
     if (results.length === 0) {
       // Create default settings if none exist
       const defaultSettings: InsertUserSettings = {
@@ -326,11 +340,11 @@ export class DatabaseStorage implements IStorage {
         themeMode: "system",
         themeColor: "blue"
       };
-      
-      const newSettings = await db.insert(userSettings).values(defaultSettings).returning();
+
+      const newSettings = await database.insert(userSettings).values(defaultSettings).returning();
       return newSettings[0];
     }
-    
+
     return results[0];
   }
   
@@ -350,7 +364,8 @@ export class DatabaseStorage implements IStorage {
     console.log('Settings to update:', filteredSettings);
     
     // Update settings
-    const results = await db
+    const database = this.ensureDb();
+    const results = await database
       .update(userSettings)
       .set(filteredSettings)
       .where(eq(userSettings.id, currentSettings.id))
@@ -370,7 +385,8 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Create new token
-    const results = await db.insert(oauthTokens).values({
+    const database = this.ensureDb();
+    const results = await database.insert(oauthTokens).values({
       ...token,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -381,17 +397,19 @@ export class DatabaseStorage implements IStorage {
   
   async getOAuthTokenByUid(uid: string): Promise<OAuthToken | undefined> {
     try {
-      const results = await db.select().from(oauthTokens).where(eq(oauthTokens.uid, uid));
+      const database = this.ensureDb();
+      const results = await database.select().from(oauthTokens).where(eq(oauthTokens.uid, uid));
       return results.length > 0 ? results[0] : undefined;
     } catch (error) {
       console.error('Error getting OAuth token by UID:', error);
       return undefined; // Return undefined instead of throwing
     }
   }
-  
+
   async getOAuthTokenByEmail(email: string): Promise<OAuthToken | undefined> {
     try {
-      const results = await db.select().from(oauthTokens).where(eq(oauthTokens.email, email));
+      const database = this.ensureDb();
+      const results = await database.select().from(oauthTokens).where(eq(oauthTokens.email, email));
       return results.length > 0 ? results[0] : undefined;
     } catch (error) {
       console.error('Error getting OAuth token by email:', error);
@@ -412,7 +430,8 @@ export class DatabaseStorage implements IStorage {
       processedUpdates.createdAt = new Date(processedUpdates.createdAt);
     }
     
-    const results = await db
+    const database = this.ensureDb();
+    const results = await database
       .update(oauthTokens)
       .set({
         ...processedUpdates,
@@ -445,14 +464,13 @@ export class DatabaseStorage implements IStorage {
       const database = this.ensureDb();
       // Get distinct users who have active monitored emails
       const results = await database.select({
-        id: users.id,
-        email: users.email
+        id: monitoredEmails.userId,
+        email: monitoredEmails.email
       })
-      .from(users)
-      .innerJoin(monitoredEmails, eq(users.id, monitoredEmails.userId))
+      .from(monitoredEmails)
       .where(eq(monitoredEmails.active, true))
-      .groupBy(users.id, users.email);
-      
+      .groupBy(monitoredEmails.userId, monitoredEmails.email);
+
       return results;
     } catch (error) {
       console.error('Error getting users with monitored emails:', error);
@@ -560,7 +578,7 @@ export class DatabaseStorage implements IStorage {
     const database = this.ensureDb();
     
     // Check if a thematic digest already exists for this user and date
-    const targetDate = digest.date;
+    const targetDate = digest.date ?? new Date();
     const existingDigest = await this.hasThematicDigestForDate(digest.userId, targetDate);
     
     if (existingDigest) {

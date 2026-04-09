@@ -29,7 +29,7 @@ const apiError = (message: string, code?: string) => ({
 router.get('/monitored-emails/:userId', asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const monitoredEmails = await storage.getMonitoredEmails(userId);
-  res.json(apiResponse(monitoredEmails));
+  return res.json(apiResponse(monitoredEmails));
 }));
 
 // Get specific monitored email
@@ -43,8 +43,8 @@ router.get('/monitored-email/:id', asyncHandler(async (req: Request, res: Respon
   if (!monitoredEmail) {
     return res.status(404).json(apiError('Monitored email not found', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(monitoredEmail));
+
+  return res.json(apiResponse(monitoredEmail));
 }));
 
 // Add monitored email
@@ -60,8 +60,8 @@ router.post('/monitored-emails', asyncHandler(async (req: Request, res: Response
     email,
     active: active !== undefined ? active : true
   });
-  
-  res.status(201).json(apiResponse(newMonitoredEmail, 'Monitored email added'));
+
+  return res.status(201).json(apiResponse(newMonitoredEmail, 'Monitored email added'));
 }));
 
 // Remove monitored email
@@ -74,7 +74,7 @@ router.delete('/monitored-emails/:userId/:id', asyncHandler(async (req: Request,
   }
   
   await storage.removeMonitoredEmail(userId, id);
-  res.json(apiResponse(null, 'Monitored email removed'));
+  return res.json(apiResponse(null, 'Monitored email removed'));
 }));
 
 // ==================== EMAIL DIGESTS ====================
@@ -83,7 +83,7 @@ router.delete('/monitored-emails/:userId/:id', asyncHandler(async (req: Request,
 router.get('/email-digests/:userId', asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const digests = await storage.getEmailDigests(userId);
-  res.json(apiResponse(digests));
+  return res.json(apiResponse(digests));
 }));
 
 // Get specific email digest
@@ -99,39 +99,39 @@ router.get('/email-digest/:userId/:id', asyncHandler(async (req: Request, res: R
   if (!digest) {
     return res.status(404).json(apiError('Digest not found', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(digest));
+
+  return res.json(apiResponse(digest));
 }));
 
 // Get latest email digest
 router.get('/email-digest/:userId/latest', asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const digest = await storage.getLatestEmailDigest(userId);
-  
+
   if (!digest) {
     return res.status(404).json(apiError('No digests found', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(digest));
+
+  return res.json(apiResponse(digest));
 }));
 
 // Get digest by date
 router.get('/email-digest/:userId/date/:date', asyncHandler(async (req: Request, res: Response) => {
   const { userId, date } = req.params;
   const digest = await storage.getDigestByDate(userId, date);
-  
+
   if (!digest) {
     return res.status(404).json(apiError('No digest found for this date', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(digest));
+
+  return res.json(apiResponse(digest));
 }));
 
 // Get available digest dates
 router.get('/available-digest-dates/:userId', asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const dates = await storage.getAvailableDigestDates(userId);
-  res.json(apiResponse(dates));
+  return res.json(apiResponse(dates));
 }));
 
 // Create email digest
@@ -148,8 +148,8 @@ router.post('/email-digests', asyncHandler(async (req: Request, res: Response) =
     emailsProcessed,
     topicsIdentified
   });
-  
-  res.status(201).json(apiResponse(newDigest, 'Email digest created'));
+
+  return res.status(201).json(apiResponse(newDigest, 'Email digest created'));
 }));
 
 // ==================== DIGEST EMAILS ====================
@@ -163,7 +163,7 @@ router.get('/digest-emails/:digestId', asyncHandler(async (req: Request, res: Re
   }
   
   const emails = await storage.getDigestEmails(digestId);
-  res.json(apiResponse(emails));
+  return res.json(apiResponse(emails));
 }));
 
 // Add email to digest
@@ -188,8 +188,8 @@ router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) =
     keywords: keywords || [],
     originalLink
   });
-  
-  res.status(201).json(apiResponse(newEmail, 'Email added to digest'));
+
+  return res.status(201).json(apiResponse(newEmail, 'Email added to digest'));
 }));
 
 // ==================== USER SETTINGS ====================
@@ -198,7 +198,7 @@ router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) =
 router.get('/user-settings/:userId', asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const settings = await storage.getUserSettings(userId);
-  res.json(apiResponse(settings));
+  return res.json(apiResponse(settings));
 }));
 
 // Update user settings
@@ -207,7 +207,7 @@ router.patch('/user-settings/:userId', asyncHandler(async (req: Request, res: Re
   const updates = req.body;
   
   const updatedSettings = await storage.updateUserSettings(userId, updates);
-  res.json(apiResponse(updatedSettings, 'Settings updated'));
+  return res.json(apiResponse(updatedSettings, 'Settings updated'));
 }));
 
 // ==================== OAUTH TOKENS ====================
@@ -228,8 +228,8 @@ router.post('/oauth-tokens', asyncHandler(async (req: Request, res: Response) =>
     expiresAt: expiresAt ? new Date(expiresAt) : null,
     scope
   });
-  
-  res.status(201).json(apiResponse(token, 'OAuth token stored'));
+
+  return res.status(201).json(apiResponse(token, 'OAuth token stored'));
 }));
 
 // Get OAuth token by UID
@@ -254,7 +254,7 @@ router.get('/oauth-token/:uid', asyncHandler(async (req: Request, res: Response)
     updated_at: token.updatedAt instanceof Date ? token.updatedAt.toISOString() : token.updatedAt
   };
 
-  res.json(apiResponse(transformedToken));
+  return res.json(apiResponse(transformedToken));
 }));
 
 // Get OAuth token by email
@@ -265,8 +265,8 @@ router.get('/oauth-token/email/:email', asyncHandler(async (req: Request, res: R
   if (!token) {
     return res.status(404).json(apiError('OAuth token not found', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(token));
+
+  return res.json(apiResponse(token));
 }));
 
 // Update OAuth token
@@ -279,8 +279,8 @@ router.patch('/oauth-token/:uid', asyncHandler(async (req: Request, res: Respons
   if (!updatedToken) {
     return res.status(404).json(apiError('OAuth token not found', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(updatedToken, 'OAuth token updated'));
+
+  return res.json(apiResponse(updatedToken, 'OAuth token updated'));
 }));
 
 // Get expiring OAuth tokens
@@ -296,10 +296,10 @@ router.get('/oauth-tokens/expiring', asyncHandler(async (req: Request, res: Resp
     const expiringTokens = await storage.getExpiringOAuthTokens(beforeDate);
     
     console.log(`🔍 Found ${expiringTokens.length} tokens expiring before ${beforeDate.toISOString()}`);
-    res.json(apiResponse(expiringTokens));
+    return res.json(apiResponse(expiringTokens));
   } catch (error: any) {
     console.error('Error getting expiring tokens:', error);
-    res.status(500).json(apiError(`Failed to get expiring tokens: ${error.message}`, 'EXPIRING_TOKENS_FAILED'));
+    return res.status(500).json(apiError(`Failed to get expiring tokens: ${error.message}`, 'EXPIRING_TOKENS_FAILED'));
   }
 }));
 
@@ -309,7 +309,7 @@ router.get('/oauth-tokens/expiring', asyncHandler(async (req: Request, res: Resp
 router.get('/thematic-digests/:userId', asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const digests = await storage.getThematicDigests(userId);
-  res.json(apiResponse(digests));
+  return res.json(apiResponse(digests));
 }));
 
 // Get specific thematic digest
@@ -326,8 +326,8 @@ router.get('/thematic-digest/:userId/:id', asyncHandler(async (req: Request, res
   if (!digest) {
     return res.status(404).json(apiError('Thematic digest not found', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(digest));
+
+  return res.json(apiResponse(digest));
 }));
 
 // Get latest thematic digest
@@ -338,15 +338,15 @@ router.get('/thematic-digest/:userId/latest', asyncHandler(async (req: Request, 
   if (!digest) {
     return res.status(404).json(apiError('No thematic digests found', 'NOT_FOUND'));
   }
-  
-  res.json(apiResponse(digest));
+
+  return res.json(apiResponse(digest));
 }));
 
 // Check if thematic digest exists for date
 router.get('/thematic-digest/:userId/exists/:date', asyncHandler(async (req: Request, res: Response) => {
   const { userId, date } = req.params;
   const exists = await storage.hasThematicDigestForDate(userId, new Date(date));
-  res.json(apiResponse({ exists }));
+  return res.json(apiResponse({ exists }));
 }));
 
 // Create thematic digest
@@ -369,8 +369,8 @@ router.post('/thematic-digests', asyncHandler(async (req: Request, res: Response
     totalSourceEmails,
     processingMethod
   });
-  
-  res.status(201).json(apiResponse(digest, 'Thematic digest created'));
+
+  return res.status(201).json(apiResponse(digest, 'Thematic digest created'));
 }));
 
 // ==================== THEMATIC SECTIONS ====================
@@ -395,8 +395,8 @@ router.post('/thematic-sections', asyncHandler(async (req: Request, res: Respons
     entities: entities || {},
     order
   });
-  
-  res.status(201).json(apiResponse(section, 'Thematic section created'));
+
+  return res.status(201).json(apiResponse(section, 'Thematic section created'));
 }));
 
 // Get thematic sections
@@ -408,7 +408,7 @@ router.get('/thematic-sections/:thematicDigestId', asyncHandler(async (req: Requ
   }
   
   const sections = await storage.getThematicSections(thematicDigestId);
-  res.json(apiResponse(sections));
+  return res.json(apiResponse(sections));
 }));
 
 // ==================== THEME SOURCE EMAILS ====================
@@ -426,8 +426,8 @@ router.post('/theme-source-emails', asyncHandler(async (req: Request, res: Respo
     digestEmailId,
     relevanceScore
   });
-  
-  res.status(201).json(apiResponse(link, 'Theme source email link created'));
+
+  return res.status(201).json(apiResponse(link, 'Theme source email link created'));
 }));
 
 // Get theme source emails
@@ -439,7 +439,7 @@ router.get('/theme-source-emails/:thematicSectionId', asyncHandler(async (req: R
   }
   
   const sourceEmails = await storage.getThemeSourceEmails(thematicSectionId);
-  res.json(apiResponse(sourceEmails));
+  return res.json(apiResponse(sourceEmails));
 }));
 
 // ==================== UTILITY ENDPOINTS ====================
@@ -450,10 +450,10 @@ router.get('/users-with-monitored-emails', asyncHandler(async (req: Request, res
     const users = await storage.getUsersWithMonitoredEmails();
     
     console.log(`📊 Found ${users.length} users with monitored emails`);
-    res.json(apiResponse(users));
+    return res.json(apiResponse(users));
   } catch (error: any) {
     console.error('Error getting users with monitored emails:', error);
-    res.status(500).json(apiError(`Failed to get users: ${error.message}`, 'USERS_FETCH_FAILED'));
+    return res.status(500).json(apiError(`Failed to get users: ${error.message}`, 'USERS_FETCH_FAILED'));
   }
 }));
 
