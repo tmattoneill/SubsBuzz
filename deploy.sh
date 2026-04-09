@@ -1,6 +1,7 @@
 #!/bin/bash
-# deploy.sh - Deploy local changes to dev.subsbuzz.com
-# Usage: ./deploy.sh "commit message"
+# deploy.sh - Deploy committed changes to dev.subsbuzz.com
+# Usage: ./deploy.sh
+# Commit your changes first, then run this to push and deploy.
 # Run from the root of your local SubsBuzz repo
 
 set -e
@@ -21,17 +22,9 @@ info()    { echo -e "${GREEN}▶ $1${NC}"; }
 warn()    { echo -e "${YELLOW}⚠ $1${NC}"; }
 error()   { echo -e "${RED}✗ $1${NC}"; exit 1; }
 
-# ── Commit message ────────────────────────────────────────────────────────────
-COMMIT_MSG="${1:-"deploy: $(date '+%Y-%m-%d %H:%M')"}"
-
 # ── 1. Git ────────────────────────────────────────────────────────────────────
-info "Checking git status..."
 if [[ -n $(git status --porcelain) ]]; then
-    info "Staging and committing changes..."
-    git add -A -- ':!.env' ':!.env.*'
-    git commit -m "$COMMIT_MSG"
-else
-    info "No local changes to commit"
+    error "Uncommitted changes detected. Commit first, then run ./deploy.sh"
 fi
 
 info "Pushing to GitHub ($BRANCH)..."
