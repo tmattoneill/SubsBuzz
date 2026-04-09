@@ -1,0 +1,9 @@
+.git
+**/.git
+**/._*
+**/*.log
+**/node_modules
+**/__pycache__
+**/.env*
+**/dist
+**/logs
