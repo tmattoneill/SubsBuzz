@@ -37,9 +37,9 @@ export interface ThematicAnalysis {
 /**
  * Stage 1: NLP Analysis and Email Clustering
  */
-async function stageOneAnalysis(emails: ProcessedEmail[]): Promise<ThematicAnalysis> {
+async function stageOneAnalysis(emails: ProcessedEmail[], apiKey?: string | null): Promise<ThematicAnalysis> {
   console.log('📊 Stage 1: NLP Analysis and Email Clustering');
-  
+
   if (emails.length === 0) {
     return {
       themes: [],
@@ -50,7 +50,7 @@ async function stageOneAnalysis(emails: ProcessedEmail[]): Promise<ThematicAnaly
 
   try {
     // Use OpenAI for advanced theme analysis
-    const analysis = await analyzeEmailForThemes(emails);
+    const analysis = await analyzeEmailForThemes(emails, apiKey);
     
     return {
       themes: analysis.themes || [],
@@ -246,9 +246,10 @@ async function stageThreeStorage(
  * Main processing function - orchestrates all 3 stages
  */
 export async function processEmailsIntoThemes(
-  userId: string, 
+  userId: string,
   emails: ProcessedEmail[],
-  emailDigestId?: number
+  emailDigestId?: number,
+  apiKey?: string | null
 ): Promise<ThematicProcessingResult> {
   console.log(`🎯 Starting thematic processing for user ${userId} with ${emails.length} emails`);
   
@@ -258,7 +259,7 @@ export async function processEmailsIntoThemes(
 
   try {
     // Stage 1: NLP Analysis and Email Clustering
-    const analysis = await stageOneAnalysis(emails);
+    const analysis = await stageOneAnalysis(emails, apiKey);
     
     if (analysis.themes.length === 0) {
       throw new Error('No themes identified from email analysis');

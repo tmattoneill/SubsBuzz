@@ -311,13 +311,12 @@ async def update_theme_preferences(
 async def test_api_key(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Test whether the configured OpenAI API key is valid"""
+    """Test whether the user's stored OpenAI API key is valid"""
+    user_id = current_user["uid"]
     try:
-        result = await proxy_to_data_server("GET", "digest/openai-health")
+        result = await proxy_to_data_server("GET", f"digest/openai-health?userId={user_id}")
         return result
-    except HTTPException as e:
-        if e.status_code == 503:
-            return {"success": False, "message": "OpenAI API key is not valid or not configured"}
+    except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error testing API key: {e}")

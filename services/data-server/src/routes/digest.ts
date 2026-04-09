@@ -63,7 +63,8 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       await thematicProcessor.processEmailsIntoThemes(
         user_id,
         digestResult.processedEmails,
-        digestResult.digest.id
+        digestResult.digest.id,
+        userApiKey
       );
       console.log('✅ Thematic digest created');
     } catch (thematicError: any) {
@@ -384,14 +385,22 @@ router.get('/stats/:userId', asyncHandler(async (req: Request, res: Response) =>
 
 // ==================== OPENAI HEALTH ====================
 
-// Test OpenAI connectivity and API key validity
+// Test OpenAI connectivity — uses user's stored key if userId provided
 router.get('/openai-health', asyncHandler(async (req: Request, res: Response) => {
-  const healthy = await checkOpenAIHealth();
+  const userId = req.query.userId as string | undefined;
+  let apiKey: string | null = null;
+
+  if (userId) {
+    const userSettings = await storage.getUserSettings(userId);
+    apiKey = userSettings?.openaiApiKey || null;
+  }
+
+  const healthy = await checkOpenAIHealth(apiKey);
 
   if (healthy) {
     return res.json({ success: true, message: 'OpenAI API key is valid and reachable' });
   } else {
-    return res.status(503).json({ success: false, message: 'OpenAI API is not available — check OPENAI_API_KEY' });
+    return res.status(503).json({ success: false, message: apiKey ? 'Stored API key is invalid' : 'OPENAI_API_KEY env var is not set or invalid' });
   }
 }));
 

@@ -587,8 +587,8 @@ export class DatabaseStorage implements IStorage {
       const existingResults = await database.select().from(thematicDigests)
         .where(and(
           eq(thematicDigests.userId, digest.userId),
-          sql`${thematicDigests.date} >= ${targetDate.toISOString().split('T')[0]}`,
-          sql`${thematicDigests.date} <= ${targetDate.toISOString().split('T')[0]} 23:59:59`
+          sql`${thematicDigests.date} >= ${targetDate.toISOString().split('T')[0] + 'T00:00:00.000Z'}`,
+          sql`${thematicDigests.date} <= ${targetDate.toISOString().split('T')[0] + 'T23:59:59.999Z'}`
         ))
         .orderBy(desc(thematicDigests.date))
         .limit(1);

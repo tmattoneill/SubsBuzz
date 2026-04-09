@@ -247,7 +247,7 @@ export async function getLatestThematicDigest(userId: string): Promise<any> {
 /**
  * Analyze email content for themes (used by thematic processor)
  */
-export async function analyzeEmailForThemes(emails: ProcessedEmail[]): Promise<any> {
+export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: string | null): Promise<any> {
   console.log(`🔍 Analyzing ${emails.length} emails for themes`);
 
   if (emails.length === 0) {
@@ -255,12 +255,13 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[]): Promise<a
   }
 
   try {
+    const client = getClient(apiKey);
     // Combine all email content for analysis
-    const emailSummaries = emails.map(email => 
+    const emailSummaries = emails.map(email =>
       `From: ${email.sender}\nSubject: ${email.subject}\nSummary: ${email.summary}\nTopics: ${email.topics.join(', ')}`
     ).join('\n\n---\n\n');
 
-    const completion = await openai.chat.completions.create({
+    const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
@@ -338,15 +339,16 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[]): Promise<a
 /**
  * Health check for OpenAI service
  */
-export async function checkOpenAIHealth(): Promise<boolean> {
+export async function checkOpenAIHealth(apiKey?: string | null): Promise<boolean> {
   try {
-    if (!process.env.OPENAI_API_KEY) {
+    const client = getClient(apiKey);
+    if (!apiKey && !process.env.OPENAI_API_KEY) {
       console.warn('OpenAI API key not configured');
       return false;
     }
 
     // Simple test call
-    const completion = await openai.chat.completions.create({
+    const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
