@@ -642,15 +642,18 @@ If you see errors about `shared/schema`, the imports weren't updated correctly.
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 09/04/2026, 18:38:51
+**Last Updated:** 09/04/2026, 18:46:24
 
 ### Active Todos
 - [ ] [high] Continue UI overhaul testing with all services verified running (`ui-overhaul`)
+- [ ] [high] Monitor OAuth session persistence in production to ensure 30-day DB-backed tokens work correctly (`main`)
 - [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`ui-overhaul`)
 - [ ] [medium] Test cross-service communication after CORS middleware reordering (`ui-overhaul`)
 - [ ] [medium] Commit the modified CLAUDE.md documentation updates (`main`)
 - [ ] [medium] Verify all microservices communicate properly after recent CORS fixes (`main`)
-- [ ] [medium] Complete UI overhaul testing with all services running (`main`)
+- [ ] [medium] Verify the 3AM UTC digest schedule is working properly by checking tomorrow's digest generation (`main`)
+- [ ] [medium] Add monitoring/alerting for Celery beat scheduler health to catch future scheduling issues (`main`)
 - [ ] [low] Consider merging ui-overhaul to main once testing is complete (`ui-overhaul`)
+- [ ] [low] Document the OAuth persistence changes and 3AM schedule change in user-facing documentation (`main`)
 
 <!-- DEVCTX:END -->
