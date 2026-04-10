@@ -73,7 +73,7 @@ curl -H "x-internal-api-key: your-secret-key" \
 
 ## Database Schema
 
-The Data Server uses the shared schema from `../../shared/schema.ts` which includes:
+The Data Server schema lives at `src/db/schema.ts` and includes:
 
 - Users and authentication
 - Monitored email addresses

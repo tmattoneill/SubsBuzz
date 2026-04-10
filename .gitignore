@@ -552,3 +552,6 @@ public/
 *~
 .#*
 .devctx/
+
+# Ephemeral working notes (not tracked)
+CLEANUP.md
