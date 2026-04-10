@@ -8,7 +8,6 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Dashboard from "@/pages/dashboard";
 import History from "@/pages/history";
-import Favorites from "@/pages/favorites";
 import Settings from "@/pages/settings";
 import DigestView from "@/pages/digest";
 import NotFound from "@/pages/not-found";
@@ -23,8 +22,7 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/digest/:date" component={DigestView} />
       <Route path="/history" component={History} />
-      <Route path="/favorites" component={Favorites} />
-      <Route path="/settings" component={Settings} />
+<Route path="/settings" component={Settings} />
       <Route path="/login" component={Login} />
       <Route path="/auth/callback" component={AuthCallback} />
       <Route component={NotFound} />

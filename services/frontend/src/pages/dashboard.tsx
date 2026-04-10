@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { EmailDigest, DigestKanbanColumn, ChartDataPoint } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import { DashboardLayout } from "@/components/layout";
-import { StatsCard, KanbanBoard, BarChart, GaugeChart } from "@/components/dashboard";
+import { StatsCard, KanbanBoard, BarChart } from "@/components/dashboard";
 import { UserProfileModal } from "@/components/ui/user-profile-modal";
 
 function categorizeDigests(digests: EmailDigest[]): DigestKanbanColumn[] {
@@ -148,10 +148,6 @@ export default function Dashboard() {
     const digestTrend = digestDelta === 0 ? "neutral" : digestDelta > 0 ? "up" : "down";
     const emailsTrend = emailsDelta === 0 ? "neutral" : emailsDelta > 0 ? "up" : "down";
 
-    const successRate = totalDigests
-      ? (digestHistory.filter((digest) => digest.topicsIdentified > 0).length / totalDigests) * 100
-      : 0;
-
     return {
       totalDigests,
       totalEmails,
@@ -160,7 +156,6 @@ export default function Dashboard() {
       emailsDelta,
       digestTrend,
       emailsTrend,
-      successRate,
     } as const;
   }, [digestHistory]);
 
@@ -275,14 +270,11 @@ export default function Dashboard() {
         </div>
 
         {chartData.length ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <BarChart
-              data={chartData}
-              title="Emails processed"
-              description="Last six digests"
-            />
-            <GaugeChart value={stats.successRate} title="Topic coverage" label="Digests with insights" />
-          </div>
+          <BarChart
+            data={chartData}
+            title="Emails processed"
+            description="Last six digests"
+          />
         ) : null}
 
         <UserProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
