@@ -123,27 +123,27 @@ async function testHealthEndpoint() {
 
 async function testInternalAPIAuthentication() {
   try {
-    // Test without API key (should fail)
-    const unauthorizedResponse = await makeRequest('/api/test');
-    
+    // Test without API key (should fail with 401)
+    const unauthorizedResponse = await makeRequest('/api/storage/monitored-emails/test-user');
+
     if (unauthorizedResponse.status !== 401) {
-      recordTest('Internal API Authentication', false, 'Should reject requests without API key');
+      recordTest('Internal API Authentication', false, `Should reject without API key, got ${unauthorizedResponse.status}`);
       return false;
     }
-    
-    // Test with correct API key (should succeed)
-    const authorizedResponse = await makeRequest('/api/test', {
+
+    // Test with correct API key (should succeed — empty list is fine)
+    const authorizedResponse = await makeRequest('/api/storage/monitored-emails/test-user', {
       headers: {
         'x-internal-api-key': INTERNAL_API_SECRET
       }
     });
-    
-    if (authorizedResponse.ok && authorizedResponse.data) {
+
+    if (authorizedResponse.ok) {
       recordTest('Internal API Authentication', true);
       log(`Authenticated request successful`, 'info');
       return true;
     } else {
-      recordTest('Internal API Authentication', false, `Authorized request failed: ${JSON.stringify(authorizedResponse.data)}`);
+      recordTest('Internal API Authentication', false, `Authorized request failed: ${authorizedResponse.status}`);
       return false;
     }
   } catch (error) {
@@ -155,24 +155,24 @@ async function testInternalAPIAuthentication() {
 async function testAPIEndpointResponses() {
   try {
     const headers = { 'x-internal-api-key': INTERNAL_API_SECRET };
-    
-    // Test the test endpoint we know exists
-    const testResponse = await makeRequest('/api/test', { headers });
-    
-    if (!testResponse.ok) {
-      recordTest('API Endpoint Responses', false, `Test endpoint failed: ${testResponse.status}`);
+
+    // Test a real storage endpoint — returns a list (possibly empty) for the user
+    const response = await makeRequest('/api/storage/monitored-emails/test-user', { headers });
+
+    if (!response.ok) {
+      recordTest('API Endpoint Responses', false, `Storage endpoint failed: ${response.status}`);
       return false;
     }
-    
-    const testData = testResponse.data;
-    if (!testData.message || !testData.database_info) {
-      recordTest('API Endpoint Responses', false, 'Test endpoint missing expected fields');
+
+    // Response should be JSON (array or object)
+    const data = response.data;
+    if (typeof data !== 'object' || data === null) {
+      recordTest('API Endpoint Responses', false, 'Response is not a valid JSON object/array');
       return false;
     }
-    
-    log(`Test endpoint response: ${testData.message}`, 'info');
-    log(`Database info: ${JSON.stringify(testData.database_info)}`, 'info');
-    
+
+    log(`Storage endpoint returned: ${Array.isArray(data) ? data.length + ' items' : typeof data}`, 'info');
+
     recordTest('API Endpoint Responses', true);
     return true;
   } catch (error) {
@@ -193,8 +193,8 @@ async function testErrorHandling() {
       recordTest('Error Handling - 404', false, `Expected 404 or 401, got ${notFoundResponse.status}`);
     }
     
-    // Test malformed request
-    const badRequestResponse = await makeRequest('/api/test', {
+    // Test malformed request against a real endpoint
+    const badRequestResponse = await makeRequest('/api/storage/monitored-emails', {
       method: 'POST',
       headers: { 'x-internal-api-key': INTERNAL_API_SECRET },
       body: 'invalid json'
@@ -216,11 +216,9 @@ async function testErrorHandling() {
 
 async function testResponseFormat() {
   try {
-    const headers = { 'x-internal-api-key': INTERNAL_API_SECRET };
-    
-    // Test JSON response format
-    const response = await makeRequest('/api/test', { headers });
-    
+    // Test JSON response format against health endpoint (no auth needed)
+    const response = await makeRequest('/health');
+
     if (!response.ok) {
       recordTest('Response Format', false, `Request failed: ${response.status}`);
       return false;
