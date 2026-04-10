@@ -54,6 +54,10 @@ export interface UserSettings {
   emailNotificationsEnabled: boolean;
   themeMode?: string; // "light", "dark", "system"
   themeColor?: string; // "blue", "green", "purple", "teal", "red", "orange"
+  firstName?: string | null;
+  lastName?: string | null;
+  location?: string | null;
+  openaiApiKey?: string | null;
 }
 
 // Thematic digest types for new meta-summary system

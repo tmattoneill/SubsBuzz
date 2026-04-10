@@ -11,6 +11,7 @@ import { EmailDigest, DigestKanbanColumn, ChartDataPoint } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import { DashboardLayout } from "@/components/layout";
 import { StatsCard, KanbanBoard, BarChart, GaugeChart } from "@/components/dashboard";
+import { UserProfileModal } from "@/components/ui/user-profile-modal";
 
 function categorizeDigests(digests: EmailDigest[]): DigestKanbanColumn[] {
   const today = new Date();
@@ -71,6 +72,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -195,6 +197,7 @@ export default function Dashboard() {
       headerProps={{
         onSearch: setSearchQuery,
         onAddClick: () => setLocation("/settings"),
+        onMeClick: () => setProfileOpen(true),
       }}
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-6">
@@ -281,6 +284,8 @@ export default function Dashboard() {
             <GaugeChart value={stats.successRate} title="Topic coverage" label="Digests with insights" />
           </div>
         ) : null}
+
+        <UserProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
 
         {filteredDigests.length === 0 ? (
           <Card>

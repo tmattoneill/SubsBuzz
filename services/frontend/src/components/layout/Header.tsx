@@ -7,9 +7,10 @@ interface HeaderProps {
   onFilterClick?: () => void;
   onSortClick?: () => void;
   onAddClick?: () => void;
+  onMeClick?: () => void;
 }
 
-export function Header({ onSearch, onFilterClick, onSortClick, onAddClick }: HeaderProps) {
+export function Header({ onSearch, onFilterClick, onSortClick, onAddClick, onMeClick }: HeaderProps) {
   return (
     <header className="flex h-16 items-center justify-between gap-6 border-b border-border bg-card px-6">
       <div className="relative flex-1 max-w-md">
@@ -31,7 +32,7 @@ export function Header({ onSearch, onFilterClick, onSortClick, onAddClick }: Hea
           <Filter className="mr-2 h-4 w-4 text-secondary" />
           Filters
         </Button>
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" onClick={onMeClick}>
           <UserRound className="mr-2 h-4 w-4 text-secondary" />
           Me
         </Button>
