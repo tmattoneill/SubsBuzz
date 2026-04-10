@@ -53,43 +53,23 @@ class DependencyHealth:
     async def check_all_dependencies(self) -> Dict[str, str]:
         """Check health of all dependent services"""
         dependencies = {}
-        
+
         # Check Data Server
         dependencies["data-server"] = await self.check_service(
-            "Data Server", 
+            "Data Server",
             settings.DATA_SERVER_URL
         )
-        
-        # Check Email Worker (if available)
-        if settings.EMAIL_WORKER_URL:
-            dependencies["email-worker"] = await self.check_service(
-                "Email Worker",
-                settings.EMAIL_WORKER_URL
-            )
-        else:
-            dependencies["email-worker"] = "not-configured"
-        
-        # Check Firebase (basic configuration check)
+
+        # Check Firebase credentials are present (env vars, not SDK init state)
         dependencies["firebase"] = self._check_firebase_config()
-        
+
         return dependencies
-    
+
     def _check_firebase_config(self) -> str:
-        """Check if Firebase is properly configured"""
-        try:
-            import firebase_admin
-
-            # Check if Firebase Admin SDK is actually initialized
-            if firebase_admin._apps:
-                logger.debug("✅ Firebase Admin SDK is initialized")
-                return "configured"
-            else:
-                logger.warning("⚠️ Firebase Admin SDK is not initialized")
-                return "misconfigured"
-
-        except Exception as e:
-            logger.error(f"❌ Firebase check error: {e}")
-            return "error"
+        """Check if Firebase credentials are configured (env vars present)"""
+        if settings.FIREBASE_PROJECT_ID and settings.FIREBASE_CLIENT_EMAIL:
+            return "configured"
+        return "not-configured"
     
     def get_uptime(self) -> float:
         """Get service uptime in seconds"""
