@@ -222,7 +222,7 @@ async function testErrorPropagation() {
     }
     
     // Test 2: Authentication error handling
-    const authErrorResponse = await makeRequest(`${API_GATEWAY_URL}/test-data-server`, {
+    const authErrorResponse = await makeRequest(`${API_GATEWAY_URL}/api/digest/latest`, {
       headers: { 'Authorization': 'Bearer invalid-token' }
     });
     if (authErrorResponse.status < 400 || authErrorResponse.status >= 500) {
@@ -362,8 +362,7 @@ async function runIntegrationTests() {
       expectedFields: ['status'],
       test: async () => {
         testResults.serviceResults.apiGateway = await runAPIGatewayTests();
-        // Allow 1 failure for CORS (non-critical for integration tests)
-        return testResults.serviceResults.apiGateway.failed <= 1;
+        return testResults.serviceResults.apiGateway.failed === 0;
       }
     }
   ];
@@ -399,11 +398,11 @@ async function runIntegrationTests() {
   // Phase 2: Integration Tests
   log('PHASE 2: INTEGRATION TESTS', 'section');
   
+  // Note: Full Request Flow, Authentication Chain, and Data Consistency tests
+  // were removed — they depended on a /test-data-server debug endpoint that no
+  // longer exists.  The remaining tests cover error propagation and performance.
   const integrationTests = [
-    { name: 'Full Request Flow', fn: testFullRequestFlow },
-    { name: 'Authentication Chain', fn: testAuthenticationChain },
     { name: 'Error Propagation', fn: testErrorPropagation },
-    { name: 'Data Consistency', fn: testDataConsistency },
     { name: 'Performance Under Load', fn: testPerformanceUnderLoad }
   ];
   

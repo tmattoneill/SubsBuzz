@@ -335,30 +335,24 @@ node tests/run-tests.js
 
 ### Individual Test Suites
 
-**Database Tests:**
 ```bash
-node tests/test-database.js
-node tests/test-database-simple.js
+node tests/test-database-simple.js  # PostgreSQL connectivity
+node tests/test-data-server.js      # Data Server API + auth middleware
+node tests/test-api-gateway.js      # API Gateway health, auth, CORS
+node tests/test-integration.js      # Cross-service error propagation + load
 ```
 
-**Service Tests:**
-```bash
-node tests/test-data-server.js      # Data Server API
-node tests/test-api-gateway.js      # API Gateway auth & routing
-```
+**Prerequisites:** All services running (PostgreSQL, Data Server on 3001, API Gateway on 8000) and `.env.dev` configured.
 
-**Integration Tests:**
+**Remote (dev server):** override the ports to match `docker-compose.dev.yml`:
 ```bash
-node tests/test-integration.js              # End-to-end service communication
-node tests/test-complete-email-pipeline.js  # Gmail → OpenAI → Database
-node tests/test-digest-creation-only.js     # Core digest logic
+ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
+  API_GATEWAY_URL=http://localhost:8001 \
+  DATA_SERVER_URL=http://localhost:3002 \
+  DATABASE_URL=\$(grep '^DATABASE_URL=' .env | cut -d= -f2-) \
+  INTERNAL_API_SECRET=\$(grep '^INTERNAL_API_SECRET=' .env | cut -d= -f2-) \
+  node tests/run-tests.js"
 ```
-
-**Prerequisites for Tests:**
-1. PostgreSQL running
-2. Data Server running on port 3001
-3. API Gateway running on port 8000
-4. Environment variables configured in `.env.dev`
 
 ---
 
