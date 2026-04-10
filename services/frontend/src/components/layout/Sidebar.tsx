@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   Sparkles,
   CalendarDays,
-  Star,
   Settings,
   Signal,
   MailPlus,
@@ -33,11 +32,6 @@ const navItems = [
     title: "History",
     path: "/history",
     icon: CalendarDays,
-  },
-  {
-    title: "Favorites",
-    path: "/favorites",
-    icon: Star,
   },
   {
     title: "Settings",

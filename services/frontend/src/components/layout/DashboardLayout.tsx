@@ -9,8 +9,6 @@ interface DashboardLayoutProps {
   contentClassName?: string;
   headerProps?: {
     onSearch?: (query: string) => void;
-    onFilterClick?: () => void;
-    onSortClick?: () => void;
     onAddClick?: () => void;
     onMeClick?: () => void;
   };

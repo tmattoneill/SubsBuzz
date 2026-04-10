@@ -1,16 +1,14 @@
-import { Search, SlidersHorizontal, Filter, UserRound, Plus } from "lucide-react";
+import { Search, UserRound, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 interface HeaderProps {
   onSearch?: (query: string) => void;
-  onFilterClick?: () => void;
-  onSortClick?: () => void;
   onAddClick?: () => void;
   onMeClick?: () => void;
 }
 
-export function Header({ onSearch, onFilterClick, onSortClick, onAddClick, onMeClick }: HeaderProps) {
+export function Header({ onSearch, onAddClick, onMeClick }: HeaderProps) {
   return (
     <header className="flex h-16 items-center justify-between gap-6 border-b border-border bg-card px-6">
       <div className="relative flex-1 max-w-md">
@@ -24,14 +22,6 @@ export function Header({ onSearch, onFilterClick, onSortClick, onAddClick, onMeC
       </div>
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onSortClick}>
-          <SlidersHorizontal className="mr-2 h-4 w-4 text-secondary" />
-          Sort
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onFilterClick}>
-          <Filter className="mr-2 h-4 w-4 text-secondary" />
-          Filters
-        </Button>
         <Button variant="ghost" size="sm" onClick={onMeClick}>
           <UserRound className="mr-2 h-4 w-4 text-secondary" />
           Me
