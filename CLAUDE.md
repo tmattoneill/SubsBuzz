@@ -691,12 +691,13 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 09/04/2026, 18:49:57
+**Last Updated:** 10/04/2026, 09:41:18
 
 ### Active Todos
 - [ ] [high] Continue UI overhaul testing with all services verified running (`ui-overhaul`)
 - [ ] [high] Monitor OAuth session persistence in production to ensure 30-day DB-backed tokens work correctly (`main`)
 - [ ] [high] Create automated tests for the new DB-backed OAuth session token persistence to prevent regressions (`main`)
+- [ ] [high] Verify the rewritten deploy.sh and promote.sh scripts work correctly in development environment before production deployment (`main`)
 - [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`ui-overhaul`)
 - [ ] [medium] Test cross-service communication after CORS middleware reordering (`ui-overhaul`)
 - [ ] [medium] Commit the modified CLAUDE.md documentation updates (`main`)
@@ -705,8 +706,11 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Add monitoring/alerting for Celery beat scheduler health to catch future scheduling issues (`main`)
 - [ ] [medium] Set up logging and monitoring for the Celery beat scheduler to track digest generation timing and failures (`main`)
 - [ ] [medium] Test the enhanced email processing pipeline with real email data to validate the richer per-email processing (`main`)
+- [ ] [medium] Test the subsbuzz SSH alias configuration to ensure promote.sh can successfully deploy to both dev and prod environments (`main`)
+- [ ] [medium] Run a full test suite to validate that the service cruft removal didn't break any existing functionality (`main`)
 - [ ] [low] Consider merging ui-overhaul to main once testing is complete (`ui-overhaul`)
 - [ ] [low] Document the OAuth persistence changes and 3AM schedule change in user-facing documentation (`main`)
 - [ ] [low] Test the Claude Code plan label persistence bug reproduction steps and document the workaround (`main`)
+- [ ] [low] Document the new rm-rf-and-redeploy strategy in the deployment documentation for other developers (`main`)
 
 <!-- DEVCTX:END -->
