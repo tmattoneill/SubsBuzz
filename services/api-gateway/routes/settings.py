@@ -31,6 +31,9 @@ class SettingsUpdateRequest(BaseModel):
     emailNotificationsEnabled: Optional[bool] = None
     themeMode: Optional[str] = None  # "light", "dark", "system"
     themeColor: Optional[str] = None  # Color scheme preference
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    location: Optional[str] = None
 
 
 class ApiKeyRequest(BaseModel):

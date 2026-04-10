@@ -12,6 +12,7 @@ interface DashboardLayoutProps {
     onFilterClick?: () => void;
     onSortClick?: () => void;
     onAddClick?: () => void;
+    onMeClick?: () => void;
   };
 }
 
