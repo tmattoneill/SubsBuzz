@@ -555,3 +555,6 @@ public/
 
 # Ephemeral working notes (not tracked)
 CLEANUP.md
+
+# Local MCP server config (machine-specific paths)
+.mcp.json
