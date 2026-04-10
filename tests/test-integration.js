@@ -6,9 +6,8 @@
  * Client → API Gateway → Data Server → Database
  */
 
-// Load environment variables using custom loader
-import { loadDevEnv } from '../lib/env.js';
-loadDevEnv();
+// Env vars are loaded by tests/run-tests.js when run via `npm test`.
+// When run individually, the defaults below apply.
 // Using native fetch available in Node.js 18+
 const fetch = globalThis.fetch;
 

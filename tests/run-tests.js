@@ -5,9 +5,20 @@
  * Runs tests systematically and provides comprehensive reporting
  */
 
-// Load environment variables using custom loader
-import { loadDevEnv } from '../lib/env.js';
-loadDevEnv();
+// Load environment variables from .env.dev (no external deps)
+import { readFileSync, existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+const __envFile = resolve(dirname(fileURLToPath(import.meta.url)), '..', '.env.dev');
+if (existsSync(__envFile)) {
+  for (const line of readFileSync(__envFile, 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!m || line.trim().startsWith('#')) continue;
+    const [, key, rawVal] = m;
+    if (process.env[key] !== undefined) continue;
+    process.env[key] = rawVal.replace(/^["'](.*)["']$/, '$1');
+  }
+}
 import { runDatabaseTestsSimple as runDatabaseTests } from './test-database-simple.js';
 import { runDataServerTests } from './test-data-server.js';
 import { runAPIGatewayTests } from './test-api-gateway.js';
