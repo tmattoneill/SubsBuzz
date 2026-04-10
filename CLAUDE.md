@@ -416,43 +416,79 @@ API_GATEWAY_URL=http://localhost:8000
 
 ## 🚢 Deployment
 
+Both `deploy.sh` (dev) and `promote.sh` (prod) run **from your local machine**, not on the server. They:
+
+1. Push the current branch to GitHub
+2. SSH the server, clone-if-missing, `git fetch && reset --hard`, `git clean -fd`
+3. rsync the local env file → `.env` on the server (`.env.dev` → `.env`, or `.env.prod` → `.env`)
+4. rsync the right compose file → `docker-compose.yml` on the server
+5. `docker compose down --remove-orphans && build --no-cache && up -d`
+6. Health-check the public ports
+
+Both dev and prod live on the **same server** (SSH alias `subsbuzz`) in different directories on disjoint host ports — they coexist.
+
 ### Development Deployment (dev.subsbuzz.com)
 
-Use the same codebase with `.env.dev`:
-
 ```bash
-# On development server
-git pull origin main
-cp .env.example .env.dev
-# Edit .env.dev with dev credentials
-./start-all.sh
+./deploy.sh
 ```
 
-**Nginx Configuration:** `infrastructure/nginx/dev.subsbuzz.com.conf`
+- Default branch: `main` (warns and prompts if you're on another branch)
+- Server dir: `/home/webdev/sites/dev.subsbuzz.com`
+- Sends: `.env.dev` → `.env`, `docker-compose.dev.yml` → `docker-compose.yml`
+- Health-checks ports `8001 / 3002 / 5501`
 
 ### Production Deployment (subsbuzz.com)
 
-Use the same codebase with `.env.prod`:
-
 ```bash
-# On production server
-git pull origin main
-cp .env.example .env.prod
-# Edit .env.prod with production credentials
-docker-compose up -d
+./promote.sh
 ```
 
-**Nginx Configuration:** `infrastructure/nginx/subsbuzz.conf`
+- Refuses to run unless you're on `main` with a clean tree
+- Verifies local `main` matches `origin/main`
+- Requires explicit `yes` confirmation
+- Server dir: `/home/webdev/sites/subsbuzz.com`
+- Sends: `.env.prod` → `.env`, `docker-compose.yml` → `docker-compose.yml`
+- Health-checks ports `8000 / 3001 / 3000`
 
-### Deployment Scripts
+### ⚠️ !IMPORTANT — env file source-of-truth and drift
+
+`.env.dev` and `.env.prod` are **gitignored** and live only on (a) your local machine and (b) the server. They drift if anyone edits them in only one place. `deploy.sh` and `promote.sh` treat the **local** file as source of truth and overwrite the server's copy via `rsync`.
+
+**Before running `deploy.sh` or `promote.sh`, verify your local file matches what's actually running on the server:**
 
 ```bash
-# Development deployment
-./infrastructure/scripts/deploy-dev.sh
+# For deploy.sh — verify .env.dev
+ssh subsbuzz "cat /home/webdev/sites/dev.subsbuzz.com/.env.dev" | sha256sum
+sha256sum .env.dev
+# Hashes must match. If not, pull the server file down first:
+#   cp .env.dev .env.dev.local-backup
+#   scp subsbuzz:/home/webdev/sites/dev.subsbuzz.com/.env.dev .env.dev
+#   chmod 600 .env.dev
 
-# Production deployment (create if needed)
-./infrastructure/scripts/deploy-prod.sh
+# For promote.sh — same drill against the prod dir
+ssh subsbuzz "cat /home/webdev/sites/subsbuzz.com/.env.prod" | sha256sum  # if a prod checkout exists
+sha256sum .env.prod
 ```
+
+**Why this matters:** if local is stale, the rsync overwrites the working server file with broken values (missing `POSTGRES_PASSWORD`, `CELERY_BROKER_URL`, `CORS_ORIGINS`, etc.) → containers come up broken or refuse to start.
+
+**Key-only diff (no values exposed) for a structural sanity check:**
+
+```bash
+ssh subsbuzz "grep -E '^[A-Z_]+=' /home/webdev/sites/dev.subsbuzz.com/.env.dev | cut -d= -f1 | sort" > /tmp/server_keys.txt
+grep -E '^[A-Z_]+=' .env.dev | cut -d= -f1 | sort > /tmp/local_keys.txt
+diff /tmp/server_keys.txt /tmp/local_keys.txt && echo "✓ key sets match"
+```
+
+Any key set drift, especially `POSTGRES_*` / `REDIS_*` / `SESSION_SECRET` / `INTERNAL_API_SECRET` / `JWT_SECRET`, is a hard blocker — resolve before deploying.
+
+### Nginx & SSL (one-time bootstrap, not per-deploy)
+
+- Dev: `infrastructure/nginx/dev.subsbuzz.com.conf`
+- Prod: `infrastructure/nginx/subsbuzz.conf`
+
+These live at `/etc/nginx/sites-enabled/...` on the server, outside `$REMOTE_DIR`. They survive `rm -rf $REMOTE_DIR`. New servers need a one-time bootstrap (nginx install, certbot, systemd) before `deploy.sh` will work end-to-end.
 
 ---
 
