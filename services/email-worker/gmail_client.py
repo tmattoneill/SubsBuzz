@@ -145,9 +145,9 @@ class GmailClient:
             # Build Gmail service
             service = build('gmail', 'v1', credentials=credentials)
             
-            # Create search query - look back 24 hours
-            one_day_ago = datetime.utcnow() - timedelta(days=1)
-            after_date = one_day_ago.strftime('%Y/%m/%d')
+            # Create search query - look back 3 days to avoid missing emails
+            three_days_ago = datetime.utcnow() - timedelta(days=3)
+            after_date = three_days_ago.strftime('%Y/%m/%d')
             
             # Build query: from:(sender1 OR sender2) after:YYYY/MM/DD
             from_query = ' OR '.join([f'"{sender}"' for sender in valid_senders])
@@ -155,14 +155,19 @@ class GmailClient:
             
             print(f"🔍 Gmail search query: {search_query}")
             
-            # Search for messages
+            # Search for messages (with pagination)
             try:
-                results = service.users().messages().list(
-                    userId='me',
-                    q=search_query
-                ).execute()
-                
-                messages = results.get('messages', [])
+                messages = []
+                page_token = None
+                while True:
+                    request_kwargs = {'userId': 'me', 'q': search_query, 'maxResults': 200}
+                    if page_token:
+                        request_kwargs['pageToken'] = page_token
+                    results = service.users().messages().list(**request_kwargs).execute()
+                    messages.extend(results.get('messages', []))
+                    page_token = results.get('nextPageToken')
+                    if not page_token:
+                        break
                 print(f"📬 Found {len(messages)} matching emails")
                 
                 if not messages:
