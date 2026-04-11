@@ -6,11 +6,14 @@ Background tasks for email processing, digest generation, and OAuth token manage
 
 import os
 import asyncio
+import logging
 import httpx
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from celery import Celery
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 from gmail_client import GmailClient
 from content_extractor import ContentExtractor
@@ -92,13 +95,17 @@ def generate_daily_digests(self):
     Replaces the disabled cron job functionality
     """
     try:
-        print(f"🔄 Starting daily digest generation at {datetime.utcnow()}")
-        
-        # Run the async function in the event loop
-        return asyncio.run(_generate_daily_digests_async())
-        
+        logger.info("Starting daily digest generation task_id=%s", self.request.id)
+        start = datetime.utcnow()
+
+        result = asyncio.run(_generate_daily_digests_async())
+
+        duration = (datetime.utcnow() - start).total_seconds()
+        logger.info("Daily digest generation complete duration=%.1fs users=%d", duration, result.get('total_users', 0))
+        return result
+
     except Exception as exc:
-        print(f"❌ Error in daily digest generation: {exc}")
+        logger.error("Daily digest generation failed: %s", exc, exc_info=True)
         raise self.retry(exc=exc)
 
 async def _generate_daily_digests_async():
@@ -108,7 +115,7 @@ async def _generate_daily_digests_async():
         users_response = await data_server.get('/api/storage/users-with-monitored-emails')
         users = users_response.get('data', [])
         
-        print(f"📊 Found {len(users)} users with monitored emails")
+        logger.info("Found %d users with monitored emails", len(users))
         
         results = []
         for user in users:
@@ -120,7 +127,7 @@ async def _generate_daily_digests_async():
                 settings = settings_response.get('data', {})
                 
                 if not settings.get('dailyDigestEnabled', True):
-                    print(f"⏭️  Skipping user {user_id}: daily digest disabled")
+                    logger.info("Skipping user=%s: daily digest disabled", user_id)
                     continue
                 
                 # Process emails for this user
@@ -133,21 +140,21 @@ async def _generate_daily_digests_async():
                 })
                 
             except Exception as e:
-                print(f"❌ Error processing user {user_id}: {e}")
+                logger.error("Error processing user=%s: %s", user_id, e, exc_info=True)
                 results.append({
                     'user_id': user_id,
                     'status': 'error',
                     'error': str(e)
                 })
-        
+
         return {
             'total_users': len(users),
             'results': results,
             'completed_at': datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
-        print(f"❌ Error in daily digest generation: {e}")
+        logger.error("Fatal error in _generate_daily_digests_async: %s", e, exc_info=True)
         raise
 
 @app.task(bind=True, retry_kwargs={'max_retries': 3, 'countdown': 30})
@@ -157,13 +164,17 @@ def process_user_emails(self, user_id: str):
     Can be called manually or as part of daily digest generation
     """
     try:
-        print(f"📧 Processing emails for user {user_id}")
-        
-        # Run the async function in the event loop
-        return asyncio.run(process_user_emails_async(user_id))
-        
+        logger.info("Processing emails user=%s task_id=%s", user_id, self.request.id)
+        start = datetime.utcnow()
+
+        result = asyncio.run(process_user_emails_async(user_id))
+
+        duration = (datetime.utcnow() - start).total_seconds()
+        logger.info("Email processing complete user=%s emails=%d duration=%.1fs", user_id, result.get('emails_processed', 0), duration)
+        return result
+
     except Exception as exc:
-        print(f"❌ Error processing emails for user {user_id}: {exc}")
+        logger.error("Email processing failed user=%s: %s", user_id, exc, exc_info=True)
         raise self.retry(exc=exc)
 
 async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
@@ -177,17 +188,17 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
         active_emails = [email['email'] for email in monitored_emails if email.get('active', True)]
         
         if not active_emails:
-            print(f"📭 No active monitored emails for user {user_id}")
+            logger.info("No active monitored emails user=%s", user_id)
             return {'emails_processed': 0, 'digest_created': False}
-        
-        print(f"📬 Found {len(active_emails)} active monitored emails for user {user_id}")
+
+        logger.info("Found %d active monitored emails user=%s", len(active_emails), user_id)
         
         # Get user's OAuth token for Gmail access
         oauth_response = await data_server.get(f'/api/storage/oauth-token/{user_id}')
         oauth_data = oauth_response.get('data')
         
         if not oauth_data:
-            print(f"🔑 No OAuth token found for user {user_id}")
+            logger.warning("No OAuth token found user=%s", user_id)
             return {'emails_processed': 0, 'digest_created': False, 'error': 'No OAuth token'}
         
         # Create callback to save refreshed tokens
@@ -200,18 +211,18 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
                     'expiresAt': refreshed_token_data.get('expires_at')
                 })
                 if not update_response.get('success'):
-                    print(f"⚠️ Failed to save refreshed token for user {user_id}")
+                    logger.warning("Failed to save refreshed token user=%s", user_id)
             except Exception as e:
-                print(f"❌ Error saving refreshed token for user {user_id}: {e}")
+                logger.error("Error saving refreshed token user=%s: %s", user_id, e, exc_info=True)
 
         # Fetch emails from Gmail with token refresh callback
         emails = await gmail_client.fetch_emails(active_emails, oauth_data, save_token_callback)
         
         if not emails:
-            print(f"📭 No new emails found for user {user_id}")
+            logger.info("No new emails found user=%s", user_id)
             return {'emails_processed': 0, 'digest_created': False}
-        
-        print(f"📧 Fetched {len(emails)} emails for user {user_id}")
+
+        logger.info("Fetched %d emails user=%s", len(emails), user_id)
 
         # Process email content
         processed_emails = []
@@ -235,10 +246,10 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
                 processed_emails.append(email_dict)
 
             except Exception as e:
-                print(f"⚠️  Error processing email {email.id}: {e}")
+                logger.warning("Error processing email id=%s: %s", email.id, e)
                 continue
-        
-        print(f"✅ Processed {len(processed_emails)} emails for user {user_id}")
+
+        logger.info("Content extraction complete user=%s emails=%d", user_id, len(processed_emails))
         
         # Send processed emails to data server for digest generation
         digest_payload = {
@@ -257,7 +268,7 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        print(f"❌ Error in process_user_emails_async for user {user_id}: {e}")
+        logger.error("Fatal error in process_user_emails_async user=%s: %s", user_id, e, exc_info=True)
         raise
 
 @app.task(bind=True, retry_kwargs={'max_retries': 3, 'countdown': 120})
@@ -267,12 +278,17 @@ def refresh_oauth_tokens(self):
     Runs every 6 hours to ensure tokens stay valid
     """
     try:
-        print(f"🔄 Starting OAuth token refresh at {datetime.utcnow()}")
-        
-        return asyncio.run(_refresh_oauth_tokens_async())
-        
+        logger.info("Starting OAuth token refresh task_id=%s", self.request.id)
+        start = datetime.utcnow()
+
+        result = asyncio.run(_refresh_oauth_tokens_async())
+
+        duration = (datetime.utcnow() - start).total_seconds()
+        logger.info("OAuth token refresh complete tokens=%d duration=%.1fs", result.get('tokens_checked', 0), duration)
+        return result
+
     except Exception as exc:
-        print(f"❌ Error in OAuth token refresh: {exc}")
+        logger.error("OAuth token refresh failed: %s", exc, exc_info=True)
         raise self.retry(exc=exc)
 
 async def _refresh_oauth_tokens_async():
@@ -284,7 +300,7 @@ async def _refresh_oauth_tokens_async():
         tokens_response = await data_server.get(f'/api/storage/oauth-tokens/expiring?before={expiry_threshold.isoformat()}')
         tokens = tokens_response.get('data', [])
         
-        print(f"🔑 Found {len(tokens)} tokens to refresh")
+        logger.info("Found %d tokens to refresh", len(tokens))
         
         results = []
         for token_data in tokens:
@@ -301,7 +317,7 @@ async def _refresh_oauth_tokens_async():
                     })
                     
                     if update_response.get('success'):
-                        print(f"✅ Updated token for {token_data['email']} in database")
+                        logger.info("Token refreshed and stored email=%s", token_data['email'])
                     
                     results.append({
                         'uid': token_data['uid'],
@@ -316,7 +332,7 @@ async def _refresh_oauth_tokens_async():
                     })
                     
             except Exception as e:
-                print(f"❌ Error refreshing token for {token_data.get('email', 'unknown')}: {e}")
+                logger.error("Error refreshing token email=%s: %s", token_data.get('email', 'unknown'), e, exc_info=True)
                 results.append({
                     'uid': token_data['uid'],
                     'email': token_data['email'],
@@ -331,7 +347,42 @@ async def _refresh_oauth_tokens_async():
         }
         
     except Exception as e:
-        print(f"❌ Error in OAuth token refresh: {e}")
+        logger.error("Fatal error in _refresh_oauth_tokens_async: %s", e, exc_info=True)
+        raise
+
+@app.task(bind=True, retry_kwargs={'max_retries': 2, 'countdown': 30})
+def archive_email(self, user_id: str, gmail_message_id: str):
+    """
+    Archive a Gmail message for a user (removes INBOX label).
+    Triggered by the API Gateway when the user clicks Archive in the UI.
+    """
+    try:
+        logger.info("Archiving message user=%s message_id=%s task_id=%s", user_id, gmail_message_id, self.request.id)
+        return asyncio.run(_archive_email_async(user_id, gmail_message_id))
+    except Exception as exc:
+        logger.error("Archive task failed user=%s message_id=%s: %s", user_id, gmail_message_id, exc, exc_info=True)
+        raise self.retry(exc=exc)
+
+async def _archive_email_async(user_id: str, gmail_message_id: str) -> Dict[str, Any]:
+    """Async implementation of email archiving"""
+    try:
+        oauth_response = await data_server.get(f'/api/storage/oauth-token/{user_id}')
+        oauth_data = oauth_response.get('data')
+
+        if not oauth_data:
+            logger.warning("No OAuth token found for archive user=%s", user_id)
+            return {'success': False, 'error': 'No OAuth token'}
+
+        success = await gmail_client.archive_message(gmail_message_id, oauth_data)
+        if success:
+            logger.info("Message archived user=%s message_id=%s", user_id, gmail_message_id)
+        else:
+            logger.warning("Archive returned False user=%s message_id=%s", user_id, gmail_message_id)
+
+        return {'success': success, 'message_id': gmail_message_id}
+
+    except Exception as e:
+        logger.error("_archive_email_async failed user=%s message_id=%s: %s", user_id, gmail_message_id, e, exc_info=True)
         raise
 
 @app.task(bind=True, retry_kwargs={'max_retries': 2, 'countdown': 60})
@@ -341,12 +392,12 @@ def scan_for_newsletters(self, user_id: str):
     Used during onboarding to discover newsletter subscriptions
     """
     try:
-        print(f"🔍 Scanning for newsletters for user {user_id}")
-        
+        logger.info("Scanning for newsletters user=%s task_id=%s", user_id, self.request.id)
+
         return asyncio.run(_scan_for_newsletters_async(user_id))
-        
+
     except Exception as exc:
-        print(f"❌ Error scanning newsletters for user {user_id}: {exc}")
+        logger.error("Newsletter scan failed user=%s: %s", user_id, exc, exc_info=True)
         raise self.retry(exc=exc)
 
 async def _scan_for_newsletters_async(user_id: str) -> Dict[str, Any]:
@@ -355,29 +406,25 @@ async def _scan_for_newsletters_async(user_id: str) -> Dict[str, Any]:
         # Get user's OAuth token
         oauth_response = await data_server.get(f'/api/storage/oauth-token/{user_id}')
         oauth_data = oauth_response.get('data')
-        
+
         if not oauth_data:
             return {'newsletters': [], 'error': 'No OAuth token'}
-        
+
         # Scan for newsletters using Gmail client
         newsletters = await gmail_client.scan_for_newsletters(oauth_data)
-        
-        print(f"📰 Found {len(newsletters)} potential newsletter sources for user {user_id}")
-        
+
+        logger.info("Found %d potential newsletter sources user=%s", len(newsletters), user_id)
+
         return {
             'newsletters': newsletters,
             'count': len(newsletters),
             'scanned_at': datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
-        print(f"❌ Error scanning newsletters for user {user_id}: {e}")
+        logger.error("Newsletter scan async failed user=%s: %s", user_id, e, exc_info=True)
         raise
 
 # Register tasks with Celery
 if __name__ == '__main__':
-    print("📋 Available Celery tasks:")
-    print("  - generate_daily_digests")
-    print("  - process_user_emails")
-    print("  - refresh_oauth_tokens")
-    print("  - scan_for_newsletters")
+    logger.info("Available Celery tasks: generate_daily_digests, process_user_emails, refresh_oauth_tokens, scan_for_newsletters")

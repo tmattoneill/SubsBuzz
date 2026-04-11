@@ -73,7 +73,7 @@ export function ConfigModal({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-2">
+        <div className="py-2 max-h-[60vh] overflow-y-auto pr-1">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="mb-6">
               <FormField

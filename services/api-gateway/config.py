@@ -3,7 +3,7 @@ Configuration settings for the API Gateway service
 """
 
 import os
-from typing import List
+from typing import Any, List
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
@@ -47,17 +47,20 @@ class Settings(BaseSettings):
     DATA_SERVER_URL: str = os.getenv("DATA_SERVER_URL", "http://localhost:3001")
     EMAIL_WORKER_URL: str = os.getenv("EMAIL_WORKER_URL", "http://localhost:5555")
     API_GATEWAY_URL: str = os.getenv("API_GATEWAY_URL", "http://localhost:8000")
+    REDIS_URL: str = os.getenv("REDIS_URL", os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"))
     
     # CORS Origins (default values if not set in env)
-    CORS_ORIGINS: List[str] = [
+    # Use Any so pydantic-settings passes raw env string through to the validator
+    # rather than attempting JSON coercion before the validator can run.
+    CORS_ORIGINS: Any = [
         "http://localhost:3000",
-        "http://localhost:5500", 
+        "http://localhost:5500",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5500"
     ]
-    
+
     # Trusted Hosts (default values if not set in env)
-    ALLOWED_HOSTS: List[str] = ["*"]
+    ALLOWED_HOSTS: Any = ["*"]
     
     # Rate Limiting
     RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
@@ -83,6 +86,18 @@ class Settings(BaseSettings):
             "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{self.FIREBASE_CLIENT_EMAIL}"
         }
     
+    @field_validator('CORS_ORIGINS', 'ALLOWED_HOSTS', mode='before')
+    @classmethod
+    def parse_list_field(cls, v):
+        """Accept comma-separated strings or JSON arrays for list fields"""
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith('['):
+                import json
+                return json.loads(v)
+            return [item.strip() for item in v.split(',') if item.strip()]
+        return v
+
     model_config = {
         "case_sensitive": True
     }
