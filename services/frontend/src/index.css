@@ -132,13 +132,7 @@
     @apply bg-background min-h-screen;
   }
   
-  /* Ensure dark mode is properly applied to all containers */
-  .dark body,
-  .dark #root,
-  .dark [data-theme="dark"] {
-    background-color: hsl(var(--background)) !important;
-    color: hsl(var(--foreground)) !important;
-  }
+  /* Dark mode variables cascade via Tailwind's darkMode: 'class' — no overrides needed */
 }
 
 .digest-card:hover {

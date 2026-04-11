@@ -34,11 +34,31 @@ export function getSenderName(email: string): string {
 
 export function getSenderIcon(email: string): string {
   const domain = email.split('@')[1]?.split('.')[0];
-  
+
   if (!domain) return '';
-  
+
   const firstChar = domain.charAt(0).toUpperCase();
   return firstChar;
+}
+
+export function getSenderFaviconUrl(sender: string): string {
+  // Handle both "email@domain.com" and "Name <email@domain.com>" formats
+  const emailMatch = sender.match(/<([^>]+)>/) || sender.match(/([^\s]+@[^\s]+)/);
+  const email = emailMatch ? emailMatch[1] : sender;
+  const domain = email.split('@')[1];
+  if (!domain) return '';
+  // Strip mail subdomains (e.g. newsletter.cntraveler.com → cntraveler.com)
+  // so Google's favicon service resolves the brand's main site icon.
+  const parts = domain.split('.');
+  const rootDomain = parts.length > 2 ? parts.slice(-2).join('.') : domain;
+  return `https://www.google.com/s2/favicons?domain=${rootDomain}&sz=32`;
+}
+
+export function extractGmailMessageId(originalLink: string): string | null {
+  // Extracts message ID from Gmail URLs like:
+  // https://mail.google.com/mail/u/0/#inbox/18d82abfe9b2c1f2
+  const match = originalLink.match(/#(?:inbox|all|spam|sent|label\/[^/]+)\/([a-f0-9]+)$/i);
+  return match ? match[1] : null;
 }
 
 export function truncateText(text: string, maxLength: number): string {

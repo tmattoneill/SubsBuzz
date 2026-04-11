@@ -160,6 +160,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
+        aria-describedby={undefined}
         className={cn(
           "flex flex-col gap-0 p-0 overflow-hidden",
           // Mobile: full screen, no rounding

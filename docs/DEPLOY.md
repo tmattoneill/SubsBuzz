@@ -743,3 +743,50 @@ docker-compose up -d
 ```
 
 This comprehensive deployment strategy ensures reliable, secure, and scalable production operations for SubsBuzz.
+
+---
+
+## 🔥 Deployment Recovery: rm-rf-and-redeploy
+
+When containers are stuck, state is corrupted, or config drift is severe enough that an incremental deploy won't recover cleanly, wipe the remote directory and redeploy from scratch.
+
+### When to use this
+
+- Containers refuse to start and logs show stale config or volume conflicts
+- A previous partial deploy left the remote dir in an inconsistent state
+- Major structural changes (renamed compose services, removed volumes) cause `docker compose up` to fail
+- As a last resort when `deploy.sh` succeeds but health checks keep failing
+
+### Steps
+
+```bash
+# 1. Back up the env file from the server (in case your local copy is stale)
+scp subsbuzz:/home/webdev/sites/dev.subsbuzz.com/.env .env.dev.server-backup
+
+# 2. Diff local vs server env keys (no values exposed)
+ssh subsbuzz "grep -E '^[A-Z_]+=' /home/webdev/sites/dev.subsbuzz.com/.env | cut -d= -f1 | sort" > /tmp/server_keys.txt
+grep -E '^[A-Z_]+=' .env.dev | cut -d= -f1 | sort > /tmp/local_keys.txt
+diff /tmp/server_keys.txt /tmp/local_keys.txt && echo "✓ keys match"
+
+# 3. If keys match (or after reconciling), wipe and redeploy
+ssh subsbuzz "rm -rf /home/webdev/sites/dev.subsbuzz.com"
+./deploy.sh
+```
+
+For production, substitute the prod dir and use `promote.sh`.
+
+### What survives the wipe
+
+| Component | Survives? | Why |
+|-----------|-----------|-----|
+| Nginx config | ✅ Yes | Lives at `/etc/nginx/sites-enabled/` — outside `$REMOTE_DIR` |
+| SSL certificates | ✅ Yes | Managed by certbot in `/etc/letsencrypt/` — outside `$REMOTE_DIR` |
+| PostgreSQL data | ✅ Yes | Stored in Docker named volumes, not in `$REMOTE_DIR` |
+| Redis data | ✅ Yes | Same — Docker named volume |
+| `.env` file | ⚠️ Gone | Wiped with `$REMOTE_DIR` — `deploy.sh` rsyncs a fresh copy from local |
+
+### Gotchas
+
+- Your **local env file is used as source of truth** by `deploy.sh` / `promote.sh`. Always verify it's up-to-date with the server before wiping (step 1–2 above).
+- Docker volumes (Postgres, Redis) are **not** removed by `rm -rf $REMOTE_DIR`. If you need a clean DB too, run `docker volume rm <volume_name>` on the server after wiping — but this destroys all data.
+- After a wipe, `deploy.sh` will re-clone the repo, so it needs GitHub access from the server. Confirm the server's SSH key is still authorised on GitHub if it's been a while.

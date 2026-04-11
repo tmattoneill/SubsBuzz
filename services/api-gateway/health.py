@@ -7,6 +7,7 @@ import httpx
 from datetime import datetime
 from typing import Dict, Any
 from pydantic import BaseModel
+from urllib.parse import urlparse
 
 from config import settings
 
@@ -50,6 +51,33 @@ class DependencyHealth:
             logger.error(f"❌ {service_name} health check error: {e}")
             return "error"
     
+    async def check_redis(self) -> str:
+        """Ping the Redis broker to confirm it is reachable"""
+        try:
+            parsed = urlparse(settings.REDIS_URL)
+            host = parsed.hostname or "localhost"
+            port = parsed.port or 6379
+
+            reader, writer = await __import__('asyncio').wait_for(
+                __import__('asyncio').open_connection(host, port),
+                timeout=3.0
+            )
+            writer.write(b"PING\r\n")
+            await writer.drain()
+            data = await __import__('asyncio').wait_for(reader.read(7), timeout=3.0)
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+            if data.startswith(b"+PONG"):
+                logger.debug("Redis broker is healthy")
+                return "healthy"
+            return "unhealthy"
+        except Exception as e:
+            logger.warning("Redis broker unreachable: %s", e)
+            return "unreachable"
+
     async def check_all_dependencies(self) -> Dict[str, str]:
         """Check health of all dependent services"""
         dependencies = {}
@@ -59,6 +87,9 @@ class DependencyHealth:
             "Data Server",
             settings.DATA_SERVER_URL
         )
+
+        # Check Redis / Celery broker
+        dependencies["redis-broker"] = await self.check_redis()
 
         # Check Firebase credentials are present (env vars, not SDK init state)
         dependencies["firebase"] = self._check_firebase_config()

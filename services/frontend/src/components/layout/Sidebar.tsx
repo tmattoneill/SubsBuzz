@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +92,17 @@ export function Sidebar() {
   const [, navigate] = useLocation();
   const { user, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+
+  const { data: settingsData } = useQuery<any>({
+    queryKey: ["/api/settings"],
+    select: (data: any) => data?.data ?? data,
+  });
+  const firstName = settingsData?.firstName ?? "";
+  const lastName = settingsData?.lastName ?? "";
+  const displayName = [firstName, lastName].filter(Boolean).join(" ") || user?.email || "SubsBuzz Member";
+  const initials = firstName || lastName
+    ? `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase()
+    : (user?.email?.[0] ?? "S").toUpperCase();
 
   const handleSignOut = async () => {
     try {
@@ -199,12 +211,12 @@ export function Sidebar() {
       <div className="mt-6 rounded-xl bg-card p-4 shadow-sm">
         <div className="flex items-center gap-3">
           <Avatar className="h-12 w-12">
-            <AvatarImage src={user?.photoURL ?? ""} alt={user?.displayName ?? "Digest owner"} />
-            <AvatarFallback>{user?.displayName?.slice(0, 2).toUpperCase() ?? "SB"}</AvatarFallback>
+            <AvatarImage src={user?.photoURL ?? ""} alt={displayName} />
+            <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 text-left">
             <p className="text-sm font-semibold text-sidebar-foreground">
-              {user?.displayName ?? "SubsBuzz Member"}
+              {displayName}
             </p>
             <p className="text-xs text-muted-foreground">{user?.email ?? "hello@subsbuzz.com"}</p>
           </div>
