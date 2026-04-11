@@ -23,6 +23,7 @@ import { runDatabaseTestsSimple as runDatabaseTests } from './test-database-simp
 import { runDataServerTests } from './test-data-server.js';
 import { runAPIGatewayTests } from './test-api-gateway.js';
 import { runIntegrationTests } from './test-integration.js';
+import { runOAuthTokenTests } from './test-oauth-tokens.js';
 
 // Test configuration
 const TEST_MODE = process.env.TEST_MODE || 'full'; // full, quick, individual
@@ -164,16 +165,18 @@ function generateReport() {
   
   const databaseOk = overallResults.suites['Database Tests']?.failed === 0;
   const dataServerOk = overallResults.suites['Data Server Tests']?.failed === 0;
+  const oauthOk = overallResults.suites['OAuth Token Tests']?.failed === 0;
   const apiGatewayOk = overallResults.suites['API Gateway Tests']?.failed === 0;
   const integrationOk = overallResults.suites['Integration Tests']?.failed === 0;
-  
+
   log(`Database Layer: ${databaseOk ? '✅ Operational' : '❌ Issues Found'}`, databaseOk ? 'success' : 'error');
   log(`Data Server: ${dataServerOk ? '✅ Operational' : '❌ Issues Found'}`, dataServerOk ? 'success' : 'error');
+  log(`OAuth Token Persistence: ${oauthOk ? '✅ Operational' : '❌ Issues Found'}`, oauthOk ? 'success' : 'error');
   log(`API Gateway: ${apiGatewayOk ? '✅ Operational' : '❌ Issues Found'}`, apiGatewayOk ? 'success' : 'error');
   log(`Integration: ${integrationOk ? '✅ All Systems Go' : '❌ Service Communication Issues'}`, integrationOk ? 'success' : 'error');
-  
+
   // Overall architecture assessment
-  const architectureHealthy = databaseOk && dataServerOk && apiGatewayOk && integrationOk;
+  const architectureHealthy = databaseOk && dataServerOk && oauthOk && apiGatewayOk && integrationOk;
   
   log('', 'separator');
   if (architectureHealthy) {
@@ -206,6 +209,11 @@ async function runAllTests() {
       name: 'Data Server Tests',
       function: runDataServerTests,
       description: 'API endpoints, authentication, and database operations testing'
+    },
+    {
+      name: 'OAuth Token Tests',
+      function: runOAuthTokenTests,
+      description: 'DB-backed OAuth session token storage, retrieval, refresh, and validation (TEEPER-43)'
     },
     {
       name: 'API Gateway Tests',

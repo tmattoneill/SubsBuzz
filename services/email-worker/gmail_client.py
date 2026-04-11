@@ -108,6 +108,31 @@ class GmailClient:
             print(f"❌ Error refreshing token for {oauth_data.get('email', 'unknown')}: {e}")
             return None
     
+    async def archive_message(self, message_id: str, oauth_data: Dict[str, Any]) -> bool:
+        """
+        Archive a Gmail message by removing the INBOX label.
+        Equivalent to pressing Archive in Gmail — message moves out of inbox but is not deleted.
+        """
+        try:
+            credentials = self._create_credentials(oauth_data)
+            if credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+
+            service = build('gmail', 'v1', credentials=credentials)
+            service.users().messages().modify(
+                userId='me',
+                id=message_id,
+                body={'removeLabelIds': ['INBOX']}
+            ).execute()
+            return True
+
+        except HttpError as e:
+            print(f"❌ Gmail API error archiving message {message_id}: {e}")
+            return False
+        except Exception as e:
+            print(f"❌ Error archiving message {message_id}: {e}")
+            return False
+
     async def fetch_emails(self, monitored_senders: List[str], oauth_data: Dict[str, Any], save_refreshed_token_callback=None) -> List[ParsedEmail]:
         """
         Fetch emails from Gmail API for monitored senders

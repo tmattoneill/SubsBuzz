@@ -1,19 +1,21 @@
 import { useState } from "react";
-import { 
-  Card, 
-  CardContent 
+import {
+  Card,
+  CardContent
 } from "@/components/ui/card";
-import { 
-  Button 
+import {
+  Button
 } from "@/components/ui/button";
 import { DigestEmail } from "@/lib/types";
-import { getTopicColors, formatTime, getSenderInitials } from "@/lib/utils";
-import { 
-  Star, 
+import { getTopicColors, formatTime, getSenderInitials, getSenderFaviconUrl, extractGmailMessageId } from "@/lib/utils";
+import { api } from "@/lib/api-client";
+import {
+  Star,
   StarOff,
-  ExternalLink, 
-  ChevronDown, 
-  ChevronUp 
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  ArchiveX
 } from "lucide-react";
 
 interface DigestCardProps {
@@ -24,6 +26,8 @@ interface DigestCardProps {
 export function DigestCard({ email, onToggleFavorite }: DigestCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -37,6 +41,18 @@ export function DigestCard({ email, onToggleFavorite }: DigestCardProps) {
   };
 
   const receivedTime = formatTime(email.receivedAt);
+  const faviconUrl = getSenderFaviconUrl(email.sender);
+  const gmailMessageId = email.originalLink ? extractGmailMessageId(email.originalLink) : null;
+
+  const handleArchive = async () => {
+    if (!gmailMessageId || isArchived) return;
+    try {
+      await api.post(`/api/emails/${gmailMessageId}/archive`);
+      setIsArchived(true);
+    } catch {
+      // silently fail — message stays in UI, user can retry
+    }
+  };
 
   return (
     <Card className="digest-card bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 w-full">
@@ -44,9 +60,18 @@ export function DigestCard({ email, onToggleFavorite }: DigestCardProps) {
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center mb-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-primary text-xs font-medium">
-                {getSenderInitials(email.sender)}
-              </div>
+              {faviconUrl && !faviconError ? (
+                <img
+                  src={faviconUrl}
+                  alt=""
+                  className="w-6 h-6 rounded-full object-cover"
+                  onError={() => setFaviconError(true)}
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-primary text-xs font-medium">
+                  {getSenderInitials(email.sender)}
+                </div>
+              )}
               <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">{email.sender}</span>
               <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{receivedTime}</span>
             </div>
@@ -58,14 +83,26 @@ export function DigestCard({ email, onToggleFavorite }: DigestCardProps) {
             </h3>
           </div>
           <div className="flex space-x-2 flex-shrink-0">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               className={`p-1.5 ${isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'} rounded`}
               onClick={toggleFavorite}
             >
               {isFavorite ? <Star className="h-4 w-4" /> : <StarOff className="h-4 w-4" />}
             </Button>
+            {gmailMessageId && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`p-1.5 rounded ${isArchived ? 'text-green-500' : 'text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'}`}
+                onClick={handleArchive}
+                title={isArchived ? 'Archived' : 'Archive this email'}
+                disabled={isArchived}
+              >
+                <ArchiveX className="h-4 w-4" />
+              </Button>
+            )}
             {email.originalLink && (
               <Button
                 variant="ghost"
