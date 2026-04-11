@@ -73,37 +73,37 @@ export function ConfigModal({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-2 max-h-[60vh] overflow-y-auto pr-1">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mb-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium text-gray-700 dark:text-gray-300">Add New Email Address</FormLabel>
-                    <div className="flex">
-                      <FormControl>
-                        <Input 
-                          placeholder="Enter email address" 
-                          {...field} 
-                          className="rounded-r-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        />
-                      </FormControl>
-                      <Button 
-                        type="submit" 
-                        className="bg-primary text-white rounded-l-none hover:bg-blue-600 transition"
-                      >
-                        Add
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </form>
-          </Form>
-          
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="mb-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium text-gray-700 dark:text-gray-300">Add New Email Address</FormLabel>
+                  <div className="flex">
+                    <FormControl>
+                      <Input
+                        placeholder="Enter email address"
+                        {...field}
+                        className="rounded-r-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      />
+                    </FormControl>
+                    <Button
+                      type="submit"
+                      className="bg-primary text-white rounded-l-none hover:bg-blue-600 transition"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </form>
+        </Form>
+
+        <div className="max-h-[45vh] overflow-y-auto -mx-1 px-1">
           <div>
             <h3 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Currently Monitored</h3>
             {monitoredEmails.length > 0 ? (
@@ -165,7 +165,7 @@ export function ConfigModal({
             </div>
           </div>
         </div>
-        
+
         <DialogFooter className="border-t dark:border-gray-700 pt-4 flex justify-end space-x-3">
           <Button 
             variant="outline"

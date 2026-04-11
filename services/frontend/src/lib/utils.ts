@@ -47,7 +47,11 @@ export function getSenderFaviconUrl(sender: string): string {
   const email = emailMatch ? emailMatch[1] : sender;
   const domain = email.split('@')[1];
   if (!domain) return '';
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+  // Strip mail subdomains (e.g. newsletter.cntraveler.com → cntraveler.com)
+  // so Google's favicon service resolves the brand's main site icon.
+  const parts = domain.split('.');
+  const rootDomain = parts.length > 2 ? parts.slice(-2).join('.') : domain;
+  return `https://www.google.com/s2/favicons?domain=${rootDomain}&sz=32`;
 }
 
 export function extractGmailMessageId(originalLink: string): string | null {
