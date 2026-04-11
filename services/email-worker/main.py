@@ -12,7 +12,6 @@ This service handles:
 import os
 import asyncio
 import logging
-import logging.config
 from celery import Celery
 from celery.schedules import crontab
 from dotenv import load_dotenv
@@ -20,33 +19,12 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Structured logging configuration
-logging.config.dictConfig({
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'structured': {
-            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-            'datefmt': '%Y-%m-%dT%H:%M:%SZ',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'structured',
-            'stream': 'ext://sys.stdout',
-        },
-    },
-    'root': {
-        'level': os.getenv('LOG_LEVEL', 'INFO'),
-        'handlers': ['console'],
-    },
-    'loggers': {
-        'celery': {'level': 'INFO', 'propagate': True},
-        'celery.beat': {'level': 'INFO', 'propagate': True},
-        'tasks': {'level': 'INFO', 'propagate': True},
-    },
-})
+# Structured logging
+logging.basicConfig(
+    level=os.getenv('LOG_LEVEL', 'INFO'),
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%dT%H:%M:%SZ',
+)
 
 logger = logging.getLogger(__name__)
 
