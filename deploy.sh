@@ -123,7 +123,17 @@ ssh "$SSH_ALIAS" bash <<EOF
     docker compose ps
 EOF
 
-# ── 9. Health checks ──────────────────────────────────────────────────────────
+# ── 9. DB migrations (idempotent — safe to re-run every deploy) ───────────────
+info "Running DB migrations..."
+ssh "$SSH_ALIAS" bash <<EOF
+    set -euo pipefail
+    cd "$REMOTE_DIR"
+    docker compose exec -T postgres psql -U postgres -d subsbuzz_dev \
+        < infrastructure/postgres/migrate.sql \
+        && echo "✓ Migrations applied"
+EOF
+
+# ── 10. Health checks ─────────────────────────────────────────────────────────
 info "Health checks (retrying up to 12 × 5s = 60s per service)..."
 ssh "$SSH_ALIAS" bash <<EOF
     wait_healthy() {

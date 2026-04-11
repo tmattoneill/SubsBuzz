@@ -9,7 +9,7 @@ import {
   Button 
 } from "@/components/ui/button";
 import { FullThematicDigest, ThematicSectionWithSourceEmails } from "@/lib/types";
-import { getTopicColors, formatTime, getSenderInitials } from "@/lib/utils";
+import { getTopicColors, formatTime, getSenderInitials, getSenderFaviconUrl } from "@/lib/utils";
 import { 
   ChevronDown, 
   ChevronUp,
@@ -19,6 +19,68 @@ import {
 
 interface ThematicDigestProps {
   digest: FullThematicDigest;
+}
+
+function SourceEmailRow({ sourceEmail }: { sourceEmail: { email: { sender: string; source?: string | null; receivedAt: string; subject: string; snippet?: string | null; summary: string; originalLink?: string | null } } }) {
+  const [faviconError, setFaviconError] = useState(false);
+  const { email } = sourceEmail;
+  const displayName = email.source || email.sender;
+  const faviconUrl = getSenderFaviconUrl(email.sender);
+
+  return (
+    <div className="bg-muted rounded-lg p-3 text-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center space-x-2">
+          {faviconUrl && !faviconError ? (
+            <img
+              src={faviconUrl}
+              alt=""
+              className="w-5 h-5 rounded-full object-cover"
+              onError={() => setFaviconError(true)}
+            />
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-medium">
+              {getSenderInitials(email.sender)}
+            </div>
+          )}
+          <span className="font-medium text-gray-700 dark:text-gray-300 truncate">
+            {displayName}
+          </span>
+          <span className="text-xs text-gray-400">
+            {formatTime(email.receivedAt)}
+          </span>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          {email.originalLink && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+              asChild
+            >
+              <a
+                href={email.originalLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View original email"
+              >
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-1 break-words">
+        {email.subject}
+      </h5>
+
+      <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed break-words">
+        {email.snippet || email.summary}
+      </p>
+    </div>
+  );
 }
 
 interface ThematicSectionProps {
@@ -98,49 +160,7 @@ function ThematicSection({ section, isExpanded, onToggleExpanded }: ThematicSect
               
               <div className="space-y-3">
                 {section.sourceEmails.map((sourceEmail, index) => (
-                  <div key={index} className="bg-muted rounded-lg p-3 text-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-medium">
-                          {getSenderInitials(sourceEmail.email.source || sourceEmail.email.sender)}
-                        </div>
-                        <span className="font-medium text-gray-700 dark:text-gray-300 truncate">
-                          {sourceEmail.email.source || sourceEmail.email.sender}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {formatTime(sourceEmail.email.receivedAt)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        {sourceEmail.email.originalLink && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                            asChild
-                          >
-                            <a
-                              href={sourceEmail.email.originalLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="View original email"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    <h5 className="font-medium text-gray-800 dark:text-gray-200 mb-1 break-words">
-                      {sourceEmail.email.subject}
-                    </h5>
-
-                    <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed break-words">
-                      {sourceEmail.email.snippet || sourceEmail.email.summary}
-                    </p>
-                  </div>
+                  <SourceEmailRow key={index} sourceEmail={sourceEmail} />
                 ))}
               </div>
             </div>
