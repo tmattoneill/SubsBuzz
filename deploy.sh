@@ -123,12 +123,38 @@ ssh "$SSH_ALIAS" bash <<EOF
     docker compose ps
 EOF
 
-# ── 9. Health checks ──────────────────────────────────────────────────────────
-info "Health checks..."
+# ── 9. DB migrations (idempotent — safe to re-run every deploy) ───────────────
+info "Running DB migrations..."
 ssh "$SSH_ALIAS" bash <<EOF
-    curl -sf http://localhost:$DEV_API_GATEWAY_PORT/health && echo "✓ API Gateway healthy" || echo "✗ API Gateway not responding"
-    curl -sf http://localhost:$DEV_DATA_SERVER_PORT/health && echo "✓ Data Server healthy" || echo "✗ Data Server not responding"
-    curl -sf http://localhost:$DEV_FRONTEND_PORT             && echo "✓ Frontend reachable" || echo "✗ Frontend not responding"
+    set -euo pipefail
+    cd "$REMOTE_DIR"
+    docker compose exec -T postgres psql -U postgres -d subsbuzz_dev \
+        < infrastructure/postgres/migrate.sql \
+        && echo "✓ Migrations applied"
+EOF
+
+# ── 10. Health checks ─────────────────────────────────────────────────────────
+info "Health checks (retrying up to 12 × 5s = 60s per service)..."
+ssh "$SSH_ALIAS" bash <<EOF
+    wait_healthy() {
+        local name="\$1" url="\$2" retries=12 delay=5
+        for i in \$(seq 1 "\$retries"); do
+            if curl -sf --max-time 8 "\$url" > /dev/null 2>&1; then
+                echo "✓ \$name healthy"
+                return 0
+            fi
+            echo "  \$name not ready yet (attempt \$i/\$retries)..."
+            sleep "\$delay"
+        done
+        echo "✗ \$name did not become healthy after \$((retries * delay))s"
+        return 1
+    }
+
+    overall=0
+    wait_healthy "API Gateway" "http://localhost:$DEV_API_GATEWAY_PORT/health" || overall=1
+    wait_healthy "Data Server" "http://localhost:$DEV_DATA_SERVER_PORT/health"  || overall=1
+    wait_healthy "Frontend"    "http://localhost:$DEV_FRONTEND_PORT"            || overall=1
+    exit \$overall
 EOF
 
 info "Done! Test at https://dev.subsbuzz.com"
