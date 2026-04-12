@@ -280,23 +280,24 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
 
     const completion = await client.chat.completions.create({
       model: 'gpt-5.4-nano',
+      response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',
-          content: `You are an expert content analyst. Analyze the email summaries and identify 3-5 major themes that group these emails together. For each theme, provide:
-          1. A clear theme name
-          2. A narrative summary that tells the story of that theme
-          3. A confidence score (0-100)
-          4. Key keywords
-          5. Which emails belong to this theme (by their index in the list)
-          
-          Return as JSON: {
+          content: `You are an expert content analyst. Analyze the email summaries and identify 3-7 major themes that group these emails together. For each theme, provide:
+          1. A clear, descriptive theme name (e.g. "Political and Social Issues", not just "politics")
+          2. A narrative summary (2-4 sentences) that tells the story of that theme — mention specific sources, figures, or events referenced in the emails
+          3. A confidence score (0-100) based on how strongly the emails cluster
+          4. 3-6 specific keywords (not just the theme name repeated)
+          5. Which emails belong to this theme (by their 0-based index in the list)
+
+          Return JSON: {
             "themes": [
               {
                 "name": "Theme Name",
                 "summary": "Narrative summary of this theme...",
                 "confidence": 85,
-                "keywords": ["keyword1", "keyword2"],
+                "keywords": ["keyword1", "keyword2", "keyword3"],
                 "emailIndexes": [0, 2, 4]
               }
             ]
@@ -304,11 +305,11 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
         },
         {
           role: 'user',
-          content: `Analyze these email summaries:\n\n${emailSummaries}`
+          content: `Analyze these ${emails.length} email summaries:\n\n${emailSummaries}`
         }
       ],
       temperature: 0.7,
-      max_completion_tokens: 1000
+      max_completion_tokens: 2000
     });
 
     const response = completion.choices[0]?.message?.content;
@@ -324,30 +325,49 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
 
     return JSON.parse(cleanedResponse);
 
-  } catch (error) {
-    console.error('Error analyzing emails for themes:', error);
-    
-    // Fallback to topic-based clustering
-    const topicCounts: Record<string, number> = {};
-    emails.forEach(email => {
+  } catch (error: any) {
+    console.error('Error analyzing emails for themes:', error?.message || error);
+    if (error?.status) console.error(`OpenAI HTTP status: ${error.status}`);
+
+    // Rich fallback using actual email content
+    const topicData: Record<string, { emails: ProcessedEmail[]; indexes: number[] }> = {};
+    emails.forEach((email, idx) => {
       email.topics.forEach(topic => {
-        topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+        if (!topicData[topic]) {
+          topicData[topic] = { emails: [], indexes: [] };
+        }
+        topicData[topic].emails.push(email);
+        topicData[topic].indexes.push(idx);
       });
     });
 
-    const themes = Object.entries(topicCounts)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 3)
-      .map(([topic, count], index) => ({
-        name: topic,
-        summary: `${count} emails related to ${topic}`,
-        confidence: Math.min(90, count * 20),
-        keywords: [topic],
-        emailIndexes: emails
-          .map((email, idx) => ({ email, idx }))
-          .filter(({ email }) => email.topics.includes(topic))
-          .map(({ idx }) => idx)
-      }));
+    const themes = Object.entries(topicData)
+      .sort(([,a], [,b]) => b.emails.length - a.emails.length)
+      .slice(0, 5)
+      .map(([topic, data]) => {
+        // Build a richer summary from the actual email snippets/summaries
+        const snippets = data.emails
+          .map(e => e.snippet || e.summary)
+          .filter(Boolean)
+          .slice(0, 3);
+        const sources = [...new Set(data.emails.map(e => e.source || e.sender))];
+        const allKeywords = [...new Set(
+          data.emails.flatMap(e => [...e.topics, ...e.keywords])
+            .filter(k => k && k !== topic)
+        )].slice(0, 5);
+
+        const summary = snippets.length > 0
+          ? `${sources.slice(0, 3).join(', ')} cover${sources.length === 1 ? 's' : ''} ${topic}. ${snippets.join('. ')}.`
+          : `${data.emails.length} emails related to ${topic}`;
+
+        return {
+          name: topic,
+          summary,
+          confidence: Math.min(90, data.emails.length * 20),
+          keywords: [topic, ...allKeywords],
+          emailIndexes: data.indexes
+        };
+      });
 
     return { themes };
   }
