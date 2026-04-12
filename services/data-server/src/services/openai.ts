@@ -91,7 +91,7 @@ Content: ${truncatedContent}`
         }
       ],
       temperature: 0.7,
-      max_tokens: 700
+      max_completion_tokens: 700
     });
 
     const response = completion.choices[0]?.message?.content;
@@ -308,7 +308,7 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
         }
       ],
       temperature: 0.7,
-      max_tokens: 1000
+      max_completion_tokens: 1000
     });
 
     const response = completion.choices[0]?.message?.content;
@@ -391,7 +391,7 @@ Tone: Authoritative but conversational — like The Economist meets Morning Brew
         }
       ],
       temperature: 0.7,
-      max_tokens: 1000
+      max_completion_tokens: 1000
     });
 
     return completion.choices[0]?.message?.content?.trim() || '';
@@ -421,7 +421,7 @@ export async function checkOpenAIHealth(apiKey?: string | null): Promise<boolean
           content: 'Test message for health check'
         }
       ],
-      max_tokens: 5
+      max_completion_tokens: 5
     });
 
     return completion.choices.length > 0;
