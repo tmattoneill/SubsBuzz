@@ -221,9 +221,10 @@ export function ThematicDigest({ digest }: ThematicDigestProps) {
             </div>
           </div>
           {digest.dailySummary && (
-            <p className="text-gray-700 dark:text-gray-200 leading-relaxed text-base border-t border-blue-200 dark:border-gray-600 pt-3">
-              {digest.dailySummary}
-            </p>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none border-t border-blue-200 dark:border-gray-600 pt-3 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-1 [&_p]:leading-relaxed [&_ul]:mt-1 [&_li]:text-sm"
+              dangerouslySetInnerHTML={{ __html: digest.dailySummary }}
+            />
           )}
         </CardContent>
       </Card>
