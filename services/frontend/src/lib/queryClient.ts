@@ -58,7 +58,7 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes (renamed to gcTime in newer versions)
+      gcTime: 10 * 60 * 1000, // 10 minutes
       retry: (failureCount, error) => {
         const apiError = error as ApiError;
         // Don't retry on 4xx errors (client errors)

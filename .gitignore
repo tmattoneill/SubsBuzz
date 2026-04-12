@@ -558,3 +558,6 @@ CLEANUP.md
 
 # Local MCP server config (machine-specific paths)
 .mcp.json
+
+# Allow Vite public/ dirs (overrides Gatsby ignore above)
+!services/frontend/public/
