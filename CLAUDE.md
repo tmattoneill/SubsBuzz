@@ -707,20 +707,13 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 12/04/2026, 10:35:21
+**Last Updated:** 12/04/2026, 12:37:50
 
 ### Active Todos
-- [ ] [high] Continue UI overhaul testing with all services verified running (`ui-overhaul`)
-- [ ] [high] Monitor OAuth session persistence in production to ensure 30-day DB-backed tokens work correctly (`main`)
-- [ ] [high] Deploy main branch (0dc1497) to production environment (`main`)
-- [ ] [high] Verify gpt-5.4-nano model and rich HTML briefing generation in production (`main`)
-- [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`ui-overhaul`)
-- [ ] [medium] Test cross-service communication after CORS middleware reordering (`ui-overhaul`)
-- [ ] [medium] Verify the 3AM UTC digest schedule is working properly by checking tomorrow's digest generation (`main`)
-- [ ] [medium] Run a full test suite to validate that the service cruft removal didn't break any existing functionality (`main`)
-- [ ] [medium] Monitor email worker stability and logging output after production deployment (`main`)
-- [ ] [medium] Test the new 'Worth watching' section with real user data in production (`main`)
-- [ ] [low] Consider merging ui-overhaul to main once testing is complete (`ui-overhaul`)
-- [ ] [low] Test the Claude Code plan label persistence bug reproduction steps and document the workaround (`main`)
+- [ ] [high] Deploy main branch (9a95234) to production — includes reasoning_effort fix and rich thematic digests (`main`)
+- [ ] [high] Monitor production digest quality metrics to ensure reasoning_effort fix is stable (`main`)
+- [ ] [medium] Commit the pending CLAUDE.md documentation updates (`main`)
+- [ ] [medium] Add unit tests for OpenAI reasoning_effort parameter handling (`main`)
+- [ ] [low] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs (`main`)
 
 <!-- DEVCTX:END -->
