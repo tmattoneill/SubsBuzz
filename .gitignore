@@ -447,9 +447,6 @@ test-results/
 # Separate repository for remote worker service
 worker-test/
 
-# Replit-specific files
-cookies.txt
-
 # Development data files
 attached_assets/
 
