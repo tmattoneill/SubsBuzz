@@ -17,7 +17,6 @@ RUN npm install
 
 # Copy frontend source code
 COPY services/frontend/ .
-COPY shared/ /app/shared/
 
 # Build the application
 RUN npm run build

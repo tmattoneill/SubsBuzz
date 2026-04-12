@@ -14,7 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy API gateway source code
 COPY services/api-gateway/ .
-COPY shared/ /app/shared/
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash apiuser
