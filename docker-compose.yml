@@ -35,8 +35,11 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       data-server:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:

@@ -57,7 +57,7 @@ sleep 2
 # Start Email Worker (Celery)
 echo "   📧 Starting Email Worker (Celery)..."
 cd services/email-worker
-python -m celery -A tasks worker --loglevel=info > ../../logs/email-worker.log 2>&1 &
+python -m celery -A main worker --beat --loglevel=info > ../../logs/email-worker.log 2>&1 &
 EMAIL_WORKER_PID=$!
 cd ../..
 
