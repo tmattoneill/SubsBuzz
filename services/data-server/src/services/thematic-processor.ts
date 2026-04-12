@@ -72,31 +72,48 @@ async function stageOneAnalysis(emails: ProcessedEmail[], apiKey?: string | null
  */
 function fallbackTopicClustering(emails: ProcessedEmail[]): ThematicAnalysis {
   console.log('🔄 Using fallback topic-based clustering');
-  
-  const topicCounts: Record<string, number[]> = {};
-  
+
+  const topicData: Record<string, { emailIndexes: number[]; emails: ProcessedEmail[] }> = {};
+
   // Group emails by their primary topics
   emails.forEach((email, index) => {
     email.topics.forEach(topic => {
-      if (!topicCounts[topic]) {
-        topicCounts[topic] = [];
+      if (!topicData[topic]) {
+        topicData[topic] = { emailIndexes: [], emails: [] };
       }
-      topicCounts[topic].push(index);
+      topicData[topic].emailIndexes.push(index);
+      topicData[topic].emails.push(email);
     });
   });
 
-  // Create themes from most common topics
-  const themes: ThematicTheme[] = Object.entries(topicCounts)
-    .filter(([topic, emailIndexes]) => emailIndexes.length >= 1)
-    .sort(([,a], [,b]) => b.length - a.length)
+  // Create themes from most common topics, using actual email content
+  const themes: ThematicTheme[] = Object.entries(topicData)
+    .filter(([, data]) => data.emailIndexes.length >= 1)
+    .sort(([,a], [,b]) => b.emailIndexes.length - a.emailIndexes.length)
     .slice(0, 5)
-    .map(([topic, emailIndexes]) => ({
-      name: topic,
-      summary: `${emailIndexes.length} emails related to ${topic}. Topics include various updates and news about ${topic}.`,
-      confidence: Math.min(90, emailIndexes.length * 20),
-      keywords: [topic],
-      emailIndexes
-    }));
+    .map(([topic, data]) => {
+      const snippets = data.emails
+        .map(e => e.snippet || e.summary)
+        .filter(Boolean)
+        .slice(0, 3);
+      const sources = [...new Set(data.emails.map(e => e.source || e.sender))];
+      const allKeywords = [...new Set(
+        data.emails.flatMap(e => [...e.topics, ...e.keywords])
+          .filter(k => k && k !== topic)
+      )].slice(0, 5);
+
+      const summary = snippets.length > 0
+        ? `${sources.slice(0, 3).join(', ')} cover${sources.length === 1 ? 's' : ''} ${topic}. ${snippets.join('. ')}.`
+        : `${data.emailIndexes.length} emails related to ${topic}`;
+
+      return {
+        name: topic,
+        summary,
+        confidence: Math.min(90, data.emailIndexes.length * 20),
+        keywords: [topic, ...allKeywords],
+        emailIndexes: data.emailIndexes
+      };
+    });
 
   return {
     themes,
