@@ -59,7 +59,7 @@ export async function processEmailWithAI(email: EmailInput, apiKey?: string | nu
     const truncatedContent = email.content?.slice(0, 4000) || '';
 
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.4-nano',
       messages: [
         {
           role: 'system',
@@ -279,7 +279,7 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
     ).join('\n\n---\n\n');
 
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.4-nano',
       messages: [
         {
           role: 'system',
@@ -370,19 +370,28 @@ export async function generateDailySummary(
       .join('\n');
 
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.4-nano',
       messages: [
         {
           role: 'system',
-          content: `You are a daily briefing analyst. Write a single concise paragraph (2-3 sentences max) summarizing the key themes and trends across today's newsletters. Focus on what matters — the trends, insights, and topics worth knowing. Be direct and informative.`
+          content: `You are a senior daily briefing analyst writing a morning intelligence summary for a busy professional. Your job is to synthesise newsletter themes into a rich, scannable briefing.
+
+Output format — return valid HTML using these tags only: <h3>, <p>, <ul>, <li>, <strong>, <em>. No wrapper div, no <h1>/<h2> (those are used by the page layout).
+
+Structure:
+1. Open with a short <p> that captures the single most important thread running through today's coverage — one or two sentences, punchy and direct.
+2. For each theme, write an <h3> with the theme name, followed by a <p> that expands on the key stories, names specific sources or figures mentioned, and surfaces any emerging trends or counter-narratives. Aim for 2-4 sentences per theme.
+3. Close with an <h3>Worth watching</h3> section: a <ul> with 2-3 bullet points flagging developing stories, contrarian signals, or cross-theme patterns the reader should track.
+
+Tone: Authoritative but conversational — like The Economist meets Morning Brew. No filler, no hype. If a theme is thin on substance, say so briefly and move on.`
         },
         {
           role: 'user',
-          content: `Today's digest has ${totalEmails} newsletter${totalEmails !== 1 ? 's' : ''} across ${themes.length} themes:\n\n${themeDescriptions}\n\nWrite a 2-3 sentence executive summary of today's key trends.`
+          content: `Today's digest covers ${totalEmails} newsletter${totalEmails !== 1 ? 's' : ''} across ${themes.length} themes:\n\n${themeDescriptions}\n\nWrite the daily briefing.`
         }
       ],
       temperature: 0.7,
-      max_tokens: 200
+      max_tokens: 1000
     });
 
     return completion.choices[0]?.message?.content?.trim() || '';
@@ -405,7 +414,7 @@ export async function checkOpenAIHealth(apiKey?: string | null): Promise<boolean
 
     // Simple test call
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.4-nano',
       messages: [
         {
           role: 'user',
