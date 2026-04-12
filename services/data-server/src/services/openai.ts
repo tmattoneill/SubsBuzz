@@ -91,8 +91,9 @@ Content: ${truncatedContent}`
         }
       ],
       temperature: 0.7,
-      max_completion_tokens: 700
-    });
+      max_completion_tokens: 700,
+      reasoning: { effort: 'none' }
+    } as any);
 
     const response = completion.choices[0]?.message?.content;
     if (!response) {
@@ -309,8 +310,9 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
         }
       ],
       temperature: 0.7,
-      max_completion_tokens: 2000
-    });
+      max_completion_tokens: 2000,
+      reasoning: { effort: 'none' }
+    } as any);
 
     const response = completion.choices[0]?.message?.content;
     if (!response) {
@@ -411,16 +413,14 @@ Tone: Authoritative but conversational — like The Economist meets Morning Brew
         }
       ],
       temperature: 0.7,
-      max_completion_tokens: 1000
-    });
+      max_completion_tokens: 1500,
+      reasoning: { effort: 'none' }
+    } as any);
 
-    const msg = completion.choices[0]?.message;
-    const content = msg?.content?.trim() || '';
+    const content = completion.choices[0]?.message?.content?.trim() || '';
     if (!content) {
       console.warn('⚠️  Daily summary returned empty.', JSON.stringify({
         finishReason: completion.choices[0]?.finish_reason,
-        refusal: (msg as any)?.refusal,
-        hasContent: !!msg?.content,
         usage: completion.usage
       }));
     }
@@ -452,8 +452,9 @@ export async function checkOpenAIHealth(apiKey?: string | null): Promise<boolean
           content: 'Test message for health check'
         }
       ],
-      max_completion_tokens: 5
-    });
+      max_completion_tokens: 20,
+      reasoning: { effort: 'none' }
+    } as any);
 
     return completion.choices.length > 0;
 
