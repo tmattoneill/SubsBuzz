@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Celery configuration
-app = Celery('email-worker')
+app = Celery('email-worker', include=['tasks'])
 app.config_from_object({
     'broker_url': os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
     'result_backend': os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
@@ -51,12 +51,12 @@ app.config_from_object({
 })
 
 # Import tasks after app configuration
-from tasks import generate_daily_digests, refresh_oauth_tokens, process_user_emails
+from tasks import generate_daily_digests, refresh_oauth_tokens, process_user_emails, archive_email, scan_for_newsletters
 
 if __name__ == '__main__':
     logger.info("Starting Email Worker Service")
     logger.info("Beat schedule: digest=daily@03:00UTC, token-refresh=every-6h")
-    logger.info("Available tasks: generate_daily_digests, refresh_oauth_tokens, process_user_emails")
+    logger.info("Available tasks: generate_daily_digests, refresh_oauth_tokens, process_user_emails, archive_email, scan_for_newsletters")
 
     # Start worker
     app.start()
