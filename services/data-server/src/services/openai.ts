@@ -414,9 +414,20 @@ Tone: Authoritative but conversational — like The Economist meets Morning Brew
       max_completion_tokens: 1000
     });
 
-    return completion.choices[0]?.message?.content?.trim() || '';
+    const msg = completion.choices[0]?.message;
+    const content = msg?.content?.trim() || '';
+    if (!content) {
+      console.warn('⚠️  Daily summary returned empty.', JSON.stringify({
+        finishReason: completion.choices[0]?.finish_reason,
+        refusal: (msg as any)?.refusal,
+        hasContent: !!msg?.content,
+        usage: completion.usage
+      }));
+    }
+    return content;
   } catch (error: any) {
     console.error(`Error generating daily summary: ${error?.message || error}`);
+    if (error?.status) console.error(`OpenAI HTTP status: ${error.status}`);
     return '';
   }
 }
