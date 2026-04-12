@@ -21,7 +21,7 @@ load_dotenv()
 
 # Structured logging
 logging.basicConfig(
-    level=os.getenv('LOG_LEVEL', 'INFO'),
+    level=os.getenv('LOG_LEVEL', 'INFO').upper(),
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     datefmt='%Y-%m-%dT%H:%M:%SZ',
 )
