@@ -92,6 +92,8 @@ services:
     restart: unless-stopped
 
   postgres:
+    # Not publishing 5432 to host — the host already runs a native postgresql cluster.
+    # Internal docker network access (postgres:5432) is all other containers need.
     image: postgres:15-alpine
     environment:
       - POSTGRES_DB=subsbuzz
@@ -100,8 +102,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d subsbuzz"]
@@ -110,9 +110,8 @@ services:
       retries: 3
 
   redis:
+    # Not publishing 6379 to host — only other containers use redis, via redis:6379 internal hostname.
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
