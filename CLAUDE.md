@@ -416,7 +416,7 @@ Both `deploy.sh` (dev) and `promote.sh` (prod) run **from your local machine**, 
 2. SSH the server, clone-if-missing, `git fetch && reset --hard`, `git clean -fd`
 3. rsync the local env file → `.env` on the server (`.env.dev` → `.env`, or `.env.prod` → `.env`)
 4. rsync the right compose file → `docker-compose.yml` on the server
-5. `docker compose down --remove-orphans && build --no-cache && up -d`
+5. `docker compose down --remove-orphans && build && up -d` (uses docker layer cache — removed `--no-cache` on 2026-04-14 to conserve server disk space)
 6. Health-check the public ports
 
 Both dev and prod live on the **same server** (SSH alias `subsbuzz`) in different directories on disjoint host ports — they coexist.
@@ -707,11 +707,10 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 14/04/2026, 08:26:33
+**Last Updated:** 14/04/2026, 10:17:16
 
 ### Active Todos
-- [ ] [high] Deploy main branch (9a95234) to production — includes reasoning_effort fix and rich thematic digests (`main`)
-- [ ] [high] Monitor production digest quality metrics to ensure reasoning_effort fix is stable (`main`)
+- [ ] [high] Monitor prod digest quality — first prod digest runs 03:00 UTC (add monitored emails beforehand). Watch for reasoning_effort regression. (`main`)
 - [ ] [high] [TEEPER-81] Verify multi-user support — confirm each user has isolated Google OAuth, account data, and settings; identify any shared-state issues https://linear.app/teemo-personal-projects/issue/TEEPER-81 (`main`)
 - [ ] [high] Fix missing export on LINEAR_API_KEY in ~/.zshrc (`main`)
 - [ ] [high] Restart Claude Code and run devctx_linear_sync with configure=true to activate auto-sync (`main`)

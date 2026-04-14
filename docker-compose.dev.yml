@@ -95,7 +95,12 @@ services:
     
   # Email Worker
   email-worker:
-    build: 
+    # Opt-in via profile to avoid burning OpenAI/Gmail API credits on every dev deploy.
+    # Start explicitly when testing Celery tasks:
+    #   docker compose -f docker-compose.dev.yml --profile workers up -d email-worker
+    profiles:
+      - workers
+    build:
       context: .
       dockerfile: services/email-worker/Dockerfile
     environment:
