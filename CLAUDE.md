@@ -707,13 +707,20 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 12/04/2026, 12:37:50
+**Last Updated:** 14/04/2026, 08:26:33
 
 ### Active Todos
 - [ ] [high] Deploy main branch (9a95234) to production — includes reasoning_effort fix and rich thematic digests (`main`)
 - [ ] [high] Monitor production digest quality metrics to ensure reasoning_effort fix is stable (`main`)
+- [ ] [high] [TEEPER-81] Verify multi-user support — confirm each user has isolated Google OAuth, account data, and settings; identify any shared-state issues https://linear.app/teemo-personal-projects/issue/TEEPER-81 (`main`)
+- [ ] [high] Fix missing export on LINEAR_API_KEY in ~/.zshrc (`main`)
+- [ ] [high] Restart Claude Code and run devctx_linear_sync with configure=true to activate auto-sync (`main`)
 - [ ] [medium] Commit the pending CLAUDE.md documentation updates (`main`)
-- [ ] [medium] Add unit tests for OpenAI reasoning_effort parameter handling (`main`)
-- [ ] [low] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs (`main`)
+- [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
+- [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
+- [ ] [medium] [TEEPER-42] Post-processing inbox cleanup option — toggle in profile to archive+remove from inbox after processing, OR move to a chosen label+remove from inbox https://linear.app/teemo-personal-projects/issue/TEEPER-42 (`main`)
+- [ ] [medium] [TEEPER-40] Improve monitored emails UI — currently a single long list; redesign with better visual management (search, filtering, grouping, bulk actions, etc.) https://linear.app/teemo-personal-projects/issue/TEEPER-40 (`main`)
+- [ ] [medium] Test the Linear auto-sync functionality with a sample todo update (`main`)
+- [ ] [low] [TEEPER-83] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs https://linear.app/teemo-personal-projects/issue/TEEPER-83 (`main`)
 
 <!-- DEVCTX:END -->
