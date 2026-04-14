@@ -445,6 +445,28 @@ Both dev and prod live on the **same server** (SSH alias `subsbuzz`) in differen
 - Sends: `.env.prod` → `.env`, `docker-compose.yml` → `docker-compose.yml`
 - Health-checks ports `8000 / 3001 / 3000`
 
+### Emergency clean rebuild (skip docker layer cache)
+
+Normal deploys reuse docker's build cache. For the rare case where a dependency has corrupted or a base image needs a fresh pull, opt in explicitly:
+
+```bash
+NO_CACHE=1 ./deploy.sh
+NO_CACHE=1 ./promote.sh
+```
+
+Each run eats ~2 GB of server disk. Repeated unconditional `--no-cache` builds were the root cause of the April 2026 disk-pressure incident (see commit `f5ab3e8`).
+
+### Dev email-worker is opt-in (profile-gated)
+
+`docker-compose.dev.yml` puts the dev `email-worker` service behind `profiles: [workers]`. Plain `./deploy.sh` does NOT start it — intentional, so dev doesn't burn OpenAI credits or duplicate prod's 03:00 UTC digest schedule. To enable it for Celery debugging:
+
+```bash
+ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
+  docker compose -f docker-compose.dev.yml --profile workers up -d email-worker"
+```
+
+Stop again with `docker compose -f docker-compose.dev.yml stop email-worker`. Prod's worker is always on — only dev is gated.
+
 ### ⚠️ !IMPORTANT — env file source-of-truth and drift
 
 `.env.dev` and `.env.prod` are **gitignored** and live only on (a) your local machine and (b) the server. They drift if anyone edits them in only one place. `deploy.sh` and `promote.sh` treat the **local** file as source of truth and overwrite the server's copy via `rsync`.

@@ -104,6 +104,42 @@ Both `deploy.sh` (dev) and `promote.sh` (prod) run from your local machine. They
 
 See CLAUDE.md for the full deployment guide and the **!IMPORTANT** env drift warning.
 
+### Deploy operations reference
+
+**Normal deploy (uses docker layer cache — fast, ~200 MB disk churn):**
+```bash
+./deploy.sh         # → dev.subsbuzz.com
+./promote.sh        # → subsbuzz.com (prod; must be on clean main)
+```
+
+**Emergency clean rebuild (bypass layer cache — slow, ~2 GB disk per run):**
+```bash
+NO_CACHE=1 ./deploy.sh
+NO_CACHE=1 ./promote.sh
+```
+Use only when a dependency has genuinely corrupted or a base image needs refreshing. Repeated `--no-cache` rebuilds are what filled the server disk in April 2026 (see commit history).
+
+**Dev email-worker is opt-in** (gated behind `profiles: [workers]` in `docker-compose.dev.yml`). Plain `./deploy.sh` will **not** start it — this is intentional so dev doesn't burn OpenAI/Gmail credits or duplicate prod's 03:00 UTC digest schedule.
+
+To enable dev's worker when actively debugging Celery tasks:
+```bash
+ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
+  docker compose -f docker-compose.dev.yml --profile workers up -d email-worker"
+```
+
+To stop it again:
+```bash
+ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
+  docker compose -f docker-compose.dev.yml stop email-worker"
+```
+
+**Disk maintenance (if the server gets tight again):**
+```bash
+ssh subsbuzz "sudo docker image prune --all --force && \
+              sudo docker builder prune --all --force && \
+              sudo journalctl --vacuum-size=500M"
+```
+
 ## API
 
 ### Public (via API Gateway)
