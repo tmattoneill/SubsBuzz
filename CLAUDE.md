@@ -53,21 +53,20 @@ SubsBuzz is a **microservices application** for AI-powered email digest generati
 │   └── frontend/          # Production React build container
 ├── infrastructure/        # Deployment & configuration
 │   ├── nginx/            # Nginx configs (dev & prod)
-│   ├── docker/           # Docker utilities
-│   ├── scripts/          # Deployment scripts
-│   ├── postgres/         # Database init scripts
-│   └── systemd/          # Systemd service files
+│   └── postgres/         # Database init + migrate.sql
 ├── tests/                # Integration & E2E tests
-├── docs/                 # Documentation
-├── worker-test/          # Experimental remote worker (keep for now)
-├── .env.dev              # Development environment
-├── .env.prod             # Production environment
+├── docs/                 # WORKFLOW.md (end-to-end ship runbook)
+├── .env.dev              # Development secrets (gitignored)
+├── .env.prod             # Production secrets (gitignored)
 ├── .env.example          # Environment template
-├── docker-compose.yml    # Production Docker compose
+├── docker-compose.yml    # Production compose
+├── docker-compose.dev.yml # Development compose (different ports)
+├── deploy.sh             # Promote current branch → dev.subsbuzz.com
+├── promote.sh            # Promote main → subsbuzz.com (prod)
+├── start-all.sh          # Run services locally (non-Docker)
+├── stop-all.sh           # Stop local services
 ├── package.json          # Root workspace management
-├── start-all.sh          # Quick start all services
-├── stop-all.sh           # Stop all services
-└── CLAUDE.md            # This file
+└── CLAUDE.md             # This file
 ```
 
 ---
@@ -697,9 +696,9 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 ## 📚 Additional Documentation
 
 - `README.md` - Project overview
-- `docs/` - Detailed documentation
-- `infrastructure/nginx/` - Nginx configurations
-- `infrastructure/scripts/` - Deployment scripts
+- `docs/WORKFLOW.md` - End-to-end ship runbook (local → dev → prod)
+- `infrastructure/nginx/` - Nginx reverse-proxy configs (dev + prod)
+- `infrastructure/postgres/` - `init.sql` + idempotent `migrate.sql`
 - `services/*/README.md` - Service-specific documentation
 
 ---
