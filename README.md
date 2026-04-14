@@ -102,7 +102,8 @@ Individual suites: `test-database-simple.js`, `test-data-server.js`, `test-api-g
 
 Both `deploy.sh` (dev) and `promote.sh` (prod) run from your local machine. They push to GitHub, clone-or-reset the server checkout, rsync the right `.env` and `docker-compose.yml`, then rebuild containers. Dev and prod coexist on the same server on disjoint ports.
 
-See CLAUDE.md for the full deployment guide and the **!IMPORTANT** env drift warning.
+- **End-to-end ship workflow** (local → test → dev → prod): see [`docs/WORKFLOW.md`](docs/WORKFLOW.md)
+- **Service-by-service reference + env drift warning**: see `CLAUDE.md`
 
 ### Deploy operations reference
 
