@@ -113,7 +113,7 @@ ssh "$SSH_ALIAS" bash <<EOF
     set -euo pipefail
     cd "$REMOTE_DIR"
     docker compose down --remove-orphans
-    docker compose build --no-cache
+    docker compose build
     docker compose up -d
 
     echo "── Waiting for services to start ──"
