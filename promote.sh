@@ -16,8 +16,16 @@
 #   - Health-checks against prod-internal ports (8000/3001/3000).
 #
 # Run from the root of your local SubsBuzz repo.
+#
+# Emergency clean rebuild (bypass docker layer cache — use sparingly, eats
+# ~2 GB of server disk per rebuild):
+#     NO_CACHE=1 ./promote.sh
 
 set -euo pipefail
+
+# Opt-in emergency flag: NO_CACHE=1 forces `docker compose build --no-cache`.
+# Default (empty) reuses the docker layer cache, which is the sane path.
+BUILD_FLAGS="${NO_CACHE:+--no-cache}"
 
 # ── Config ────────────────────────────────────────────────────────────────────
 SSH_ALIAS="subsbuzz"
@@ -121,7 +129,7 @@ ssh "$SSH_ALIAS" bash <<EOF
     set -euo pipefail
     cd "$REMOTE_DIR"
     docker compose down --remove-orphans
-    docker compose build
+    docker compose build $BUILD_FLAGS
     docker compose up -d
 
     echo "── Waiting for services to start ──"
