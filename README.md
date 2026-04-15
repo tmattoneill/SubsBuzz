@@ -120,18 +120,16 @@ NO_CACHE=1 ./promote.sh
 ```
 Use only when a dependency has genuinely corrupted or a base image needs refreshing. Repeated `--no-cache` rebuilds are what filled the server disk in April 2026 (see commit history).
 
-**Dev email-worker is opt-in** (gated behind `profiles: [workers]` in `docker-compose.dev.yml`). Plain `./deploy.sh` will **not** start it — this is intentional so dev doesn't burn OpenAI/Gmail credits or duplicate prod's 03:00 UTC digest schedule.
+**Dev email-worker runs continuously, but with Celery Beat disabled.** `docker-compose.dev.yml` overrides the Dockerfile CMD to run `celery worker` without `--beat`, so dev doesn't fire the 03:00 UTC daily-digest cron (prod's worker — always-on with `--beat` — handles that). Manual "Generate Digest" clicks from the dev UI are still consumed by the dev worker.
 
-To enable dev's worker when actively debugging Celery tasks:
+Watch dev worker logs:
 ```bash
-ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
-  docker compose -f docker-compose.dev.yml --profile workers up -d email-worker"
+ssh subsbuzz "docker logs -f subsbuzz-dev-email-worker-1"
 ```
 
-To stop it again:
+Restart dev worker (e.g., after a code change in `services/email-worker/`):
 ```bash
-ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
-  docker compose -f docker-compose.dev.yml stop email-worker"
+ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && docker compose restart email-worker"
 ```
 
 **Disk maintenance (if the server gets tight again):**

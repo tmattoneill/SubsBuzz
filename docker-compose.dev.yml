@@ -95,11 +95,10 @@ services:
     
   # Email Worker
   email-worker:
-    # Opt-in via profile to avoid burning OpenAI/Gmail API credits on every dev deploy.
-    # Start explicitly when testing Celery tasks:
-    #   docker compose -f docker-compose.dev.yml --profile workers up -d email-worker
-    profiles:
-      - workers
+    # Dev intentionally runs worker-only (no --beat), so:
+    #   (a) the 03:00 UTC daily-digest cron does NOT fire in dev — prod's worker handles that.
+    #   (b) manual "Generate Digest" clicks from the UI still land in Celery and get consumed.
+    # Prod keeps the Dockerfile CMD (with --beat) via docker-compose.yml for its scheduled run.
     build:
       context: .
       dockerfile: services/email-worker/Dockerfile
@@ -118,6 +117,7 @@ services:
       data-server:
         condition: service_healthy
     restart: unless-stopped
+    command: ["celery", "-A", "main", "worker", "--loglevel=info", "--concurrency=2"]
     networks:
       - subsbuzz-dev-network
     

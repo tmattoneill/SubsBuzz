@@ -38,6 +38,10 @@ for port in "${PORTS[@]}"; do
     fi
 done
 
+# Celery worker has no port — kill any stale instance by process pattern
+# so re-running start-all.sh doesn't end up with two workers fighting for tasks.
+pkill -f "celery.*-A main.*worker" 2>/dev/null || true
+
 # Verify infra is up
 echo "🐘 Checking PostgreSQL on ${DB_PORT}..."
 if ! pg_isready -h localhost -p "${DB_PORT}" >/dev/null 2>&1; then
@@ -73,11 +77,14 @@ echo "   🌐 API Gateway → port ${API_GATEWAY_PORT}"
     --host 0.0.0.0 --port "${API_GATEWAY_PORT}" \
     > ../../logs/api-gateway.log 2>&1 &)
 
-# Email Worker (Celery) — optional, commented out by default. Uncomment to test
-# the digest generation loop locally. Otherwise Celery runs only on the server.
-# echo "   📧 Email Worker (Celery)"
-# (cd services/email-worker && python3 -m celery -A main worker --beat \
-#     --loglevel=info > ../../logs/email-worker.log 2>&1 &)
+# Email Worker (Celery) — worker-only, NO --beat. This mirrors
+# docker-compose.dev.yml (same concurrency, same no-beat policy), so local and
+# dev behave identically: manual "Generate Digest" clicks get consumed, but
+# the 03:00 UTC daily-digest cron only fires on prod (prod's compose keeps the
+# Dockerfile CMD, which includes --beat).
+echo "   📧 Email Worker → Celery (no beat)"
+(cd services/email-worker && python3 -m celery -A main worker \
+    --loglevel=info --concurrency=2 > ../../logs/email-worker.log 2>&1 &)
 
 # Frontend (Vite) — override port from env, do NOT use the hardcoded package.json
 echo "   🎨 Frontend → port ${UI_PORT}"
@@ -87,7 +94,7 @@ echo "   🎨 Frontend → port ${UI_PORT}"
 echo ""
 echo "✅ All services started"
 echo ""
-echo "📋 Logs: ./logs/{data-server,api-gateway,frontend}.log"
+echo "📋 Logs: ./logs/{data-server,api-gateway,email-worker,frontend}.log"
 echo "🛑 Stop: ./stop-all.sh"
 echo ""
 echo "⏳ Give services ~5s to come up, then:"
