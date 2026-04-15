@@ -786,16 +786,21 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `email/cleanup-mails`
-**Last Updated:** 14/04/2026, 10:17:16
+**Last Updated:** 15/04/2026, 07:22:15
 
 ### Active Todos
 - [ ] [high] Monitor prod digest quality — first prod digest runs 03:00 UTC (add monitored emails beforehand). Watch for reasoning_effort regression. (`main`)
 - [ ] [high] [TEEPER-81] Verify multi-user support — confirm each user has isolated Google OAuth, account data, and settings; identify any shared-state issues https://linear.app/teemo-personal-projects/issue/TEEPER-81 (`main`)
+- [ ] [high] Push email/cleanup-mails branch to remote repository (`email/cleanup-mails`)
+- [ ] [high] Create pull request to merge email/cleanup-mails into main (`email/cleanup-mails`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [IN PROGRESS] [medium] [TEEPER-42] Post-processing inbox cleanup option — toggle in profile to archive+remove from inbox after processing, OR move to a chosen label+remove from inbox https://linear.app/teemo-personal-projects/issue/TEEPER-42 (`main`)
 - [ ] [medium] [TEEPER-40] Improve monitored emails UI — currently a single long list; redesign with better visual management (search, filtering, grouping, bulk actions, etc.) https://linear.app/teemo-personal-projects/issue/TEEPER-40 (`main`)
 - [ ] [medium] [TEEPER-86] Remove Firebase from api-gateway — dead code (firebase_admin init, /auth/firebase endpoint, requirements.txt entry). Refactor not a delete. https://linear.app/teemo-personal-projects/issue/TEEPER-86 (`main`)
+- [ ] [medium] Update TEEPER-42 status from in_progress to review/complete (`email/cleanup-mails`)
+- [ ] [medium] Test the Gmail cleanup functionality in development environment (`email/cleanup-mails`)
+- [ ] [medium] Consider adding unit tests for the new cleanup configuration options (`email/cleanup-mails`)
 - [ ] [low] [TEEPER-83] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs https://linear.app/teemo-personal-projects/issue/TEEPER-83 (`main`)
 
 <!-- DEVCTX:END -->
