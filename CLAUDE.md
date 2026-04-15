@@ -12,8 +12,9 @@ SubsBuzz is a **microservices application** for AI-powered email digest generati
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Frontend      │───▶│   API Gateway    │───▶│   Data Server   │
 │   (React SPA)   │    │   (FastAPI)      │    │   (Node.js)     │
-│   Port: 5500/   │    │   Port: 8000     │    │   Port: 3001    │
-│   Docker: 3000  │    │                  │    │                 │
+│   Local: 5500   │    │   Local:  8080   │    │   Port: 3001    │
+│   Dev:   5501   │    │   Dev:    8001   │    │   (all envs)    │
+│   Prod:  3000   │    │   Prod:   8000   │    │                 │
 │                 │    │ • JWT Auth       │    │ • PostgreSQL    │
 │ • Production:   │    │ • Rate Limiting  │    │ • OpenAI API    │
 │   Docker + Nginx│    │ • Routing        │    │ • Drizzle ORM   │
@@ -73,7 +74,7 @@ SubsBuzz is a **microservices application** for AI-powered email digest generati
 
 ## ⚡ Quick Start
 
-### Development (Local)
+### Development (Local — brew services, no Docker)
 
 **Start all backend services:**
 ```bash
@@ -81,17 +82,50 @@ SubsBuzz is a **microservices application** for AI-powered email digest generati
 ```
 
 This starts:
-- Data Server on port 3001
-- API Gateway on port 8000
-- PostgreSQL (if not running)
+- Data Server on port **3001**
+- API Gateway on port **8080**
+- Frontend on port **5500**
+- PostgreSQL on 5432 / Redis on 6379 (if not running)
 
-**Manual service startup:**
+**Open the app at http://127.0.0.1:5500** — use `127.0.0.1` (not `localhost`) so the origin matches the OAuth callback host.
+
+#### ⚠️ !IMPORTANT — Local ports are GCP-constrained, do NOT change them
+
+These exact ports (`5500 / 8080 / 3001`) are pinned because they're the ones already in the GCP OAuth client's allowlist:
+- **JS origins** approved: `http://localhost:5500`, `http://127.0.0.1:5500`
+- **Redirect URI** approved: `http://127.0.0.1:8080/auth/callback`
+
+If you pick different ports, Google will reject sign-in with `redirect_uri_mismatch` and you'll have to add new URIs to GCP — which is exactly the loop we're avoiding. Do NOT confuse these with the remote dev-server ports (`5501 / 8001 / 3002`, defined in `.env.dev` for docker-compose.dev.yml).
+
+#### Local env is `.env.local`, not `.env.dev`
+
+Local dev has its own env file (gitignored) separate from the remote dev/prod ones:
+
+| File | Used by | Runs against |
+|---|---|---|
+| `.env.local` | `./start-all.sh` | brew postgres (5432) + brew redis (6379) on your Mac |
+| `.env.dev` | `./deploy.sh` → `dev.subsbuzz.com` | docker-compose.dev.yml on the remote server |
+| `.env.prod` | `./promote.sh` → `subsbuzz.com` | docker-compose.yml on the remote server |
+
+`start-all.sh` sources `.env.local` with `set -a` (so every var auto-exports to child processes) and then distributes it to `services/{data-server,api-gateway,email-worker}/.env` on every run. **The service-level `.env` files are generated artifacts — don't hand-edit them, your changes will be overwritten on next `./start-all.sh`.**
+
+If `.env.local` doesn't exist, copy `.env.dev` as a starting point and then edit:
+- `DATABASE_URL=postgresql://$(whoami)@localhost:5432/subsbuzz_dev` (brew pg has no password by default)
+- `DB_PORT=5432` / `REDIS_PORT=6379` (not 5433/6380 which are the docker ports)
+- `UI_PORT=5500` / `API_GATEWAY_PORT=8080` / `DATA_SERVER_PORT=3001` / `PORT=3001`
+- `UI_URL=http://127.0.0.1:5500` / `API_GATEWAY_URL=http://127.0.0.1:8080` / `DATA_SERVER_URL=http://localhost:3001`
+- `OAUTH_REDIRECT_URI=http://127.0.0.1:5500/auth/callback` (port 5500 — frontend serves `/auth/callback`, NOT the api-gateway)
+- `VITE_API_URL=http://127.0.0.1:8080`
+- `CORS_ORIGINS=http://localhost:5500,http://127.0.0.1:5500`
+- `ALLOW_HTTP_OAUTH=true` / `SSL_ENABLED=false`
+
+**Manual service startup** (rarely needed — `./start-all.sh` does it all):
 ```bash
 # Terminal 1 - Data Server
 cd services/data-server && npm run dev
 
-# Terminal 2 - API Gateway
-cd services/api-gateway && python3 main.py
+# Terminal 2 - API Gateway (note: 8080 locally, not 8000)
+cd services/api-gateway && python3 -m uvicorn main:app --port 8080
 
 # Terminal 3 - Email Worker (optional)
 cd services/email-worker && python3 main.py
@@ -357,20 +391,36 @@ ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
 
 ## 🔧 Environment Configuration
 
-### Development vs Production
+### Three env files — one per environment
 
-**Development:** Use `.env.dev`
+| File | Who uses it | Target |
+|---|---|---|
+| `.env.local` | `./start-all.sh` | Local Mac (brew postgres + brew redis, no Docker). Ports `5500 / 8080 / 3001`. |
+| `.env.dev` | `./deploy.sh` | `dev.subsbuzz.com` (docker-compose.dev.yml on remote). Ports `5501 / 8001 / 3002`. |
+| `.env.prod` | `./promote.sh` | `subsbuzz.com` (docker-compose.yml on remote). Ports `5500 / 8000 / 3001`. |
+
+All three are gitignored. **`.env.local` must never be edited to point at docker ports or remote URLs** — if something's broken locally, fix the code or the brew service, not `.env.local`.
+
+**Local:** Use `.env.local`
+```bash
+cp .env.example .env.local
+# Edit: DATABASE_URL=postgresql://$(whoami)@localhost:5432/subsbuzz_dev
+# Edit: ports to 5500 / 8080 / 3001 (see "Development (Local)" section above)
+./start-all.sh
+```
+
+**Remote dev:** Use `.env.dev`
 ```bash
 cp .env.example .env.dev
-# Edit .env.dev with your credentials
-./start-all.sh
+# Edit .env.dev with dev credentials (docker-compose.dev.yml ports)
+./deploy.sh
 ```
 
 **Production:** Use `.env.prod`
 ```bash
 cp .env.example .env.prod
 # Edit .env.prod with production credentials
-docker-compose up -d
+./promote.sh
 ```
 
 ### Key Environment Variables
@@ -391,7 +441,14 @@ INTERNAL_API_SECRET=service-to-service-auth-secret
 ```bash
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-your-secret
-OAUTH_REDIRECT_URI=http://localhost:8000/auth/callback
+# LOCAL: must be exactly http://127.0.0.1:5500/auth/callback
+#   — port 5500 (frontend), NOT 8080 (api-gateway).
+#   /auth/callback is served by the React SPA which then POSTs to /api/auth/oauth-callback.
+#   See services/frontend/src/pages/auth-callback.tsx. Using port 8080 gives "Not Found"
+#   because the api-gateway's route is at /api/auth/callback (with the /api prefix).
+# Remote dev: https://dev.subsbuzz.com/auth/callback  (nginx → frontend → api-gateway)
+# Prod:       https://subsbuzz.com/auth/callback
+OAUTH_REDIRECT_URI=http://127.0.0.1:5500/auth/callback
 ```
 
 **OpenAI:**
@@ -510,9 +567,9 @@ These live at `/etc/nginx/sites-enabled/...` on the server, outside `$REMOTE_DIR
 ## 🔍 Service Health Checks
 
 ```bash
-# Check all services are running
+# Local dev (./start-all.sh)
 curl http://localhost:3001/health    # Data Server
-curl http://localhost:8000/health    # API Gateway
+curl http://127.0.0.1:8080/health    # API Gateway (8080 locally, GCP-pinned)
 
 # Docker services
 docker-compose ps
@@ -641,9 +698,10 @@ The daily digest is generated by Celery beat in the email worker:
 ### Port Conflicts
 
 ```bash
-# Kill processes on specific ports
+# Kill processes on specific ports (local dev)
 lsof -ti:3001 | xargs kill -9   # Data Server
-lsof -ti:8000 | xargs kill -9   # API Gateway
+lsof -ti:8080 | xargs kill -9   # API Gateway (local; remote dev uses 8001, prod uses 8000)
+lsof -ti:5500 | xargs kill -9   # Frontend
 lsof -ti:5432 | xargs kill -9   # PostgreSQL
 
 # OR use stop script
@@ -727,20 +785,17 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `main`
+**Branch:** `email/cleanup-mails`
 **Last Updated:** 14/04/2026, 10:17:16
 
 ### Active Todos
 - [ ] [high] Monitor prod digest quality — first prod digest runs 03:00 UTC (add monitored emails beforehand). Watch for reasoning_effort regression. (`main`)
 - [ ] [high] [TEEPER-81] Verify multi-user support — confirm each user has isolated Google OAuth, account data, and settings; identify any shared-state issues https://linear.app/teemo-personal-projects/issue/TEEPER-81 (`main`)
-- [ ] [high] Fix missing export on LINEAR_API_KEY in ~/.zshrc (`main`)
-- [ ] [high] Restart Claude Code and run devctx_linear_sync with configure=true to activate auto-sync (`main`)
-- [ ] [medium] Commit the pending CLAUDE.md documentation updates (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
-- [ ] [medium] [TEEPER-42] Post-processing inbox cleanup option — toggle in profile to archive+remove from inbox after processing, OR move to a chosen label+remove from inbox https://linear.app/teemo-personal-projects/issue/TEEPER-42 (`main`)
+- [IN PROGRESS] [medium] [TEEPER-42] Post-processing inbox cleanup option — toggle in profile to archive+remove from inbox after processing, OR move to a chosen label+remove from inbox https://linear.app/teemo-personal-projects/issue/TEEPER-42 (`main`)
 - [ ] [medium] [TEEPER-40] Improve monitored emails UI — currently a single long list; redesign with better visual management (search, filtering, grouping, bulk actions, etc.) https://linear.app/teemo-personal-projects/issue/TEEPER-40 (`main`)
-- [ ] [medium] Test the Linear auto-sync functionality with a sample todo update (`main`)
+- [ ] [medium] [TEEPER-86] Remove Firebase from api-gateway — dead code (firebase_admin init, /auth/firebase endpoint, requirements.txt entry). Refactor not a delete. https://linear.app/teemo-personal-projects/issue/TEEPER-86 (`main`)
 - [ ] [low] [TEEPER-83] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs https://linear.app/teemo-personal-projects/issue/TEEPER-83 (`main`)
 
 <!-- DEVCTX:END -->

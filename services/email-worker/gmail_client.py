@@ -127,11 +127,173 @@ class GmailClient:
             return True
 
         except HttpError as e:
+            if e.resp.status == 404:
+                # Already deleted/moved — treat as a successful no-op
+                print(f"ℹ️  Archive no-op for {message_id}: message not found (already acted on)")
+                return True
+            if e.resp.status == 403:
+                print(f"⚠️  Archive refused for {message_id}: insufficient OAuth scope (need gmail.modify)")
+                return False
             print(f"❌ Gmail API error archiving message {message_id}: {e}")
             return False
         except Exception as e:
             print(f"❌ Error archiving message {message_id}: {e}")
             return False
+
+    async def mark_as_read(self, message_id: str, oauth_data: Dict[str, Any]) -> bool:
+        """
+        Mark a Gmail message as read by removing the UNREAD label.
+        Leaves the message in the inbox.
+        """
+        try:
+            credentials = self._create_credentials(oauth_data)
+            if credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+
+            service = build('gmail', 'v1', credentials=credentials)
+            service.users().messages().modify(
+                userId='me',
+                id=message_id,
+                body={'removeLabelIds': ['UNREAD']}
+            ).execute()
+            return True
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                print(f"ℹ️  mark_as_read no-op for {message_id}: message not found")
+                return True
+            if e.resp.status == 403:
+                print(f"⚠️  mark_as_read refused for {message_id}: insufficient OAuth scope (need gmail.modify)")
+                return False
+            print(f"❌ Gmail API error marking {message_id} as read: {e}")
+            return False
+        except Exception as e:
+            print(f"❌ Error marking {message_id} as read: {e}")
+            return False
+
+    async def mark_read_and_archive(self, message_id: str, oauth_data: Dict[str, Any]) -> bool:
+        """
+        Single Gmail modify call that removes both UNREAD and INBOX labels.
+        Saves a round-trip vs calling mark_as_read + archive_message separately.
+        """
+        try:
+            credentials = self._create_credentials(oauth_data)
+            if credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+
+            service = build('gmail', 'v1', credentials=credentials)
+            service.users().messages().modify(
+                userId='me',
+                id=message_id,
+                body={'removeLabelIds': ['UNREAD', 'INBOX']}
+            ).execute()
+            return True
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                print(f"ℹ️  mark_read_and_archive no-op for {message_id}: message not found")
+                return True
+            if e.resp.status == 403:
+                print(f"⚠️  mark_read_and_archive refused for {message_id}: insufficient OAuth scope")
+                return False
+            print(f"❌ Gmail API error on mark_read_and_archive for {message_id}: {e}")
+            return False
+        except Exception as e:
+            print(f"❌ Error on mark_read_and_archive for {message_id}: {e}")
+            return False
+
+    async def add_label(self, message_id: str, label_id: str, oauth_data: Dict[str, Any]) -> bool:
+        """Apply a label (by ID) to a Gmail message."""
+        try:
+            credentials = self._create_credentials(oauth_data)
+            if credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+
+            service = build('gmail', 'v1', credentials=credentials)
+            service.users().messages().modify(
+                userId='me',
+                id=message_id,
+                body={'addLabelIds': [label_id]}
+            ).execute()
+            return True
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                print(f"ℹ️  add_label no-op for {message_id}: message not found")
+                return True
+            if e.resp.status == 403:
+                print(f"⚠️  add_label refused for {message_id}: insufficient OAuth scope")
+                return False
+            print(f"❌ Gmail API error adding label {label_id} to {message_id}: {e}")
+            return False
+        except Exception as e:
+            print(f"❌ Error adding label {label_id} to {message_id}: {e}")
+            return False
+
+    async def trash_message(self, message_id: str, oauth_data: Dict[str, Any]) -> bool:
+        """
+        Move a Gmail message to Trash. Recoverable for 30 days.
+        Requires the gmail.modify OAuth scope.
+        """
+        try:
+            credentials = self._create_credentials(oauth_data)
+            if credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+
+            service = build('gmail', 'v1', credentials=credentials)
+            service.users().messages().trash(userId='me', id=message_id).execute()
+            return True
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                print(f"ℹ️  trash no-op for {message_id}: message not found (already trashed?)")
+                return True
+            if e.resp.status == 403:
+                print(f"⚠️  trash refused for {message_id}: insufficient OAuth scope (need gmail.modify)")
+                return False
+            print(f"❌ Gmail API error trashing {message_id}: {e}")
+            return False
+        except Exception as e:
+            print(f"❌ Error trashing {message_id}: {e}")
+            return False
+
+    async def get_or_create_label(self, label_name: str, oauth_data: Dict[str, Any]) -> Optional[str]:
+        """
+        Look up a Gmail label by name; create it if it doesn't exist.
+        Returns the label ID, or None on failure. No caching — the labels API is cheap
+        and self-heals if the user renames or deletes the label in Gmail.
+        """
+        try:
+            credentials = self._create_credentials(oauth_data)
+            if credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+
+            service = build('gmail', 'v1', credentials=credentials)
+
+            existing = service.users().labels().list(userId='me').execute()
+            for label in existing.get('labels', []):
+                if label.get('name') == label_name:
+                    return label.get('id')
+
+            created = service.users().labels().create(
+                userId='me',
+                body={
+                    'name': label_name,
+                    'labelListVisibility': 'labelShow',
+                    'messageListVisibility': 'show'
+                }
+            ).execute()
+            return created.get('id')
+
+        except HttpError as e:
+            if e.resp.status == 403:
+                print(f"⚠️  get_or_create_label refused for '{label_name}': insufficient OAuth scope")
+                return None
+            print(f"❌ Gmail API error on get_or_create_label('{label_name}'): {e}")
+            return None
+        except Exception as e:
+            print(f"❌ Error on get_or_create_label('{label_name}'): {e}")
+            return None
 
     async def fetch_emails(self, monitored_senders: List[str], oauth_data: Dict[str, Any], save_refreshed_token_callback=None) -> List[ParsedEmail]:
         """

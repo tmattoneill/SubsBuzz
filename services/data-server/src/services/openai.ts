@@ -23,6 +23,7 @@ export interface EmailInput {
   content: string;
   receivedAt: Date;
   originalLink?: string;
+  gmailMessageId?: string;  // Source Gmail message ID — used by the worker for post-digest cleanup
 }
 
 export interface ProcessedEmail {
@@ -36,6 +37,7 @@ export interface ProcessedEmail {
   topics: string[];    // Other articles/topics referenced
   keywords: string[];  // External links
   originalLink?: string;
+  gmailMessageId?: string;  // Persisted on digest_emails so cleanup tasks can target the source
 }
 
 export interface DigestResult {
@@ -118,7 +120,8 @@ Content: ${truncatedContent}`
       fullContent: email.content,
       topics: Array.isArray(analysis.otherTopics) ? analysis.otherTopics : [],
       keywords: Array.isArray(analysis.externalLinks) ? analysis.externalLinks : [],
-      originalLink: email.originalLink
+      originalLink: email.originalLink,
+      gmailMessageId: email.gmailMessageId
     };
 
   } catch (error: any) {
@@ -136,7 +139,8 @@ Content: ${truncatedContent}`
       fullContent: email.content,
       topics: [],
       keywords: [],
-      originalLink: email.originalLink
+      originalLink: email.originalLink,
+      gmailMessageId: email.gmailMessageId
     };
   }
 }
@@ -180,7 +184,8 @@ export async function generateDigest(userId: string, emails: EmailInput[], apiKe
         fullContent: email.fullContent,
         topics: email.topics,
         keywords: email.keywords,
-        originalLink: email.originalLink || null
+        originalLink: email.originalLink || null,
+        gmailMessageId: email.gmailMessageId || null
       };
 
       await storage.addDigestEmail(digestEmailData);

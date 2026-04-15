@@ -31,21 +31,47 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ConfigModal } from "@/components/ui/config-modal";
-import { MonitoredEmail, UserSettings } from "@/lib/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { MonitoredEmail, UserSettings, InboxCleanupAction } from "@/lib/types";
 import { apiRequest } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Mail, Key, RefreshCw, Plus, Palette } from "lucide-react";
+import { Mail, Key, RefreshCw, Plus, Palette, Trash2 } from "lucide-react";
 import { ThemeColorSelector } from "@/components/ui/theme-toggle";
 import { useTheme } from "next-themes";
 import { DashboardLayout } from "@/components/layout";
+
+// Display labels for the five inbox-cleanup actions. Kept next to the type so
+// any future action gets an obvious home.
+const CLEANUP_ACTION_LABELS: Record<InboxCleanupAction, string> = {
+  none: "Do Nothing",
+  mark_read: "Mark as Read",
+  mark_read_archive: "Mark as Read + Archive",
+  mark_read_label_archive: "Mark as Read + Apply 'SubsBuzz' Label + Archive",
+  trash: "Move to Trash",
+};
+
+// The gmail.modify scope grants all five cleanup actions. If the user's stored
+// scope includes it, no re-consent is needed.
+const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
 
 export default function Settings() {
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  // Tracks the action the user has selected but not yet confirmed — used when
+  // re-consent is required before persisting a non-'none' action.
+  const [pendingCleanupAction, setPendingCleanupAction] =
+    useState<InboxCleanupAction | null>(null);
   
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -245,6 +271,50 @@ export default function Settings() {
   const handleSettingToggle = (setting: keyof UserSettings, checked: boolean) => {
     updateSettingsMutation.mutate({ [setting]: checked });
   };
+
+  // Whether the user has already consented to the scope needed for cleanup actions.
+  const hasGmailModifyScope = (user?.scopes ?? []).includes(GMAIL_MODIFY_SCOPE);
+
+  // Handle inbox cleanup action change. Selecting 'none' persists immediately.
+  // Any other value needs gmail.modify — if the user doesn't have it yet,
+  // stage the selection and open the re-consent dialog.
+  const handleCleanupActionChange = (value: string) => {
+    const action = value as InboxCleanupAction;
+    if (action === "none" || hasGmailModifyScope) {
+      updateSettingsMutation.mutate({ inboxCleanupAction: action });
+      return;
+    }
+    setPendingCleanupAction(action);
+  };
+
+  // User confirmed the re-consent dialog — redirect to Google. On return the
+  // AuthContext will pick up the new scope via /auth/validate and we'll
+  // complete the settings write through the normal PATCH flow on next render.
+  // We also stash the pending action in sessionStorage so the post-consent
+  // page can finish the write without the user having to re-pick.
+  const handleReauthorizeConfirm = async () => {
+    if (!pendingCleanupAction) return;
+    try {
+      sessionStorage.setItem("pendingInboxCleanupAction", pendingCleanupAction);
+      const data = (await apiRequest("POST", "/api/auth/reauthorize")) as { auth_url: string };
+      window.location.href = data.auth_url;
+    } catch (error: any) {
+      toast({
+        title: "Couldn't start re-authorization",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+      setPendingCleanupAction(null);
+    }
+  };
+
+  // On return from re-consent (scope now granted), finish the pending write.
+  useEffect(() => {
+    const stashed = sessionStorage.getItem("pendingInboxCleanupAction");
+    if (!stashed || !hasGmailModifyScope) return;
+    sessionStorage.removeItem("pendingInboxCleanupAction");
+    updateSettingsMutation.mutate({ inboxCleanupAction: stashed as InboxCleanupAction });
+  }, [hasGmailModifyScope]);
   
   // Theme management
   const { setTheme, theme } = useTheme();
@@ -460,6 +530,45 @@ export default function Settings() {
           
           <Card>
             <CardHeader>
+              <CardTitle className="flex items-center">
+                <Trash2 className="mr-2 h-5 w-5 text-primary" />
+                Inbox Cleanup
+              </CardTitle>
+              <CardDescription>
+                Choose what happens to newsletters in Gmail after we've summarised them.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Select
+                value={userSettings.inboxCleanupAction || "none"}
+                onValueChange={handleCleanupActionChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an action" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CLEANUP_ACTION_LABELS) as InboxCleanupAction[]).map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {CLEANUP_ACTION_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(userSettings.inboxCleanupAction && userSettings.inboxCleanupAction !== "none") ? (
+                <p className="text-xs text-muted-foreground">
+                  Sources stay viewable in your SubsBuzz history after cleanup. "Move to Trash"
+                  is recoverable in Gmail for 30 days.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Default: digested emails stay untouched in your inbox.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Digest Preferences</CardTitle>
               <CardDescription>
                 Configure how your email digests are generated
@@ -551,6 +660,44 @@ export default function Settings() {
           onRemoveEmail={handleRemoveEmail}
           onUpdateSettings={handleUpdateSettings}
         />
+
+        {/* Re-consent gate: shown when the user picks a cleanup action that
+            requires the gmail.modify scope they haven't granted yet. */}
+        <Dialog
+          open={pendingCleanupAction !== null}
+          onOpenChange={(open) => {
+            if (!open) setPendingCleanupAction(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>One-time permission needed</DialogTitle>
+              <DialogDescription>
+                To clean up your inbox after digesting messages, SubsBuzz needs permission
+                to modify your Gmail labels and trash. Your emails stay private — we only
+                act on messages we've already digested for you. You can change this anytime
+                in{" "}
+                <a
+                  href="https://myaccount.google.com/permissions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Gmail's Connected Apps
+                </a>
+                .
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setPendingCleanupAction(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleReauthorizeConfirm}>
+                Continue to Google →
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

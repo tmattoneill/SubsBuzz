@@ -168,15 +168,15 @@ router.get('/digest-emails/:digestId', asyncHandler(async (req: Request, res: Re
 
 // Add email to digest
 router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) => {
-  const { 
-    digestId, sender, subject, receivedAt, summary, 
-    fullContent, topics, keywords, originalLink 
+  const {
+    digestId, sender, subject, receivedAt, summary,
+    fullContent, topics, keywords, originalLink, gmailMessageId
   } = req.body;
-  
+
   if (!digestId || !sender || !subject || !summary || !fullContent) {
     return res.status(400).json(apiError('Missing required fields', 'MISSING_FIELDS'));
   }
-  
+
   const newEmail = await storage.addDigestEmail({
     digestId,
     sender,
@@ -186,7 +186,8 @@ router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) =
     fullContent,
     topics: topics || [],
     keywords: keywords || [],
-    originalLink
+    originalLink,
+    gmailMessageId: gmailMessageId || null
   });
 
   return res.status(201).json(apiResponse(newEmail, 'Email added to digest'));

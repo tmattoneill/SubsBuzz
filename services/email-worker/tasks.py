@@ -228,9 +228,12 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
         processed_emails = []
         for email in emails:
             try:
-                # Convert ParsedEmail dataclass to dict for processing
+                # Convert ParsedEmail dataclass to dict for processing.
+                # gmail_message_id is persisted to digest_emails so post-digest cleanup
+                # tasks can act on the source Gmail message.
                 email_dict = {
                     'id': email.id,
+                    'gmail_message_id': email.id,
                     'sender': email.sender,
                     'subject': email.subject,
                     'received_at': email.received_at,
@@ -250,21 +253,46 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
                 continue
 
         logger.info("Content extraction complete user=%s emails=%d", user_id, len(processed_emails))
-        
+
+        # Snapshot the user's inbox-cleanup preference BEFORE kicking off the digest,
+        # so a mid-flight settings change can't cause unexpected cleanup actions.
+        cleanup_action = 'none'
+        cleanup_label_name = 'SubsBuzz'
+        try:
+            settings_response = await data_server.get(f'/api/storage/user-settings/{user_id}')
+            settings = settings_response.get('data') or {}
+            cleanup_action = settings.get('inboxCleanupAction') or 'none'
+            cleanup_label_name = settings.get('inboxCleanupLabelName') or 'SubsBuzz'
+        except Exception as e:
+            logger.warning("Could not load cleanup settings user=%s (defaulting to 'none'): %s", user_id, e)
+
         # Send processed emails to data server for digest generation
         digest_payload = {
             'user_id': user_id,
             'emails': processed_emails
         }
-        
+
         digest_response = await data_server.post('/api/digest/create', digest_payload)
         digest_result = digest_response.get('data', {})
-        
+
+        # Enqueue per-message cleanup tasks (snapshot action + label into task args).
+        # Per-message for retry isolation — one failed message doesn't block the rest.
+        if cleanup_action != 'none':
+            enqueued = 0
+            for processed in processed_emails:
+                gmail_id = processed.get('gmail_message_id')
+                if not gmail_id:
+                    continue
+                cleanup_digest_email.delay(user_id, gmail_id, cleanup_action, cleanup_label_name)
+                enqueued += 1
+            logger.info("Enqueued %d cleanup tasks user=%s action=%s", enqueued, user_id, cleanup_action)
+
         return {
             'emails_processed': len(processed_emails),
             'digest_created': True,
             'digest_id': digest_result.get('id'),
-            'topics_identified': digest_result.get('topicsIdentified', 0)
+            'topics_identified': digest_result.get('topicsIdentified', 0),
+            'cleanup_action': cleanup_action,
         }
         
     except Exception as e:
@@ -385,6 +413,105 @@ async def _archive_email_async(user_id: str, gmail_message_id: str) -> Dict[str,
         logger.error("_archive_email_async failed user=%s message_id=%s: %s", user_id, gmail_message_id, e, exc_info=True)
         raise
 
+# Actions supported by the inbox-cleanup feature. Keep in sync with:
+# - services/data-server/src/db/schema.ts (userSettings.inboxCleanupAction default)
+# - services/api-gateway/routes/settings.py (SettingsUpdateRequest validation)
+CLEANUP_ACTIONS = {'none', 'mark_read', 'mark_read_archive', 'mark_read_label_archive', 'trash'}
+
+@app.task(bind=True, retry_kwargs={'max_retries': 2, 'countdown': 30})
+def cleanup_digest_email(self, user_id: str, gmail_message_id: str, action: str, label_name: str = 'SubsBuzz'):
+    """
+    Post-digest cleanup of a source Gmail message.
+    Action + label_name are snapshotted at enqueue time so the task is immune
+    to mid-flight settings changes. See process_user_emails_async for the enqueue site.
+    """
+    try:
+        logger.info(
+            "Cleanup user=%s message_id=%s action=%s task_id=%s",
+            user_id, gmail_message_id, action, self.request.id
+        )
+        return asyncio.run(_cleanup_digest_email_async(user_id, gmail_message_id, action, label_name))
+    except Exception as exc:
+        logger.error(
+            "Cleanup task failed user=%s message_id=%s action=%s: %s",
+            user_id, gmail_message_id, action, exc, exc_info=True
+        )
+        raise self.retry(exc=exc)
+
+async def _cleanup_digest_email_async(
+    user_id: str,
+    gmail_message_id: str,
+    action: str,
+    label_name: str
+) -> Dict[str, Any]:
+    """Async implementation of per-message cleanup."""
+    if action == 'none':
+        return {'success': True, 'action': 'none', 'skipped': True}
+
+    if action not in CLEANUP_ACTIONS:
+        logger.warning("Unknown cleanup action=%s user=%s — skipping", action, user_id)
+        return {'success': False, 'action': action, 'error': 'unknown_action'}
+
+    try:
+        oauth_response = await data_server.get(f'/api/storage/oauth-token/{user_id}')
+        oauth_data = oauth_response.get('data')
+
+        if not oauth_data:
+            logger.warning("No OAuth token for cleanup user=%s", user_id)
+            return {'success': False, 'action': action, 'error': 'no_oauth_token'}
+
+        # Scope guard: non-'none' actions all require gmail.modify. If the stored scope
+        # predates the feature (gmail.readonly only), log a warning and no-op rather than
+        # hammering Gmail with guaranteed-403 requests.
+        granted_scope = (oauth_data.get('scope') or '')
+        if 'gmail.modify' not in granted_scope and 'mail.google.com' not in granted_scope:
+            logger.warning(
+                "Skipping cleanup user=%s action=%s: stored OAuth scope lacks gmail.modify (has='%s')",
+                user_id, action, granted_scope
+            )
+            return {'success': False, 'action': action, 'error': 'insufficient_scope'}
+
+        success = False
+
+        if action == 'mark_read':
+            success = await gmail_client.mark_as_read(gmail_message_id, oauth_data)
+
+        elif action == 'mark_read_archive':
+            # Single Gmail modify call removes both UNREAD and INBOX labels.
+            success = await gmail_client.mark_read_and_archive(gmail_message_id, oauth_data)
+
+        elif action == 'mark_read_label_archive':
+            label_id = await gmail_client.get_or_create_label(label_name, oauth_data)
+            if not label_id:
+                logger.warning(
+                    "Cleanup could not resolve label='%s' user=%s message_id=%s — skipping label step",
+                    label_name, user_id, gmail_message_id
+                )
+                # Fall back to mark_read_archive — the user still gets the cleanup effect.
+                success = await gmail_client.mark_read_and_archive(gmail_message_id, oauth_data)
+            else:
+                # Label first (additive, safe even if later steps no-op), then read+archive.
+                label_ok = await gmail_client.add_label(gmail_message_id, label_id, oauth_data)
+                archive_ok = await gmail_client.mark_read_and_archive(gmail_message_id, oauth_data)
+                success = label_ok and archive_ok
+
+        elif action == 'trash':
+            success = await gmail_client.trash_message(gmail_message_id, oauth_data)
+
+        if success:
+            logger.info("Cleanup done user=%s message_id=%s action=%s", user_id, gmail_message_id, action)
+        else:
+            logger.warning("Cleanup returned False user=%s message_id=%s action=%s", user_id, gmail_message_id, action)
+
+        return {'success': success, 'action': action, 'message_id': gmail_message_id}
+
+    except Exception as e:
+        logger.error(
+            "_cleanup_digest_email_async failed user=%s message_id=%s action=%s: %s",
+            user_id, gmail_message_id, action, e, exc_info=True
+        )
+        raise
+
 @app.task(bind=True, retry_kwargs={'max_retries': 2, 'countdown': 60})
 def scan_for_newsletters(self, user_id: str):
     """
@@ -427,4 +554,4 @@ async def _scan_for_newsletters_async(user_id: str) -> Dict[str, Any]:
 
 # Register tasks with Celery
 if __name__ == '__main__':
-    logger.info("Available Celery tasks: generate_daily_digests, process_user_emails, refresh_oauth_tokens, scan_for_newsletters")
+    logger.info("Available Celery tasks: generate_daily_digests, process_user_emails, refresh_oauth_tokens, archive_email, cleanup_digest_email, scan_for_newsletters")
