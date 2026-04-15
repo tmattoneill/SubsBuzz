@@ -180,6 +180,30 @@ def process_user_emails(self, user_id: str):
 async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
     """Async implementation of user email processing"""
     try:
+        # Idempotency guard: skip if a digest already exists for today (UTC).
+        # Defence-in-depth against (a) duplicate cron invocations, (b) manual
+        # spam-clicks of "Generate Digest", and (c) past instances of the
+        # storage.getUsersWithMonitoredEmails Nx-loop bug. Without this, each
+        # repeat run incurs full Gmail + OpenAI cost and overwrites the prior
+        # digest in place (storage.createEmailDigest deletes-and-replaces on
+        # same-day collision, masking the duplication in the data).
+        today_str = datetime.utcnow().strftime('%Y-%m-%d')
+        try:
+            await data_server.get(f'/api/storage/email-digest/{user_id}/date/{today_str}')
+            logger.info("Digest already exists user=%s date=%s — skipping", user_id, today_str)
+            return {
+                'emails_processed': 0,
+                'digest_created': False,
+                'reason': 'already_processed_today',
+            }
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 404:
+                # Real error (5xx, auth, etc.) — log and bail rather than
+                # silently proceeding into a possibly-duplicate run.
+                logger.error("Idempotency check failed user=%s status=%d: %s", user_id, e.response.status_code, e)
+                raise
+            # 404 = no digest yet today — proceed normally.
+
         # Get user's monitored emails
         monitored_response = await data_server.get(f'/api/storage/monitored-emails/{user_id}')
         monitored_emails = monitored_response.get('data', [])
