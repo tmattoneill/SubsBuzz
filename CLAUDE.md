@@ -797,8 +797,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `email/cleanup-mails`
-**Last Updated:** 15/04/2026, 19:45:58
+**Branch:** `main`
+**Last Updated:** 15/04/2026, 22:45:24
 
 ### Active Todos
 - [ ] [critical] BUG (critical): getUsersWithMonitoredEmails in services/data-server/src/services/storage.ts:464 returns one row per (user_id, sender) pair due to GROUP BY (user_id, email), so the daily-digest cron loops N times for one user (N = their monitored-sender count). Causes Nx duplicate digest runs in prod @ 03:00 UTC. Fix: SELECT DISTINCT user_id, join users for the user email, GROUP BY user_id only. Also check prod email_digests/thematic_digests cardinality to assess past damage. (`main`)
@@ -808,6 +808,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] Create pull request to merge email/cleanup-mails into main (`email/cleanup-mails`)
 - [ ] [high] UNCOMMITTED: docker-compose.dev.yml + CLAUDE.md + README.md + docs/WORKFLOW.md have pending edits on this branch. Change = remove `profiles: [workers]` gating + add `command:` override so dev worker runs continuously without `--beat`. Commit message drafted; user approved the plan, awaiting explicit "commit" before running ./deploy.sh. (`email/cleanup-mails`)
 - [ ] [high] Gmail cleanup feature (TEEPER-42) reported NOT WORKING by user. Debug after deploying cleanup branch to dev. Dev digest pipeline verified healthy (digest #126 today). Check: worker logs for cleanup-specific lines, Gmail mailbox for archive/label changes after clicking Generate Digest. (`email/cleanup-mails`)
+- [ ] [high] Debug Gmail cleanup feature (TEEPER-42) - check worker logs for cleanup operations and verify Gmail archive/label changes after digest generation (`main`)
+- [ ] [high] Verify the daily-digest duplication fix in production by monitoring tomorrow's 03:00 UTC digest run for duplicate generation (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [IN PROGRESS] [medium] [TEEPER-42] Post-processing inbox cleanup option — toggle in profile to archive+remove from inbox after processing, OR move to a chosen label+remove from inbox https://linear.app/teemo-personal-projects/issue/TEEPER-42 (`main`)
@@ -819,5 +821,6 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Consider adding idempotency guard to process_user_emails_async: skip if a digest already exists for (user_id, today). Defence-in-depth against the 21x loop bug and against manual "Generate Digest" spam-clicks. services/email-worker/tasks.py:180. (`main`)
 - [ ] [low] [TEEPER-83] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs https://linear.app/teemo-personal-projects/issue/TEEPER-83 (`main`)
 - [ ] [low] Misleading log in services/email-worker/tasks.py:118 says "Found %d users with monitored emails" but the upstream query returns (user_id, sender) rows, not distinct users. Fix alongside the getUsersWithMonitoredEmails SQL fix (same PR). (`main`)
+- [ ] [low] Fix misleading log message in services/email-worker/tasks.py:118 to accurately report distinct users rather than user-sender pairs (`main`)
 
 <!-- DEVCTX:END -->
