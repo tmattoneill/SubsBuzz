@@ -72,7 +72,7 @@ export interface IStorage {
   getOAuthTokenByEmail(email: string): Promise<OAuthToken | undefined>;
   updateOAuthToken(uid: string, updates: Partial<OAuthToken>): Promise<OAuthToken | undefined>;
   getExpiringOAuthTokens(beforeDate: Date): Promise<OAuthToken[]>;
-  getUsersWithMonitoredEmails(): Promise<{ id: string; email: string; }[]>;
+  getUsersWithMonitoredEmails(): Promise<{ id: string }[]>;
   createSessionToken(uid: string): Promise<{ sessionToken: string; sessionExpiresAt: Date }>;
   validateSessionToken(sessionToken: string): Promise<{ uid: string; email: string } | null>;
   
@@ -461,17 +461,18 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUsersWithMonitoredEmails(): Promise<{ id: string; email: string; }[]> {
+  async getUsersWithMonitoredEmails(): Promise<{ id: string }[]> {
     try {
       const database = this.ensureDb();
-      // Get distinct users who have active monitored emails
-      const results = await database.select({
+      // One row per distinct user with at least one active monitored sender.
+      // Previously grouped by (user_id, email) which returned one row per
+      // (user, sender) pair — causing the daily-digest cron to invoke
+      // process_user_emails N times for a user with N senders.
+      const results = await database.selectDistinct({
         id: monitoredEmails.userId,
-        email: monitoredEmails.email
       })
       .from(monitoredEmails)
-      .where(eq(monitoredEmails.active, true))
-      .groupBy(monitoredEmails.userId, monitoredEmails.email);
+      .where(eq(monitoredEmails.active, true));
 
       return results;
     } catch (error) {
