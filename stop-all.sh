@@ -3,8 +3,9 @@
 # SubsBuzz - Stop All Services Script
 echo "🛑 Stopping SubsBuzz services..."
 
-# Load environment variables
-source .env.dev 2>/dev/null || echo "⚠️  No .env.dev found, using defaults"
+# Load environment variables (local ports live in .env.local — NOT .env.dev,
+# which targets the remote dev server with different ports 5501/8001/3002)
+source .env.local 2>/dev/null || echo "⚠️  No .env.local found, using defaults"
 
 # Define ports
 PORTS=(${UI_PORT:-5500} ${DATA_SERVER_PORT:-3001} ${API_GATEWAY_PORT:-8000})

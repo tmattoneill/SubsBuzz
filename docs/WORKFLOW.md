@@ -84,7 +84,7 @@ Uses docker layer cache by default. For a forced clean rebuild (rare — depende
 NO_CACHE=1 ./deploy.sh    # eats ~2 GB server disk per run
 ```
 
-**What gets built on dev:** frontend, api-gateway, data-server. **Not built:** `email-worker` (profile-gated — see below).
+**What gets built on dev:** frontend, api-gateway, data-server, email-worker (worker-only — `--beat` disabled, see below).
 
 **Expected output:** 5 dev containers healthy, health-checks pass on `localhost:8001 / 3002 / 5501`.
 
@@ -111,18 +111,13 @@ ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
 
 **Manual browser test:** open https://dev.subsbuzz.com, exercise the feature end-to-end. Dev uses the same Google OAuth app as prod, so you can sign in as yourself and verify login, settings, monitored emails, etc.
 
-**Testing Celery tasks on dev** (opt-in — the worker is profile-gated to avoid burning API credits):
+**Testing Celery tasks on dev.** The dev worker runs continuously but with `--beat` disabled (so it won't fire the 03:00 UTC daily cron). Manual "Generate Digest" clicks from the UI are consumed live:
 ```bash
-# Start dev worker
-ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
-  docker compose -f docker-compose.dev.yml --profile workers up -d email-worker"
-
-# Watch logs
+# Watch worker logs while clicking "Generate Digest" in the dev UI
 ssh subsbuzz "docker logs -f subsbuzz-dev-email-worker-1"
 
-# Stop when done
-ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
-  docker compose -f docker-compose.dev.yml stop email-worker"
+# Restart after a code change in services/email-worker/ (caught by next deploy, but you can bounce manually)
+ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && docker compose restart email-worker"
 ```
 
 **If something fails:**

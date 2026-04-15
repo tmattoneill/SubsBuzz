@@ -85,7 +85,10 @@ This starts:
 - Data Server on port **3001**
 - API Gateway on port **8080**
 - Frontend on port **5500**
+- **Email Worker** (Celery worker, no `--beat` — mirrors `docker-compose.dev.yml`)
 - PostgreSQL on 5432 / Redis on 6379 (if not running)
+
+The worker runs **without** `--beat`, so local doesn't fire the 03:00 UTC daily-digest cron (prod is the only env with beat, via the Dockerfile `CMD` in `docker-compose.yml`). Manual "Generate Digest" clicks from the UI are consumed by the local worker — without this, tasks silently pile up in Redis and nothing happens.
 
 **Open the app at http://127.0.0.1:5500** — use `127.0.0.1` (not `localhost`) so the origin matches the OAuth callback host.
 
@@ -512,16 +515,25 @@ NO_CACHE=1 ./promote.sh
 
 Each run eats ~2 GB of server disk. Repeated unconditional `--no-cache` builds were the root cause of the April 2026 disk-pressure incident (see commit `f5ab3e8`).
 
-### Dev email-worker is opt-in (profile-gated)
+### Dev email-worker: always running, but with Beat disabled
 
-`docker-compose.dev.yml` puts the dev `email-worker` service behind `profiles: [workers]`. Plain `./deploy.sh` does NOT start it — intentional, so dev doesn't burn OpenAI credits or duplicate prod's 03:00 UTC digest schedule. To enable it for Celery debugging:
+Dev's `email-worker` service starts with every `./deploy.sh` (no profile gating), but the dev compose file overrides the Dockerfile CMD with a `command:` that runs **`celery worker` without `--beat`**:
 
-```bash
-ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
-  docker compose -f docker-compose.dev.yml --profile workers up -d email-worker"
+```yaml
+# docker-compose.dev.yml — email-worker service
+command: ["celery", "-A", "main", "worker", "--loglevel=info", "--concurrency=2"]
 ```
 
-Stop again with `docker compose -f docker-compose.dev.yml stop email-worker`. Prod's worker is always on — only dev is gated.
+Effect:
+- Dev does **not** run the 03:00 UTC daily-digest cron — prod's worker handles that (its compose file keeps the Dockerfile CMD, which includes `--beat`).
+- Manual "Generate Digest" clicks from the dev UI enqueue `tasks.process_user_emails` and are consumed by the dev worker.
+- No OpenAI/Gmail credits burn unless someone explicitly triggers a digest via the UI.
+
+To watch worker logs or restart the dev worker:
+```bash
+ssh subsbuzz "docker logs -f subsbuzz-dev-email-worker-1"
+ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && docker compose restart email-worker"
+```
 
 ### ⚠️ !IMPORTANT — env file source-of-truth and drift
 
@@ -786,13 +798,16 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `email/cleanup-mails`
-**Last Updated:** 15/04/2026, 07:22:15
+**Last Updated:** 15/04/2026, 19:45:58
 
 ### Active Todos
+- [ ] [critical] BUG (critical): getUsersWithMonitoredEmails in services/data-server/src/services/storage.ts:464 returns one row per (user_id, sender) pair due to GROUP BY (user_id, email), so the daily-digest cron loops N times for one user (N = their monitored-sender count). Causes Nx duplicate digest runs in prod @ 03:00 UTC. Fix: SELECT DISTINCT user_id, join users for the user email, GROUP BY user_id only. Also check prod email_digests/thematic_digests cardinality to assess past damage. (`main`)
 - [ ] [high] Monitor prod digest quality — first prod digest runs 03:00 UTC (add monitored emails beforehand). Watch for reasoning_effort regression. (`main`)
 - [ ] [high] [TEEPER-81] Verify multi-user support — confirm each user has isolated Google OAuth, account data, and settings; identify any shared-state issues https://linear.app/teemo-personal-projects/issue/TEEPER-81 (`main`)
 - [ ] [high] Push email/cleanup-mails branch to remote repository (`email/cleanup-mails`)
 - [ ] [high] Create pull request to merge email/cleanup-mails into main (`email/cleanup-mails`)
+- [ ] [high] UNCOMMITTED: docker-compose.dev.yml + CLAUDE.md + README.md + docs/WORKFLOW.md have pending edits on this branch. Change = remove `profiles: [workers]` gating + add `command:` override so dev worker runs continuously without `--beat`. Commit message drafted; user approved the plan, awaiting explicit "commit" before running ./deploy.sh. (`email/cleanup-mails`)
+- [ ] [high] Gmail cleanup feature (TEEPER-42) reported NOT WORKING by user. Debug after deploying cleanup branch to dev. Dev digest pipeline verified healthy (digest #126 today). Check: worker logs for cleanup-specific lines, Gmail mailbox for archive/label changes after clicking Generate Digest. (`email/cleanup-mails`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [IN PROGRESS] [medium] [TEEPER-42] Post-processing inbox cleanup option — toggle in profile to archive+remove from inbox after processing, OR move to a chosen label+remove from inbox https://linear.app/teemo-personal-projects/issue/TEEPER-42 (`main`)
@@ -801,6 +816,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Update TEEPER-42 status from in_progress to review/complete (`email/cleanup-mails`)
 - [ ] [medium] Test the Gmail cleanup functionality in development environment (`email/cleanup-mails`)
 - [ ] [medium] Consider adding unit tests for the new cleanup configuration options (`email/cleanup-mails`)
+- [ ] [medium] Consider adding idempotency guard to process_user_emails_async: skip if a digest already exists for (user_id, today). Defence-in-depth against the 21x loop bug and against manual "Generate Digest" spam-clicks. services/email-worker/tasks.py:180. (`main`)
 - [ ] [low] [TEEPER-83] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs https://linear.app/teemo-personal-projects/issue/TEEPER-83 (`main`)
+- [ ] [low] Misleading log in services/email-worker/tasks.py:118 says "Found %d users with monitored emails" but the upstream query returns (user_id, sender) rows, not distinct users. Fix alongside the getUsersWithMonitoredEmails SQL fix (same PR). (`main`)
 
 <!-- DEVCTX:END -->
