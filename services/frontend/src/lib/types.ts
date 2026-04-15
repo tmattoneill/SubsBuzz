@@ -47,6 +47,17 @@ export interface EmailDigest {
   emails: DigestEmail[];
 }
 
+// Inbox cleanup action enum. Keep in sync with:
+// - services/data-server/src/db/schema.ts (userSettings.inboxCleanupAction)
+// - services/api-gateway/routes/settings.py (INBOX_CLEANUP_ACTIONS)
+// - services/email-worker/tasks.py (CLEANUP_ACTIONS)
+export type InboxCleanupAction =
+  | "none"
+  | "mark_read"
+  | "mark_read_archive"
+  | "mark_read_label_archive"
+  | "trash";
+
 export interface UserSettings {
   id: number;
   dailyDigestEnabled: boolean;
@@ -58,6 +69,8 @@ export interface UserSettings {
   lastName?: string | null;
   location?: string | null;
   openaiApiKey?: string | null;
+  inboxCleanupAction?: InboxCleanupAction;
+  inboxCleanupLabelName?: string | null;
 }
 
 // Thematic digest types for new meta-summary system

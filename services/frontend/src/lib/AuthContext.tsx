@@ -8,6 +8,10 @@ interface User {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  // OAuth scopes the user has granted to Google (e.g. gmail.readonly, gmail.modify).
+  // Populated by /auth/validate on mount. Used by the settings page to decide
+  // whether inbox-cleanup actions need a re-consent prompt.
+  scopes: string[];
 }
 
 interface AuthContextType {
@@ -70,14 +74,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         valid: boolean;
         uid?: string;
         email?: string;
+        scopes?: string[];
       }>('/api/auth/validate');
-      
+
       if (data.valid && data.uid) {
         setUser({
           uid: data.uid,
           email: data.email || null,
           displayName: null,
-          photoURL: null
+          photoURL: null,
+          scopes: data.scopes || [],
         });
         setToken(existingToken);
       } else {

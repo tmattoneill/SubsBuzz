@@ -24,6 +24,13 @@ router = APIRouter()
 security = HTTPBearer(auto_error=False)
 
 
+# gmail.modify covers: reading messages, changing labels (including UNREAD/INBOX),
+# creating labels, and moving messages to Trash. It's the narrowest scope that
+# supports the inbox-cleanup feature. Must be kept in sync with the scope list
+# in the GCP OAuth Consent Screen.
+GMAIL_OAUTH_SCOPES = "https://www.googleapis.com/auth/gmail.modify openid email profile"
+
+
 # Pydantic models
 class FirebaseAuthRequest(BaseModel):
     """Request model for Firebase authentication"""
@@ -138,6 +145,29 @@ class RefreshRequest(BaseModel):
     sessionToken: str
 
 
+async def _get_granted_scopes(uid: str) -> list:
+    """
+    Fetch the user's stored OAuth scope and split it into a list.
+    Returns [] on any failure — the frontend should treat an empty list as
+    "no gmail.modify" and prompt for re-consent before allowing cleanup actions.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{settings.DATA_SERVER_URL}/api/storage/oauth-token/{uid}",
+                headers={"x-internal-api-key": settings.INTERNAL_API_SECRET}
+            )
+        if not resp.is_success:
+            return []
+        token_data = resp.json().get("data", {}) or {}
+        # Data-server returns snake_case for worker compatibility; guard for both.
+        scope_str = token_data.get("scope") or token_data.get("scopes") or ""
+        return [s for s in scope_str.split() if s]
+    except Exception as e:
+        logger.warning(f"Could not fetch OAuth scopes for uid={uid}: {e}")
+        return []
+
+
 @router.post("/refresh")
 async def refresh_token(request: RefreshRequest):
     """
@@ -165,10 +195,18 @@ async def refresh_token(request: RefreshRequest):
             "email_verified": False
         })
 
+        # Include granted scopes so the settings page can decide synchronously
+        # whether to prompt for re-consent before enabling cleanup actions.
+        scopes = await _get_granted_scopes(user_data["uid"])
+
         return {
             "success": True,
             "token": new_token,
-            "user": {"uid": user_data["uid"], "email": user_data["email"]},
+            "user": {
+                "uid": user_data["uid"],
+                "email": user_data["email"],
+                "scopes": scopes,
+            },
             "message": "Token refreshed successfully"
         }
 
@@ -186,10 +224,11 @@ async def refresh_token(request: RefreshRequest):
 async def get_current_user_info(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Get current user information"""
+    """Get current user information, including currently-granted OAuth scopes."""
+    scopes = await _get_granted_scopes(current_user["uid"])
     return UserResponse(
         success=True,
-        user=current_user
+        user={**current_user, "scopes": scopes}
     )
 
 
@@ -212,16 +251,19 @@ async def validate_token(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
-    Validate if the current token is still valid
-    
-    This endpoint can be used by the frontend to check token validity
-    without retrieving user information.
+    Validate if the current token is still valid.
+
+    Called on app load. Also returns currently-granted OAuth scopes so the
+    frontend (settings page) can decide whether to prompt for re-consent
+    before allowing cleanup actions, without a second round-trip.
     """
+    scopes = await _get_granted_scopes(current_user["uid"])
     return {
         "success": True,
         "valid": True,
         "uid": current_user["uid"],
-        "email": current_user["email"]
+        "email": current_user["email"],
+        "scopes": scopes,
     }
 
 
@@ -247,7 +289,7 @@ async def gmail_access(request: GmailAccessRequest):
             "client_id": settings.GOOGLE_CLIENT_ID,
             "redirect_uri": settings.OAUTH_REDIRECT_URI,
             "response_type": "code",
-            "scope": "https://www.googleapis.com/auth/gmail.readonly openid email profile",
+            "scope": GMAIL_OAUTH_SCOPES,
             "access_type": "offline",
             "prompt": "consent",
             "state": temp_state  # Use temporary state for new users
@@ -266,6 +308,51 @@ async def gmail_access(request: GmailAccessRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate Gmail access URL"
+        )
+
+
+@router.post("/reauthorize")
+async def reauthorize(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Generate an OAuth URL that re-prompts Google for consent with the full
+    gmail.modify scope set. Used by the settings page when an existing
+    gmail.readonly user opts into an inbox-cleanup action.
+
+    include_granted_scopes=true layers the new scope on top of anything the
+    user has previously granted, so we don't lose existing grants.
+    """
+    try:
+        # Use the user's UID as the state so the callback can tie this back to them.
+        # (The callback looks up by Google's user ID from the token exchange, so state
+        # is informational here; we still include it for OAuth conformance.)
+        state = current_user["uid"]
+
+        auth_params = {
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "redirect_uri": settings.OAUTH_REDIRECT_URI,
+            "response_type": "code",
+            "scope": GMAIL_OAUTH_SCOPES,
+            "access_type": "offline",
+            "prompt": "consent",
+            "include_granted_scopes": "true",
+            "state": state,
+        }
+
+        auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(auth_params)}"
+
+        return {
+            "success": True,
+            "auth_url": auth_url,
+            "message": "Re-authorization URL generated",
+        }
+
+    except Exception as e:
+        logger.error(f"Re-authorization URL generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate re-authorization URL"
         )
 
 
@@ -328,7 +415,9 @@ async def oauth_callback(request: OAuthCallbackRequest):
                 "accessToken": tokens["access_token"],
                 "refreshToken": tokens.get("refresh_token"),
                 "expiresAt": None,  # Will be calculated by Data Server
-                "scope": "https://www.googleapis.com/auth/gmail.readonly"
+                # Record the scope Google actually granted (users can de-select scopes
+                # on the consent screen), falling back to what we requested.
+                "scope": tokens.get("scope") or GMAIL_OAUTH_SCOPES,
             }
             
             # Store tokens via Data Server

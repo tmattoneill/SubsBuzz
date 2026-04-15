@@ -71,6 +71,7 @@ export const digestEmails = pgTable("digest_emails", {
   topics: text("topics").array().notNull(),
   keywords: text("keywords").array().notNull(),
   originalLink: text("original_link"),
+  gmailMessageId: text("gmail_message_id"),  // Source Gmail message ID — required for post-processing cleanup. Nullable for pre-feature rows.
 });
 
 export const insertDigestEmailSchema = createInsertSchema(digestEmails).omit({
@@ -93,6 +94,11 @@ export const userSettings = pgTable("user_settings", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   location: text("location"),
+  // Inbox cleanup: what to do with the source Gmail message after it's digested.
+  // Enum: "none" | "mark_read" | "mark_read_archive" | "mark_read_label_archive" | "trash".
+  // Requires gmail.modify OAuth scope when set to anything other than "none".
+  inboxCleanupAction: text("inbox_cleanup_action").notNull().default("none"),
+  inboxCleanupLabelName: text("inbox_cleanup_label_name").default("SubsBuzz"),
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
@@ -102,6 +108,8 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
   emailNotificationsEnabled: true,
   themeMode: true,
   themeColor: true,
+  inboxCleanupAction: true,
+  inboxCleanupLabelName: true,
 });
 
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;

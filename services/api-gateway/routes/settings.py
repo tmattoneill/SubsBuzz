@@ -34,6 +34,23 @@ class SettingsUpdateRequest(BaseModel):
     firstName: Optional[str] = None
     lastName: Optional[str] = None
     location: Optional[str] = None
+    # Inbox cleanup — what to do with the source Gmail message after it's been digested.
+    # Validated against INBOX_CLEANUP_ACTIONS below; requires gmail.modify OAuth scope
+    # for any value other than "none".
+    inboxCleanupAction: Optional[str] = None
+    inboxCleanupLabelName: Optional[str] = None
+
+
+# Keep in sync with:
+# - services/data-server/src/db/schema.ts (userSettings.inboxCleanupAction)
+# - services/email-worker/tasks.py (CLEANUP_ACTIONS)
+INBOX_CLEANUP_ACTIONS = {
+    "none",
+    "mark_read",
+    "mark_read_archive",
+    "mark_read_label_archive",
+    "trash",
+}
 
 
 class ApiKeyRequest(BaseModel):
@@ -130,16 +147,29 @@ async def update_user_settings(
     
     # Convert request to dict, excluding None values
     update_data = {
-        key: value for key, value in request.dict().items() 
+        key: value for key, value in request.dict().items()
         if value is not None
     }
-    
+
     if not update_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No valid settings provided for update"
         )
-    
+
+    # Validate inbox cleanup action against the allowed enum.
+    # Direct callers (non-UI) can't bypass this — the data-server relies on it.
+    if "inboxCleanupAction" in update_data:
+        action = update_data["inboxCleanupAction"]
+        if action not in INBOX_CLEANUP_ACTIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Invalid inboxCleanupAction '{action}'. "
+                    f"Must be one of: {', '.join(sorted(INBOX_CLEANUP_ACTIONS))}"
+                )
+            )
+
     try:
         result = await proxy_to_data_server(
             "PATCH",

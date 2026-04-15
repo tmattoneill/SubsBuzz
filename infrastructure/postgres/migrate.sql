@@ -25,3 +25,16 @@ ALTER TABLE thematic_digests
 ALTER TABLE digest_emails
   ADD COLUMN IF NOT EXISTS source  TEXT,
   ADD COLUMN IF NOT EXISTS snippet TEXT;
+
+-- ── 2026-Q2: inbox cleanup feature (TEEPER-42) ────────────────────────────────
+-- digest_emails: persist the Gmail message ID so the worker can act on it post-digest.
+-- Nullable: pre-feature rows stay NULL and are skipped by cleanup tasks.
+ALTER TABLE digest_emails
+  ADD COLUMN IF NOT EXISTS gmail_message_id TEXT;
+
+-- user_settings: per-user choice of what to do with sources after they're digested.
+-- Action enum: 'none' | 'mark_read' | 'mark_read_archive' | 'mark_read_label_archive' | 'trash'.
+-- Default 'none' preserves existing behaviour for users who never visit settings.
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS inbox_cleanup_action     TEXT NOT NULL DEFAULT 'none',
+  ADD COLUMN IF NOT EXISTS inbox_cleanup_label_name TEXT DEFAULT 'SubsBuzz';
