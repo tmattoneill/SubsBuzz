@@ -49,6 +49,16 @@ function getClient(apiKey?: string | null): OpenAI {
   return apiKey ? new OpenAI({ apiKey }) : openai;
 }
 
+// ---------------------------------------------------------------------------
+// Model-specific gotcha — gpt-5.4-nano defaults to reasoning mode. Without
+// `reasoning_effort: 'none'` on every completion below, the model spends the
+// full `max_completion_tokens` budget on internal reasoning and returns empty
+// content (symptom: blank digests, no error — the HTTP call itself succeeds).
+// If you swap models or add a new completion call, decide per model whether
+// reasoning mode still needs to be explicitly disabled. See docs/WORKFLOW.md
+// "Non-obvious things to remember" for the broader context.
+// ---------------------------------------------------------------------------
+
 /**
  * Process individual email with OpenAI
  */

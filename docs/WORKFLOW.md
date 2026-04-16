@@ -185,6 +185,25 @@ ssh subsbuzz "cd ~/sites/subsbuzz.com && docker compose down && docker compose u
 # If still broken, revert the offending commit and re-promote.
 ```
 
+**Server-side clean rebuild (rm-rf the remote dir):**
+When `docker compose down && up` doesn't unstick it — corrupted image state, orphaned networks, layer cache that `NO_CACHE=1` can't fix — nuke the server directory and let the next `deploy.sh` / `promote.sh` rebuild from scratch. Code is in git and env is on your laptop, so nothing important lives only on the server.
+
+```bash
+# Safety belt: back up the server's .env (laptop is source of truth, but belt + braces)
+ssh subsbuzz "cp ~/sites/<env>.subsbuzz.com/.env ~/env-backup-$(date +%Y%m%d-%H%M).env"
+
+# Stop stack WITHOUT -v (keeps postgres volume intact) and delete the remote dir
+ssh subsbuzz "cd ~/sites/<env>.subsbuzz.com && docker compose down --remove-orphans"
+ssh subsbuzz "rm -rf ~/sites/<env>.subsbuzz.com"
+
+# Re-run from laptop — re-clones, rsyncs .env + compose, rebuilds
+./deploy.sh    # or ./promote.sh
+```
+
+**What survives and what doesn't:**
+- Survives: nginx configs (`/etc/nginx/sites-enabled/...`, outside `$REMOTE_DIR`), certbot/SSL certs, systemd units, the `subsbuzz_postgres_data` volume (docker-compose re-attaches by name — do NOT pass `-v` to `docker compose down` unless you want the Nuclear rollback below).
+- Does NOT survive: the server clone, built images, the docker layer cache for this project, any ad-hoc edits to the remote repo (there shouldn't be any — if there are, they're gone).
+
 **Nuclear rollback (schema corruption, DB needs reset):**
 Prod postgres volume is `subsbuzz_postgres_data`. Dropping it drops all prod data. Don't do this without a `pg_dump` first:
 ```bash
@@ -201,6 +220,7 @@ ssh subsbuzz "docker exec subsbuzz-postgres-1 pg_dump -U postgres subsbuzz" > pr
 - **Daily digest fires at 03:00 UTC** on prod only. If you add monitored emails at 02:55 UTC, they're in tonight's digest. Otherwise, tomorrow night's.
 - **Schema changes live in two places.** Drizzle (`schema.ts`) for local dev + type safety; `migrate.sql` (raw SQL) for production apply. Keep both in sync or the next `promote.sh` will fail a healthcheck.
 - **OAuth tokens persist** in the DB for 30 days (session) + refresh indefinitely. Users don't need to re-log-in after deploys.
+- **gpt-5.4-nano defaults to reasoning mode.** Every OpenAI call in `services/data-server/src/services/openai.ts` passes `reasoning_effort: 'none'`. Without it, the model burns all of `max_completion_tokens` on internal reasoning and returns empty content — symptom is blank digests, no error. Symptom is easy to miss because the HTTP call itself succeeds. When adding a new OpenAI call or swapping models, decide per model whether reasoning mode still needs to be explicitly disabled.
 - **Disk fills up.** Run `docker image prune --all --force && docker builder prune --all --force && journalctl --vacuum-size=500M` on the server if `df -h /` climbs above 80%.
 
 ## Where to look when debugging
