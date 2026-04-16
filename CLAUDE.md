@@ -798,25 +798,21 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 16/04/2026, 21:54:15
+**Last Updated:** 16/04/2026, 22:11:57
 
 ### Active Todos
-- [ ] [high] Push email/cleanup-mails branch to remote repository (`email/cleanup-mails`)
-- [ ] [high] Create pull request to merge email/cleanup-mails into main (`email/cleanup-mails`)
-- [ ] [high] UNCOMMITTED: docker-compose.dev.yml + CLAUDE.md + README.md + docs/WORKFLOW.md have pending edits on this branch. Change = remove `profiles: [workers]` gating + add `command:` override so dev worker runs continuously without `--beat`. Commit message drafted; user approved the plan, awaiting explicit "commit" before running ./deploy.sh. (`email/cleanup-mails`)
-- [ ] [high] Gmail cleanup feature (TEEPER-42) reported NOT WORKING by user. Debug after deploying cleanup branch to dev. Dev digest pipeline verified healthy (digest #126 today). Check: worker logs for cleanup-specific lines, Gmail mailbox for archive/label changes after clicking Generate Digest. (`email/cleanup-mails`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-40] Improve monitored emails UI — currently a single long list; redesign with better visual management (search, filtering, grouping, bulk actions, etc.) https://linear.app/teemo-personal-projects/issue/TEEPER-40 (`main`)
 - [ ] [medium] [TEEPER-86] Remove Firebase from api-gateway — dead code (firebase_admin init, /auth/firebase endpoint, requirements.txt entry). Refactor not a delete. https://linear.app/teemo-personal-projects/issue/TEEPER-86 (`main`)
-- [ ] [medium] Update TEEPER-42 status from in_progress to review/complete (`email/cleanup-mails`)
-- [ ] [medium] Test the Gmail cleanup functionality in development environment (`email/cleanup-mails`)
-- [ ] [medium] Consider adding unit tests for the new cleanup configuration options (`email/cleanup-mails`)
 - [ ] [medium] [TEEPER-103] Sidebar logout UX — add confirmation modal (AlertDialog) + fix cramped X-button formatting against the edge. services/frontend/src/components/layout/Sidebar.tsx:93-109. https://linear.app/teemo-personal-projects/issue/TEEPER-103 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
-- [ ] [medium] Commit the pending CLAUDE.md changes documenting this session's work (`main`)
-- [ ] [medium] Verify TEEPER-102 user session clearing is working as expected in production (`main`)
+- [ ] [medium] [TEEPER-45] Logging + monitoring + alerting for Celery beat scheduler (3AM UTC digest run — no observability currently). https://linear.app/teemo-personal-projects/issue/TEEPER-45 (`main`)
+- [ ] [medium] [TEEPER-49] Debug CSS specificity + next-themes integration timing issues (ui-overhaul branch — FOUC, theme flicker, Tailwind overrides). https://linear.app/teemo-personal-projects/issue/TEEPER-49 (`main`)
+- [ ] [medium] [TEEPER-105] Add topic/category to monitored email addresses (e.g. advertising, finance) — user-assigned tag per sender, used for digest grouping + AI context. https://linear.app/teemo-personal-projects/issue/TEEPER-105 (`main`)
+- [ ] [medium] [TEEPER-106] UI cleanup pass — audit services/frontend for dead elements (no handler/route), placeholder elements (TODO/coming soon/lorem), and redundant elements (duplicated functionality). Delete, don't comment out. https://linear.app/teemo-personal-projects/issue/TEEPER-106 (`main`)
+- [ ] [medium] [TEEPER-107] Change default landing page to latest digest (currently lands on historical stats /dashboard). Update post-login redirect in auth-callback.tsx + root route in App.tsx; fall back to stats only if no digest exists. https://linear.app/teemo-personal-projects/issue/TEEPER-107 (`main`)
 - [ ] [low] [TEEPER-83] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs https://linear.app/teemo-personal-projects/issue/TEEPER-83 (`main`)
-- [ ] [low] Delete the merged fix/clear-user-session branch locally to clean up workspace (`main`)
+- [ ] [low] [TEEPER-48] Document rm-rf-and-redeploy recovery strategy in deployment docs (when to use, steps, gotchas re nginx/certbot surviving). https://linear.app/teemo-personal-projects/issue/TEEPER-48 (`main`)
 
 <!-- DEVCTX:END -->
