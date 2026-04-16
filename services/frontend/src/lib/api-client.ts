@@ -52,6 +52,19 @@ export const tokenManager = {
   },
 };
 
+// Nuke every client-side storage key that's scoped to the signed-in user.
+// Called at the two user-transition points (sign-out in AuthContext, and the
+// OAuth callback right before new tokens are written) to stop one user's
+// onboarding / pending-action state from leaking into another user's session
+// when they share a browser profile. Do NOT call this from the silent-refresh
+// path — that's a same-user event and should preserve onboarding state.
+export const clearUserSession = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem('onboarding_step');
+  sessionStorage.removeItem('pendingInboxCleanupAction');
+};
+
 // Request interceptor
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
