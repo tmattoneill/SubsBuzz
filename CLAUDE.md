@@ -797,11 +797,10 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `fix/clear-user-session`
-**Last Updated:** 16/04/2026, 07:16:35
+**Branch:** `main`
+**Last Updated:** 16/04/2026, 21:54:15
 
 ### Active Todos
-- [ ] [high] [TEEPER-81] Verify multi-user support — confirm each user has isolated Google OAuth, account data, and settings; identify any shared-state issues https://linear.app/teemo-personal-projects/issue/TEEPER-81 (`main`)
 - [ ] [high] Push email/cleanup-mails branch to remote repository (`email/cleanup-mails`)
 - [ ] [high] Create pull request to merge email/cleanup-mails into main (`email/cleanup-mails`)
 - [ ] [high] UNCOMMITTED: docker-compose.dev.yml + CLAUDE.md + README.md + docs/WORKFLOW.md have pending edits on this branch. Change = remove `profiles: [workers]` gating + add `command:` override so dev worker runs continuously without `--beat`. Commit message drafted; user approved the plan, awaiting explicit "commit" before running ./deploy.sh. (`email/cleanup-mails`)
@@ -813,9 +812,11 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Update TEEPER-42 status from in_progress to review/complete (`email/cleanup-mails`)
 - [ ] [medium] Test the Gmail cleanup functionality in development environment (`email/cleanup-mails`)
 - [ ] [medium] Consider adding unit tests for the new cleanup configuration options (`email/cleanup-mails`)
-- [ ] [medium] [TEEPER-102] Clear client-side user-scoped storage on sign-in/sign-out transitions — add clearUserSession() helper in api-client.ts, call from AuthContext.signOut() and auth-callback.tsx before setTokens(). Closes frontend gaps surfaced by TEEPER-81 multi-user audit. https://linear.app/teemo-personal-projects/issue/TEEPER-102 (`fix/clear-user-session`)
 - [ ] [medium] [TEEPER-103] Sidebar logout UX — add confirmation modal (AlertDialog) + fix cramped X-button formatting against the edge. services/frontend/src/components/layout/Sidebar.tsx:93-109. https://linear.app/teemo-personal-projects/issue/TEEPER-103 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
+- [ ] [medium] Commit the pending CLAUDE.md changes documenting this session's work (`main`)
+- [ ] [medium] Verify TEEPER-102 user session clearing is working as expected in production (`main`)
 - [ ] [low] [TEEPER-83] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs https://linear.app/teemo-personal-projects/issue/TEEPER-83 (`main`)
+- [ ] [low] Delete the merged fix/clear-user-session branch locally to clean up workspace (`main`)
 
 <!-- DEVCTX:END -->
