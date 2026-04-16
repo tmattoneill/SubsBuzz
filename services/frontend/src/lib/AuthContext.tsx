@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api, tokenManager, ApiError } from './api-client';
+import { api, tokenManager, ApiError, clearUserSession } from './api-client';
 import { useToast } from '../hooks/use-toast';
 
 // Simple user interface without Firebase dependency
@@ -138,8 +138,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive",
       });
     } finally {
-      // Always clear tokens and user state, even if the API call fails
-      tokenManager.clearTokens();
+      // Always clear the full user session (tokens + onboarding state +
+      // pending actions), even if the API call fails. See clearUserSession
+      // in api-client.ts for why we go broader than clearTokens here.
+      clearUserSession();
       setUser(null);
       setToken(null);
     }

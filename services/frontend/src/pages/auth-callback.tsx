@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { api, tokenManager } from '@/lib/api-client';
+import { api, tokenManager, clearUserSession } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -28,6 +28,10 @@ const AuthCallback: React.FC = () => {
         });
 
         if (result.success && result.token) {
+          // Wipe any prior user's residue (tokens, onboarding step, pending
+          // inbox-cleanup action) BEFORE writing the new session. Covers the
+          // same-browser user-swap case where no sign-out happened first.
+          clearUserSession();
           // Store access token + long-lived session token (used for silent refresh)
           tokenManager.setTokens(result.token, result.sessionToken || undefined);
           
