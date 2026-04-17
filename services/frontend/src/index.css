@@ -39,6 +39,7 @@
 
   --border: 0 0% 85%;
   --input: 0 0% 85%;
+  --input-background: 0 0% 94%;
   --ring: var(--color-accent-hue) var(--color-accent-saturation) var(--color-accent-lightness);
 
   --radius: 0.75rem;
@@ -95,6 +96,7 @@
 
   --border: 0 0% 22%;
   --input: 0 0% 22%;
+  --input-background: 0 0% 22%;
   --ring: 139 53% 76%;
 
   --sidebar-background: 0 0% 14%;
@@ -146,4 +148,54 @@
 
 .tag:hover {
   opacity: 0.8;
+}
+
+/*
+ * Story-format theme scope (ui/story-format branch).
+ * Wrap the new Digest View layout in <div className="story-theme"> to opt in.
+ * Palette derived from Figma Make file YBRX1D2Hfl3y5tbFkC9O6n (theme.css).
+ */
+.story-theme {
+  --background: 36 30% 97%;
+  --foreground: 20 13% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 13% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 13% 9%;
+  --primary: 20 13% 9%;
+  --primary-foreground: 36 30% 97%;
+  --secondary: 32 29% 87%;
+  --secondary-foreground: 20 13% 9%;
+  --muted: 32 29% 87%;
+  --muted-foreground: 22 5% 40%;
+  --accent: 15 64% 60%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 348 83% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 30 15% 88%;
+  --input: 0 0% 0% / 0;
+  --input-background: 34 22% 94%;
+  --ring: 15 64% 60%;
+  --radius: 0.25rem;
+}
+
+.dark .story-theme {
+  --background: 0 0% 9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 21%;
+  --secondary: 0 0% 27%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 27%;
+  --muted-foreground: 0 0% 71%;
+  --accent: 15 64% 60%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 27%;
+  --input: 0 0% 27%;
+  --input-background: 0 0% 20%;
+  --ring: 15 64% 60%;
 }
