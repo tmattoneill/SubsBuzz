@@ -72,6 +72,7 @@ export const digestEmails = pgTable("digest_emails", {
   keywords: text("keywords").array().notNull(),
   originalLink: text("original_link"),
   gmailMessageId: text("gmail_message_id"),  // Source Gmail message ID — required for post-processing cleanup. Nullable for pre-feature rows.
+  heroImageUrl: text("hero_image_url"),      // Extracted hero image URL from email HTML. Nullable — set when worker finds a likely content image.
 });
 
 export const insertDigestEmailSchema = createInsertSchema(digestEmails).omit({

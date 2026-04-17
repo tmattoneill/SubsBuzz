@@ -24,6 +24,7 @@ export interface EmailInput {
   receivedAt: Date;
   originalLink?: string;
   gmailMessageId?: string;  // Source Gmail message ID — used by the worker for post-digest cleanup
+  heroImageUrl?: string | null;  // Hero image URL extracted from raw email HTML (worker-side)
 }
 
 export interface ProcessedEmail {
@@ -38,6 +39,7 @@ export interface ProcessedEmail {
   keywords: string[];  // External links
   originalLink?: string;
   gmailMessageId?: string;  // Persisted on digest_emails so cleanup tasks can target the source
+  heroImageUrl?: string | null;  // Passthrough from EmailInput — AI does not touch this field
 }
 
 export interface DigestResult {
@@ -131,7 +133,8 @@ Content: ${truncatedContent}`
       topics: Array.isArray(analysis.otherTopics) ? analysis.otherTopics : [],
       keywords: Array.isArray(analysis.externalLinks) ? analysis.externalLinks : [],
       originalLink: email.originalLink,
-      gmailMessageId: email.gmailMessageId
+      gmailMessageId: email.gmailMessageId,
+      heroImageUrl: email.heroImageUrl ?? null
     };
 
   } catch (error: any) {
@@ -150,7 +153,8 @@ Content: ${truncatedContent}`
       topics: [],
       keywords: [],
       originalLink: email.originalLink,
-      gmailMessageId: email.gmailMessageId
+      gmailMessageId: email.gmailMessageId,
+      heroImageUrl: email.heroImageUrl ?? null
     };
   }
 }
@@ -195,7 +199,8 @@ export async function generateDigest(userId: string, emails: EmailInput[], apiKe
         topics: email.topics,
         keywords: email.keywords,
         originalLink: email.originalLink || null,
-        gmailMessageId: email.gmailMessageId || null
+        gmailMessageId: email.gmailMessageId || null,
+        heroImageUrl: email.heroImageUrl ?? null
       };
 
       await storage.addDigestEmail(digestEmailData);
