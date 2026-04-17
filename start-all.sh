@@ -55,6 +55,17 @@ if ! redis-cli -p "${REDIS_PORT}" ping >/dev/null 2>&1; then
     brew services start redis 2>/dev/null || true
 fi
 
+# Verify Python venvs exist for both Python services. We refuse to fall back
+# to bare python3 — that was the source of today's "no module named httpx"
+# confusion on a fresh machine. See docs/DEV-MULTI-MACHINE.md for setup.
+for svc in api-gateway email-worker; do
+    if [ ! -x "services/${svc}/.venv/bin/python" ]; then
+        echo "❌ services/${svc}/.venv is missing. Bootstrap with:"
+        echo "     cd services/${svc} && uv venv --python 3.11 && uv pip install -r requirements.txt"
+        exit 1
+    fi
+done
+
 mkdir -p logs
 
 # Distribute .env.local → each service's .env so dotenv/pydantic/pythondotenv
@@ -71,9 +82,10 @@ echo "🔧 Starting services..."
 echo "   📊 Data Server → port ${DATA_SERVER_PORT}"
 (cd services/data-server && npm run dev > ../../logs/data-server.log 2>&1 &)
 
-# API Gateway (FastAPI) — pass port via CLI so PORT env var conflicts can't bite
+# API Gateway (FastAPI) — pass port via CLI so PORT env var conflicts can't bite.
+# Use the service's own .venv Python so deps stay isolated from global / pyenv.
 echo "   🌐 API Gateway → port ${API_GATEWAY_PORT}"
-(cd services/api-gateway && python3 -m uvicorn main:app \
+(cd services/api-gateway && ./.venv/bin/python -m uvicorn main:app \
     --host 0.0.0.0 --port "${API_GATEWAY_PORT}" \
     > ../../logs/api-gateway.log 2>&1 &)
 
@@ -83,7 +95,7 @@ echo "   🌐 API Gateway → port ${API_GATEWAY_PORT}"
 # the 03:00 UTC daily-digest cron only fires on prod (prod's compose keeps the
 # Dockerfile CMD, which includes --beat).
 echo "   📧 Email Worker → Celery (no beat)"
-(cd services/email-worker && python3 -m celery -A main worker \
+(cd services/email-worker && ./.venv/bin/python -m celery -A main worker \
     --loglevel=info --concurrency=2 > ../../logs/email-worker.log 2>&1 &)
 
 # Frontend (Vite) — override port from env, do NOT use the hardcoded package.json

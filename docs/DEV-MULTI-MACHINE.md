@@ -114,6 +114,33 @@ ALTER TABLE <table>
 
 Never drop data. Never alter a column in place. If you need a destructive change, write a proper up/down migration under `services/data-server/drizzle` and coordinate the deploy.
 
+## Python services need per-machine venvs
+
+The Python services (`api-gateway`, `email-worker`) do NOT run against global or pyenv Python. `start-all.sh` refuses to start them unless `services/<svc>/.venv/bin/python` exists. Bootstrap once per machine:
+
+```bash
+(cd services/api-gateway  && uv venv --python 3.11 && uv pip install -r requirements.txt)
+(cd services/email-worker && uv venv --python 3.11 && uv pip install -r requirements.txt)
+```
+
+Python 3.11 is pinned to match the Dockerfile. `lxml==4.9.3` (transitive via the email-worker) fails to compile against Python 3.13, so do not let `uv venv` fall back to the system default without `--python 3.11`.
+
+## `.env.local` has the login username baked in
+
+The DATABASE_URL inside `.env.local` contains a literal username, e.g. `postgresql://thomasoneill@localhost:5432/subsbuzz_dev`. Brew Postgres creates a role matching `$(whoami)` at install time, so the username in `.env.local` must match the role on whichever machine is running the stack.
+
+Syncthing carries `.env.local` across machines because the folder has no `.stignore` that excludes it. The simplest way to deal with this when your machines have different logins (e.g. laptop user `thomasoneill`, iMac user `moneill`) is to create a role alias on the machine whose login does NOT match:
+
+```bash
+PSQL=/opt/homebrew/opt/postgresql@15/bin/psql
+$PSQL -d postgres -c "CREATE ROLE thomasoneill WITH LOGIN SUPERUSER;"
+$PSQL -d postgres -c "ALTER DATABASE subsbuzz_dev OWNER TO thomasoneill;"
+```
+
+Once the alias exists, `.env.local` works unchanged on both machines and Syncthing can carry it without breaking anything. `REASSIGN OWNED BY moneill TO thomasoneill;` may emit an error about system-owned objects; that is harmless because SUPERUSER lets the role access everything regardless.
+
+A cleaner long-term fix is to add `.env.local` to `.stignore` and let each machine keep its own copy, but that requires coordinating the `.stignore` change so Syncthing does not overwrite one machine's correct copy with the other's during the transition.
+
 ## Known gotchas
 
 1. **`psql` is not on the default Bash PATH.** Brew installs it at `/opt/homebrew/opt/postgresql@15/bin/psql`. Interactive shells pick it up via aliases. Non-interactive tool invocations (including Claude Code's Bash) need the explicit path.
@@ -121,6 +148,7 @@ Never drop data. Never alter a column in place. If you need a destructive change
 3. **`services/*/.env` files are generated.** `start-all.sh` overwrites them on every run from `.env.local`. Hand-edits get clobbered. Change `.env.local` instead.
 4. **`drizzle-kit@0.24.2` and fresh DBs.** As documented in Scenario B above.
 5. **Local dev ports are GCP-constrained.** `5500 / 8080 / 3001` are pinned because the OAuth client has those exact origins whitelisted. Do not change them in `.env.local`. See the main `CLAUDE.md` for the full explanation.
+6. **Redis must be installed and running.** `brew install redis && brew services start redis`. The email worker will silently retry forever if Redis is down; watch `logs/email-worker.log` for `Cannot connect to redis://...` if something feels stuck.
 
 ## Recovery: I made a mess and want to start clean on this machine
 
