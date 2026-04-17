@@ -798,7 +798,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 16/04/2026, 22:11:57
+**Last Updated:** 17/04/2026, 06:31:45
 
 ### Active Todos
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
@@ -812,7 +812,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] [TEEPER-105] Add topic/category to monitored email addresses (e.g. advertising, finance) — user-assigned tag per sender, used for digest grouping + AI context. https://linear.app/teemo-personal-projects/issue/TEEPER-105 (`main`)
 - [ ] [medium] [TEEPER-106] UI cleanup pass — audit services/frontend for dead elements (no handler/route), placeholder elements (TODO/coming soon/lorem), and redundant elements (duplicated functionality). Delete, don't comment out. https://linear.app/teemo-personal-projects/issue/TEEPER-106 (`main`)
 - [ ] [medium] [TEEPER-107] Change default landing page to latest digest (currently lands on historical stats /dashboard). Update post-login redirect in auth-callback.tsx + root route in App.tsx; fall back to stats only if no digest exists. https://linear.app/teemo-personal-projects/issue/TEEPER-107 (`main`)
-- [ ] [low] [TEEPER-83] Document the gpt-5.4-nano reasoning mode discovery and fix in technical docs https://linear.app/teemo-personal-projects/issue/TEEPER-83 (`main`)
-- [ ] [low] [TEEPER-48] Document rm-rf-and-redeploy recovery strategy in deployment docs (when to use, steps, gotchas re nginx/certbot surviving). https://linear.app/teemo-personal-projects/issue/TEEPER-48 (`main`)
+- [ ] [medium] Push commit 110f0f4 to remote repository (`main`)
+- [ ] [medium] Review and commit the pending CLAUDE.md changes (`main`)
+- [ ] [low] Prioritize and schedule the newly created Linear tickets (TEEPER-105 through TEEPER-107) against existing backlog (`main`)
 
 <!-- DEVCTX:END -->
