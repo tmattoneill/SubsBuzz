@@ -102,15 +102,13 @@ To add a new palette: copy a `.palette-*` block, rename it, change the values, a
 
 ## Typography
 
-Two families, split by role.
+One family does both display and body. A serif is kept in reserve for moments that genuinely benefit from it.
 
-### Display — Crimson Pro (serif)
+### Default — Outfit (sans)
 
-Weights loaded: 400, 600, 700.
+Weights loaded: 400, 500, 600, 700. Use Outfit for everything inside the story-format theme: headlines, body, metadata, buttons, tags, navigation. Clean, geometric, reads well at every size and carries enough weight at 700 to anchor a magazine headline.
 
-Use for headlines, section titles, hero copy, and the daily brief's H1. Carries the editorial weight — this is what makes the product feel like a magazine rather than a dashboard.
-
-Tailwind utility: `font-display`.
+Tailwind utilities: `font-display` and `font-body` both resolve to Outfit today. They remain as distinct utilities so the split is easy to restore later if needed.
 
 Example:
 
@@ -118,13 +116,9 @@ Example:
 - `The Future of AI-Powered Productivity`
 - `Latest from Your Sources`
 
-### Body — Outfit (sans)
+### Reserve — Crimson Pro (serif)
 
-Weights loaded: 400, 500, 600, 700.
-
-Use for body copy, metadata, UI labels, buttons, tags, navigation. Clean, geometric, readable at small sizes.
-
-Tailwind utility: `font-body`.
+Weights loaded: 400, 600, 700. Kept loaded but not used by default. Available as `font-serif` for deliberate editorial moments — a long-form reading view, a quote, an archive page. Do not mix serif and sans within one headline or card.
 
 ### Fallback
 

@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
 import DigestView from "@/pages/digest";
+import DigestPreview from "@/pages/digest-preview";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/digest/:date" component={DigestView} />
+      <Route path="/digest-preview" component={DigestPreview} />
       <Route path="/history" component={History} />
 <Route path="/settings" component={Settings} />
       <Route path="/login" component={Login} />
