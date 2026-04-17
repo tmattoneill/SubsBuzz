@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Sparkles,
+  Newspaper,
   CalendarDays,
   Settings,
   Signal,
@@ -28,6 +29,11 @@ const navItems = [
     title: "Dashboard",
     path: "/dashboard",
     icon: Sparkles,
+  },
+  {
+    title: "Digest",
+    path: "/digest-preview",
+    icon: Newspaper,
   },
   {
     title: "History",
