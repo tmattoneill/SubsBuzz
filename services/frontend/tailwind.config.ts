@@ -14,8 +14,9 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Crimson Pro", "Georgia", "serif"],
+        display: ["Outfit", "Inter", "system-ui", "sans-serif"],
         body: ["Outfit", "Inter", "system-ui", "sans-serif"],
+        serif: ["Crimson Pro", "Georgia", "serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
