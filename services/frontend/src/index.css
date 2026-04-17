@@ -151,35 +151,54 @@
 }
 
 /*
- * Story-format theme scope (ui/story-format branch).
- * Wrap the new Digest View layout in <div className="story-theme"> to opt in.
- * Palette derived from Figma Make file YBRX1D2Hfl3y5tbFkC9O6n (theme.css).
+ * Story-format theme (ui/story-format branch).
+ * Wrap the Digest View in <div className="story-theme palette-terracotta">.
+ *
+ * Structure:
+ *   .story-theme            → palette-agnostic knobs (radius, input alpha)
+ *   .palette-*              → a swappable colour palette; composable with .story-theme
+ *
+ * To try a different palette: change `palette-terracotta` to another class
+ * (e.g. `palette-gold`). To tweak a palette in place: edit the values below.
+ * HSL format is `H S% L%` (Tailwind wraps these in hsl() at the utility).
+ * Hex in comments is for reference; convert with a tool like https://hslpicker.com.
  */
 .story-theme {
-  --background: 36 30% 97%;
-  --foreground: 20 13% 9%;
-  --card: 0 0% 100%;
+  --radius: 0.25rem;
+  --input: 0 0% 0% / 0;            /* transparent */
+}
+
+/* ============================================================
+   PALETTE: terracotta — default, derived from Figma Make
+   Cream ground, warm neutrals, terracotta accent.
+   ============================================================ */
+.palette-terracotta {
+  /* Structural (the editorial cream + warm-neutral set) */
+  --background: 36 30% 97%;          /* #faf8f5 cream */
+  --foreground: 20 13% 9%;           /* #1a1614 near-black */
+  --card: 0 0% 100%;                 /* #ffffff */
   --card-foreground: 20 13% 9%;
   --popover: 0 0% 100%;
   --popover-foreground: 20 13% 9%;
   --primary: 20 13% 9%;
   --primary-foreground: 36 30% 97%;
-  --secondary: 32 29% 87%;
+  --secondary: 32 29% 87%;           /* #e8dfd5 beige */
   --secondary-foreground: 20 13% 9%;
   --muted: 32 29% 87%;
-  --muted-foreground: 22 5% 40%;
-  --accent: 15 64% 60%;
+  --muted-foreground: 22 5% 40%;     /* #6b6460 warm grey */
+  --border: 30 15% 88%;
+  --input-background: 34 22% 94%;    /* #f3f0ec */
+
+  /* Accent (the swappable one) */
+  --accent: 15 64% 60%;              /* #d97757 terracotta */
   --accent-foreground: 0 0% 100%;
+  --ring: 15 64% 60%;
+
   --destructive: 348 83% 47%;
   --destructive-foreground: 0 0% 100%;
-  --border: 30 15% 88%;
-  --input: 0 0% 0% / 0;
-  --input-background: 34 22% 94%;
-  --ring: 15 64% 60%;
-  --radius: 0.25rem;
 }
 
-.dark .story-theme {
+.dark .palette-terracotta {
   --background: 0 0% 9%;
   --foreground: 0 0% 98%;
   --card: 0 0% 9%;
@@ -192,10 +211,108 @@
   --secondary-foreground: 0 0% 98%;
   --muted: 0 0% 27%;
   --muted-foreground: 0 0% 71%;
-  --accent: 15 64% 60%;
-  --accent-foreground: 0 0% 100%;
   --border: 0 0% 27%;
-  --input: 0 0% 27%;
   --input-background: 0 0% 20%;
+
+  --accent: 15 64% 60%;              /* terracotta survives dark mode */
+  --accent-foreground: 0 0% 100%;
   --ring: 15 64% 60%;
+}
+
+/* ============================================================
+   PALETTE: gold — bee-gold accent (tests the brand-tension question)
+   Same cream ground, but the UI accent matches the logo gold.
+   ============================================================ */
+.palette-gold {
+  --background: 36 30% 97%;
+  --foreground: 20 13% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 13% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 13% 9%;
+  --primary: 20 13% 9%;
+  --primary-foreground: 36 30% 97%;
+  --secondary: 32 29% 87%;
+  --secondary-foreground: 20 13% 9%;
+  --muted: 32 29% 87%;
+  --muted-foreground: 22 5% 40%;
+  --border: 30 15% 88%;
+  --input-background: 34 22% 94%;
+
+  --accent: 48 93% 53%;              /* ~#f5c518 bee gold */
+  --accent-foreground: 20 13% 9%;    /* dark text on gold — gold is too light for white */
+  --ring: 48 93% 53%;
+
+  --destructive: 348 83% 47%;
+  --destructive-foreground: 0 0% 100%;
+}
+
+.dark .palette-gold {
+  --background: 0 0% 9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 21%;
+  --secondary: 0 0% 27%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 27%;
+  --muted-foreground: 0 0% 71%;
+  --border: 0 0% 27%;
+  --input-background: 0 0% 20%;
+
+  --accent: 48 93% 53%;
+  --accent-foreground: 20 13% 9%;
+  --ring: 48 93% 53%;
+}
+
+/* ============================================================
+   PALETTE: forest — deep green accent on same cream ground
+   A quieter, more journalistic option. Useful comparator.
+   ============================================================ */
+.palette-forest {
+  --background: 36 30% 97%;
+  --foreground: 20 13% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 13% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 13% 9%;
+  --primary: 20 13% 9%;
+  --primary-foreground: 36 30% 97%;
+  --secondary: 32 29% 87%;
+  --secondary-foreground: 20 13% 9%;
+  --muted: 32 29% 87%;
+  --muted-foreground: 22 5% 40%;
+  --border: 30 15% 88%;
+  --input-background: 34 22% 94%;
+
+  --accent: 150 35% 30%;             /* ~#316645 forest green */
+  --accent-foreground: 0 0% 100%;
+  --ring: 150 35% 30%;
+
+  --destructive: 348 83% 47%;
+  --destructive-foreground: 0 0% 100%;
+}
+
+.dark .palette-forest {
+  --background: 0 0% 9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 21%;
+  --secondary: 0 0% 27%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 27%;
+  --muted-foreground: 0 0% 71%;
+  --border: 0 0% 27%;
+  --input-background: 0 0% 20%;
+
+  --accent: 150 45% 55%;             /* lift the forest green in dark mode */
+  --accent-foreground: 0 0% 9%;
+  --ring: 150 45% 55%;
 }
