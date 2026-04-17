@@ -38,3 +38,11 @@ ALTER TABLE digest_emails
 ALTER TABLE user_settings
   ADD COLUMN IF NOT EXISTS inbox_cleanup_action     TEXT NOT NULL DEFAULT 'none',
   ADD COLUMN IF NOT EXISTS inbox_cleanup_label_name TEXT DEFAULT 'SubsBuzz';
+
+-- ── 2026-Q2: digest_emails hero image extraction ──────────────────────────────
+-- Worker extracts a likely hero image URL from raw email HTML at ingestion time
+-- (content_extractor.extract_hero_image). Nullable: when no suitable image
+-- survives the filters (logos / tracking / masthead excluded) the field stays
+-- NULL and the frontend falls back to keyword-keyed stock imagery.
+ALTER TABLE digest_emails
+  ADD COLUMN IF NOT EXISTS hero_image_url TEXT;

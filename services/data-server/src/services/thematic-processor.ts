@@ -269,7 +269,8 @@ export async function processEmailsIntoThemes(
           fullContent: email.fullContent,
           topics: email.topics,
           keywords: email.keywords,
-          originalLink: email.originalLink || null
+          originalLink: email.originalLink || null,
+          heroImageUrl: (email as any).heroImageUrl ?? null
         });
       }
     }

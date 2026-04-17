@@ -250,6 +250,119 @@ class ContentExtractor:
         
         return final_content
     
+    # URL patterns that strongly imply tracking pixels, logos, icons, spacers, masthead crap
+    _HERO_URL_BLACKLIST = re.compile(
+        r'(pixel|tracking|beacon|open\.gif|spacer|transparent'
+        r'|1x1|analytics|googletagmanager|doubleclick'
+        r'|/logo|/avatar|/icon|/unsub|/footer)',
+        re.I,
+    )
+    # Alt-text hints the image is NOT a hero
+    _HERO_ALT_BLACKLIST = re.compile(
+        r'(logo|icon|avatar|unsubscribe|masthead|footer|header|spacer)',
+        re.I,
+    )
+    # Ancestor class/id/tag names that indicate non-content regions
+    _HERO_ANCESTOR_BLACKLIST = re.compile(
+        r'(header|footer|masthead|nav|navigation|social|unsubscribe|footer-links)',
+        re.I,
+    )
+
+    def extract_hero_image(self, raw_content: str) -> Optional[str]:
+        """
+        Pick a likely hero image URL from an email's raw HTML. Returns None when
+        nothing survives the filters. Pure HTML heuristics — no network fetches.
+
+        Filters out:
+          - data:/cid:/about: schemes (inline or broken refs)
+          - tracking/pixel/logo/icon URL patterns
+          - alt text hinting at logo/icon/avatar/unsubscribe/masthead
+          - declared dimensions <= 50 (tiny icons, spacers, pixels)
+          - ancestors that are <header>/<footer>/<nav>, or classes/ids matching
+            header/footer/masthead/nav/social/unsubscribe
+
+        Selection order among survivors:
+          1. First <img> with declared width >= 600 (in document order — hero is
+             usually near the top of newsletter content)
+          2. Largest by declared area (width * height), when dimensions exist
+          3. First survivor with no dimension hints (common for responsive heroes)
+        """
+        if not raw_content or not self._contains_html(raw_content):
+            return None
+
+        try:
+            soup = BeautifulSoup(raw_content, 'html.parser')
+        except Exception as e:
+            print(f"⚠️  Hero image extraction: HTML parse failed: {e}")
+            return None
+
+        candidates = []
+        for img in soup.find_all('img'):
+            src = (img.get('src') or '').strip()
+            if not src:
+                continue
+            if src.startswith(('data:', 'cid:', 'about:')):
+                continue
+            if self._HERO_URL_BLACKLIST.search(src):
+                continue
+
+            alt = img.get('alt') or ''
+            if alt and self._HERO_ALT_BLACKLIST.search(alt):
+                continue
+
+            # Parse declared dimensions (attrs only — no image download)
+            def _dim(val):
+                try:
+                    return int(str(val).replace('px', '').strip() or 0)
+                except (ValueError, TypeError):
+                    return 0
+
+            width = _dim(img.get('width', 0))
+            height = _dim(img.get('height', 0))
+
+            # Too small to be a hero
+            if (0 < width <= 50) or (0 < height <= 50):
+                continue
+
+            # Walk ancestors looking for header/footer/nav regions
+            bad_ancestor = False
+            for ancestor in img.parents:
+                if getattr(ancestor, 'name', None) in ('header', 'footer', 'nav'):
+                    bad_ancestor = True
+                    break
+                classes = ' '.join(ancestor.get('class', []) or []) if hasattr(ancestor, 'get') else ''
+                elem_id = ancestor.get('id', '') if hasattr(ancestor, 'get') else ''
+                if classes and self._HERO_ANCESTOR_BLACKLIST.search(classes):
+                    bad_ancestor = True
+                    break
+                if elem_id and self._HERO_ANCESTOR_BLACKLIST.search(elem_id):
+                    bad_ancestor = True
+                    break
+            if bad_ancestor:
+                continue
+
+            # Normalise protocol-relative URLs; drop relative paths we can't resolve
+            if src.startswith('//'):
+                src = 'https:' + src
+            elif not src.startswith(('http://', 'https://')):
+                continue
+
+            candidates.append({'src': src, 'width': width, 'height': height})
+
+        if not candidates:
+            return None
+
+        for c in candidates:
+            if c['width'] >= 600:
+                return c['src']
+
+        with_area = [c for c in candidates if c['width'] and c['height']]
+        if with_area:
+            with_area.sort(key=lambda c: c['width'] * c['height'], reverse=True)
+            return with_area[0]['src']
+
+        return candidates[0]['src']
+
     def _strip_html_tags(self, content: str) -> str:
         """Remove HTML tags from content"""
         return re.sub(r'<[^>]*>', ' ', content)

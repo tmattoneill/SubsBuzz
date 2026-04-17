@@ -265,11 +265,18 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
                     'original_link': email.original_link
                 }
 
+                # Extract hero image BEFORE replacing content with plain text
+                # (hero extraction needs the original HTML; content extraction strips it)
+                hero_image_url = content_extractor.extract_hero_image(email_dict['content'])
+                if hero_image_url:
+                    logger.info("hero_image extracted for %s: %s", email.id, hero_image_url)
+
                 # Extract and clean content
                 extracted_content = await content_extractor.extract_newsletter_content(email_dict['content'])
 
-                # Update email with extracted content
+                # Update email with extracted content + hero image URL
                 email_dict['content'] = extracted_content
+                email_dict['hero_image_url'] = hero_image_url
                 processed_emails.append(email_dict)
 
             except Exception as e:
