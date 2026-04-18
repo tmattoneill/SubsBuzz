@@ -5,7 +5,8 @@ export interface HeroArticleData {
   id: string;
   title: string;
   summary: string;
-  image: string;
+  /** Optional hero image URL. When absent, the hero shows a gradient plate. */
+  image?: string | null;
   topic: string;
   date: string;
   readTime: string;
@@ -27,13 +28,17 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
     >
       <div className="grid md:grid-cols-2 gap-0">
         <div className="relative h-[400px] md:h-[500px] overflow-hidden">
-          <motion.img
-            src={article.image}
-            alt={article.title}
-            className="absolute inset-0 w-full h-full object-cover"
-            whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          />
+          {article.image ? (
+            <motion.img
+              src={article.image}
+              alt={article.title}
+              className="absolute inset-0 w-full h-full object-cover"
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary via-muted to-accent/20" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0" />
 
           <div className="absolute top-6 left-6">
@@ -69,9 +74,10 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
             {article.title}
           </h3>
 
-          <p className="font-body text-lg text-foreground/80 mb-8 leading-relaxed">
-            {article.summary}
-          </p>
+          <div
+            className="font-body text-lg text-foreground/80 mb-8 leading-relaxed line-clamp-[8] [&>*+*]:mt-3 [&_h3]:font-display [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-foreground"
+            dangerouslySetInnerHTML={{ __html: article.summary }}
+          />
 
           <div className="flex flex-wrap gap-2 mb-8">
             {article.tags.map((tag) => (

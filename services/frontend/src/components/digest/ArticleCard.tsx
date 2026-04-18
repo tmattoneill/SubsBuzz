@@ -5,7 +5,8 @@ export interface ArticleCardData {
   id: string;
   title: string;
   excerpt: string;
-  image: string;
+  /** Optional hero image URL. When absent, the card shows a gradient plate. */
+  image?: string | null;
   topic: string;
   date: string;
   readTime: string;
@@ -34,13 +35,17 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="relative h-[60%] overflow-hidden">
-        <motion.img
-          src={article.image}
-          alt={article.title}
-          className="absolute inset-0 w-full h-full object-cover"
-          whileHover={{ scale: 1.08 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        />
+        {article.image ? (
+          <motion.img
+            src={article.image}
+            alt={article.title}
+            className="absolute inset-0 w-full h-full object-cover"
+            whileHover={{ scale: 1.08 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary via-muted to-accent/20" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
         <div className="absolute top-4 left-4">

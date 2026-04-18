@@ -125,6 +125,22 @@ class ContentExtractor:
         Advanced email HTML content extraction
         Extracted from server/gmail.ts extractFromEmailHTML function
         """
+        # Step 0: Re-parse with <style>/<script> stripped at the string level.
+        # html.parser occasionally preserves <style> text as siblings on Substack's
+        # online-view pages (CSS-in-JS / inline-styled pullquote blocks), causing
+        # @media { ... } blocks to leak into the final text. Strip before parsing.
+        stripped = re.sub(
+            r'<(style|script|noscript)\b[^>]*>.*?</\1\s*>',
+            '',
+            raw_content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if stripped != raw_content:
+            try:
+                soup = BeautifulSoup(stripped, 'html.parser')
+            except Exception:
+                pass  # keep the caller's soup
+
         # Step 1: Aggressively remove all non-content elements
         for element in soup(['script', 'style', 'noscript', 'meta', 'link']):
             element.decompose()
@@ -374,7 +390,14 @@ class ContentExtractor:
         """
         if not text:
             return ''
-        
+
+        # Strip CSS blocks that survive HTML parsing (seen in Substack online-view
+        # pages where <style> content leaked through as text nodes).
+        # Matches @media/@font-face/@keyframes wrappers and standalone selector { ... }
+        # declarations. Done before whitespace collapsing so the DOTALL pass still works.
+        text = re.sub(r'@(media|font-face|keyframes|supports|import|charset)[^{]*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', '', text, flags=re.DOTALL)
+        text = re.sub(r'(?:^|\n)\s*[.#][\w\-,\s.#:>+~\[\]()"\'=]+\s*\{[^{}]{0,2000}\}', '', text, flags=re.DOTALL)
+
         # Remove multiple consecutive whitespace
         text = re.sub(r'\s+', ' ', text)
         
