@@ -12,7 +12,8 @@ export interface ArticleViewData {
   title: string;
   summary?: string;
   content: string;
-  image: string;
+  /** Optional hero image URL. When absent, a gradient plate is shown. */
+  image?: string | null;
   topic: string;
   date: string;
   readTime: string;
@@ -76,11 +77,15 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
         animate={{ scale: 1 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
       >
-        <img
-          src={article.image}
-          alt={article.title}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        {article.image ? (
+          <img
+            src={article.image}
+            alt={article.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary via-muted to-accent/20" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
 
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 max-w-4xl w-full px-6">
@@ -126,14 +131,13 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
           </motion.h1>
 
           {article.summary && (
-            <motion.p
-              className="font-display text-xl text-foreground/80 mb-8 leading-relaxed"
+            <motion.div
+              className="font-display text-xl text-foreground/80 mb-8 leading-relaxed [&>*+*]:mt-4 [&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mt-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mt-1"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              {article.summary}
-            </motion.p>
+              dangerouslySetInnerHTML={{ __html: article.summary }}
+            />
           )}
 
           <motion.div

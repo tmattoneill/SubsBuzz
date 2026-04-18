@@ -36,6 +36,7 @@ export interface DigestEmail {
   topics: string[];
   keywords: string[];
   originalLink?: string;
+  heroImageUrl?: string | null;  // Extracted from raw email HTML by email-worker. NULL for pre-feature rows.
   isExpanded?: boolean;
 }
 
