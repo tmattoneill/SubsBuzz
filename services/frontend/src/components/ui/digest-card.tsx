@@ -9,6 +9,7 @@ import {
 import { DigestEmail } from "@/lib/types";
 import { getTopicColors, formatTime, getSenderInitials, getSenderFaviconUrl, extractGmailMessageId } from "@/lib/utils";
 import { api } from "@/lib/api-client";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import {
   Star,
   StarOff,
@@ -134,7 +135,14 @@ export function DigestCard({ email, onToggleFavorite }: DigestCardProps) {
         </div>
         
         <div className={`mt-4 border-t dark:border-gray-700 pt-4 text-sm text-gray-500 dark:text-gray-400 leading-relaxed overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[1000px]' : 'max-h-0 border-t-0 pt-0 mt-0'}`}>
-          <div className="break-words" dangerouslySetInnerHTML={{ __html: email.fullContent.replace(/\n/g, '<br/>') }} />
+          <div
+            className="break-words"
+            dangerouslySetInnerHTML={{
+              __html: email.summaryHtml
+                ? sanitizeHtml(email.summaryHtml)
+                : `<p>${sanitizeHtml(email.summary)}</p>`,
+            }}
+          />
           
           {email.originalLink && (
             <div className="mt-4">

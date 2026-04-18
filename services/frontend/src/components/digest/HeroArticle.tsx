@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Clock, Mail, ArrowRight } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize-html';
 
 export interface HeroArticleData {
   id: string;
@@ -76,7 +77,7 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
 
           <div
             className="font-body text-lg text-foreground/80 mb-8 leading-relaxed line-clamp-[8] [&>*+*]:mt-3 [&_h3]:font-display [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-foreground"
-            dangerouslySetInnerHTML={{ __html: article.summary }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.summary) }}
           />
 
           <div className="flex flex-wrap gap-2 mb-8">

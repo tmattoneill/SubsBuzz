@@ -25,6 +25,15 @@ function topicFor(email: DigestEmail): string {
   return email.source?.trim() || email.sender.split("@")[0] || "Newsletter";
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function emailToCard(email: DigestEmail): ArticleCardData {
   return {
     id: String(email.id),
@@ -33,29 +42,26 @@ function emailToCard(email: DigestEmail): ArticleCardData {
     image: email.heroImageUrl ?? null,
     topic: topicFor(email),
     date: email.receivedAt,
-    readTime: computeReadTime(email.fullContent),
+    readTime: computeReadTime(email.summaryHtml ?? email.summary),
     tags: email.topics?.slice(0, 4) ?? [],
   };
 }
 
 function emailToView(email: DigestEmail): ArticleViewData {
-  // Render plain-text fullContent as simple paragraphs. Real HTML support later.
-  const paragraphs = (email.fullContent || email.summary)
-    .split(/\n{2,}/)
-    .filter((p) => p.trim().length > 0)
-    .map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`)
-    .join("");
+  const body = email.summaryHtml
+    ? email.summaryHtml
+    : `<p>${escapeHtml(email.summary)}</p>`;
 
   return {
     id: String(email.id),
     title: email.subject,
-    summary: email.summary,
-    content: paragraphs || `<p>${email.summary}</p>`,
+    content: body,
     image: email.heroImageUrl ?? null,
     topic: topicFor(email),
     date: email.receivedAt,
-    readTime: computeReadTime(email.fullContent),
+    readTime: computeReadTime(email.summaryHtml ?? email.summary),
     tags: email.topics ?? [],
+    originalLink: email.originalLink ?? null,
   };
 }
 
@@ -94,14 +100,19 @@ function thematicToView(
   d: FullThematicDigest,
   emails: DigestEmail[],
 ): ArticleViewData {
-  // Render each section's theme + summary as an H2 + paragraph block.
+  // Render the daily summary as the deck, then each section's theme + summary
+  // as an h3 + paragraph block. ArticleView splits on the first h3 to place
+  // the hero image between deck and sections.
+  const deck = d.dailySummary ? `<p>${d.dailySummary}</p>` : "";
   const sections = (d.sections ?? [])
     .slice()
     .sort((a, b) => a.order - b.order)
     .map(
-      (s) => `<h2>${s.theme}</h2>\n<p>${(s.summary || "").replace(/\n{2,}/g, "</p><p>")}</p>`,
+      (s) => `<h3>${s.theme}</h3>\n<p>${(s.summary || "").replace(/\n{2,}/g, "</p><p>")}</p>`,
     )
     .join("\n\n");
+
+  const content = [deck, sections].filter(Boolean).join("\n\n") || `<p>${d.dailySummary ?? ""}</p>`;
 
   const sources: ArticleSource[] = emails.slice(0, 10).map((e) => ({
     name: topicFor(e),
@@ -114,8 +125,7 @@ function thematicToView(
   return {
     id: `thematic-${d.id}`,
     title: "Your Daily Intelligence Brief",
-    summary: d.dailySummary,
-    content: sections || `<p>${d.dailySummary ?? ""}</p>`,
+    content,
     image: heroImage,
     topic: "Meta Summary",
     date: d.date,

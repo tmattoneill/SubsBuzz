@@ -169,7 +169,7 @@ router.get('/digest-emails/:digestId', asyncHandler(async (req: Request, res: Re
 // Add email to digest
 router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) => {
   const {
-    digestId, sender, subject, receivedAt, summary,
+    digestId, sender, subject, receivedAt, summary, summaryHtml,
     fullContent, topics, keywords, originalLink, gmailMessageId
   } = req.body;
 
@@ -183,6 +183,7 @@ router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) =
     subject,
     receivedAt: new Date(receivedAt),
     summary,
+    summaryHtml: summaryHtml ?? null,
     fullContent,
     topics: topics || [],
     keywords: keywords || [],

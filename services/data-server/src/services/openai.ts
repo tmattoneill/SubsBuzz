@@ -33,7 +33,8 @@ export interface ProcessedEmail {
   subject: string;
   receivedAt: Date;
   snippet: string;     // ≤25-word summary
-  summary: string;
+  summary: string;     // ≤100-word plain-text — used for cards and excerpts
+  summaryHtml: string | null;  // ~300–400-word HTML body (h3/p/ul/li/strong/em) — rendered as the article body
   fullContent: string;
   topics: string[];    // Other articles/topics referenced
   keywords: string[];  // External links
@@ -79,7 +80,7 @@ export async function processEmailWithAI(email: EmailInput, apiKey?: string | nu
           role: 'system',
           content: `You are a helpful assistant who scans and summarises email newsletters from specific senders.
 
-Style: Concise and professional. Maintain the tone of the original email. If in doubt, be concise.
+Style: Concise and professional. Maintain the tone of the original email. If in doubt, be concise. Write in British English.
 
 Processing rules:
 - IGNORE anything to do with subscriptions, marketing, signing up, or other promotional items
@@ -91,7 +92,8 @@ Return JSON with exactly these fields:
   "source": "Sender display name (not the email address — e.g. 'The Washington Post', not 'info@e.mail.washingtonpost.com')",
   "subject": "Email subject, or write a short descriptive subject if missing",
   "snippet": "25 words or less — the single most important point",
-  "summary": "The main point(s) in fewer than 100 words, focusing on content not promotional material",
+  "summary": "The main point(s) in fewer than 100 words, plain text, focusing on content not promotional material. Used for card excerpts.",
+  "summaryHtml": "300–400 words of valid HTML rendering the article as an editorial read. Structure: one short opening <p> paragraph (the lead), then 2–3 <h3> section headings each followed by a <p> body. Use <ul>/<li> for genuine lists only, <strong> and <em> sparingly for emphasis. No <h1>, no <h2>, no <h4>+, no <div>, no <span>, no <img>, no <script>, no <style>, no inline style attributes, no class attributes. Plain prose. Do not quote the email verbatim — summarise and synthesise.",
   "otherTopics": ["other article or topic referenced in this email"],
   "externalLinks": ["relevant external link or URL mentioned"]
 }`
@@ -105,7 +107,7 @@ Content: ${truncatedContent}`
         }
       ],
       temperature: 0.7,
-      max_completion_tokens: 700,
+      max_completion_tokens: 1800,
       reasoning_effort: 'none'
     } as any);
 
@@ -129,6 +131,9 @@ Content: ${truncatedContent}`
       receivedAt: email.receivedAt,
       snippet: analysis.snippet || '',
       summary: analysis.summary,
+      summaryHtml: typeof analysis.summaryHtml === 'string' && analysis.summaryHtml.trim().length > 0
+        ? analysis.summaryHtml
+        : null,
       fullContent: email.content,
       topics: Array.isArray(analysis.otherTopics) ? analysis.otherTopics : [],
       keywords: Array.isArray(analysis.externalLinks) ? analysis.externalLinks : [],
@@ -149,6 +154,7 @@ Content: ${truncatedContent}`
       receivedAt: email.receivedAt,
       snippet: email.subject,
       summary: `Email from ${email.sender} regarding ${email.subject}`,
+      summaryHtml: null,
       fullContent: email.content,
       topics: [],
       keywords: [],
@@ -195,6 +201,7 @@ export async function generateDigest(userId: string, emails: EmailInput[], apiKe
         receivedAt: email.receivedAt,
         snippet: email.snippet || null,
         summary: email.summary,
+        summaryHtml: email.summaryHtml ?? null,
         fullContent: email.fullContent,
         topics: email.topics,
         keywords: email.keywords,

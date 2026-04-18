@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/button";
 import { FullThematicDigest, ThematicSectionWithSourceEmails } from "@/lib/types";
 import { getTopicColors, formatTime, getSenderInitials, getSenderFaviconUrl } from "@/lib/utils";
-import { 
-  ChevronDown, 
+import {
+  ChevronDown,
   ChevronUp,
   ExternalLink,
   Mail
 } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 interface ThematicDigestProps {
   digest: FullThematicDigest;
@@ -77,7 +78,7 @@ function SourceEmailRow({ sourceEmail }: { sourceEmail: { email: { sender: strin
       </h5>
 
       <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed break-words">
-        {email.snippet || email.summary}
+        {email.summary}
       </p>
     </div>
   );
@@ -223,7 +224,7 @@ export function ThematicDigest({ digest }: ThematicDigestProps) {
           {digest.dailySummary && (
             <div
               className="prose prose-sm dark:prose-invert max-w-none border-t border-blue-200 dark:border-gray-600 pt-3 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-1 [&_p]:leading-relaxed [&_ul]:mt-1 [&_li]:text-sm"
-              dangerouslySetInnerHTML={{ __html: digest.dailySummary }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(digest.dailySummary) }}
             />
           )}
         </CardContent>
