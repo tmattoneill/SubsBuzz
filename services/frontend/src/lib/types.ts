@@ -31,7 +31,8 @@ export interface DigestEmail {
   subject: string;
   receivedAt: string;
   snippet?: string;    // ≤25-word summary
-  summary: string;
+  summary: string;     // ≤100-word plain-text — used for cards and excerpts
+  summaryHtml?: string | null;  // Rich ~300–400-word HTML body. Null for pre-feature rows; frontend falls back to wrapping `summary` in <p>.
   fullContent: string;
   topics: string[];
   keywords: string[];

@@ -66,7 +66,8 @@ export const digestEmails = pgTable("digest_emails", {
   subject: text("subject").notNull(),
   receivedAt: timestamp("received_at").notNull(),
   snippet: text("snippet"),           // 25-word summary
-  summary: text("summary").notNull(),
+  summary: text("summary").notNull(),  // ≤100-word plain-text summary — used for cards and excerpts
+  summaryHtml: text("summary_html"),   // Rich ~300–400-word HTML body (h3/p/ul/li/strong/em) — rendered as the article. Nullable for pre-feature rows.
   fullContent: text("full_content").notNull(),
   topics: text("topics").array().notNull(),
   keywords: text("keywords").array().notNull(),

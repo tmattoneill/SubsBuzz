@@ -46,3 +46,12 @@ ALTER TABLE user_settings
 -- NULL and the frontend falls back to keyword-keyed stock imagery.
 ALTER TABLE digest_emails
   ADD COLUMN IF NOT EXISTS hero_image_url TEXT;
+
+-- ── 2026-Q2: digest_emails rich HTML article body ─────────────────────────────
+-- Per-email summaryHtml: ~300–400 words of structured HTML produced by the AI
+-- alongside the existing 100-word plain-text `summary`. Rendered as the
+-- per-article detail body in place of the raw `full_content` text (which
+-- varies wildly across senders and leaked CSS on Substack). Nullable:
+-- pre-feature rows fall back to wrapping the plain `summary` in <p>.
+ALTER TABLE digest_emails
+  ADD COLUMN IF NOT EXISTS summary_html TEXT;

@@ -64,7 +64,7 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
         </motion.div>
       </div>
 
-      <div className="p-6 h-[40%] flex flex-col">
+      <div className="p-6 h-[40%] flex flex-col overflow-hidden">
         <div className="flex items-center gap-2 font-body text-xs text-muted-foreground mb-3">
           <time>
             {new Date(article.date).toLocaleDateString('en-GB', {
@@ -79,11 +79,11 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
           </div>
         </div>
 
-        <h3 className="font-display text-xl font-bold mb-2 leading-tight line-clamp-2 group-hover:text-accent transition-colors">
+        <h3 className="font-display text-lg font-bold mb-2 leading-snug line-clamp-2 group-hover:text-accent transition-colors">
           {article.title}
         </h3>
 
-        <p className="font-body text-sm text-foreground/70 mb-3 line-clamp-2 flex-1">
+        <p className="font-body text-sm text-foreground/70 mb-3 line-clamp-2 flex-1 min-h-0">
           {article.excerpt}
         </p>
 

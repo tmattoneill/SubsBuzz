@@ -266,6 +266,7 @@ export async function processEmailsIntoThemes(
           subject: email.subject,
           receivedAt: email.receivedAt,
           summary: email.summary,
+          summaryHtml: (email as any).summaryHtml ?? null,
           fullContent: email.fullContent,
           topics: email.topics,
           keywords: email.keywords,

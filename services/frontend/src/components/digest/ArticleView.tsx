@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, Mail, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Clock, Mail, ChevronRight, ExternalLink } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize-html';
 
 export interface ArticleSource {
   name: string;
@@ -10,7 +11,6 @@ export interface ArticleSource {
 export interface ArticleViewData {
   id: string;
   title: string;
-  summary?: string;
   content: string;
   /** Optional hero image URL. Rendered inline below the header when present. */
   image?: string | null;
@@ -20,6 +20,8 @@ export interface ArticleViewData {
   tags: string[];
   emailCount?: number;
   sources?: ArticleSource[];
+  /** Link back to the source newsletter. Rendered as "View original" below the body. */
+  originalLink?: string | null;
 }
 
 interface ArticleViewProps {
@@ -27,9 +29,9 @@ interface ArticleViewProps {
   onBack: () => void;
 }
 
-// Split the summary HTML at the first heading (h2/h3) so we can render the
+// Split the body HTML at the first heading (h2/h3) so we can render the
 // lead/deck before the hero image and the sectioned body after it.
-function splitSummaryAtFirstHeading(html: string): { deck: string; rest: string } {
+function splitContentAtFirstHeading(html: string): { deck: string; rest: string } {
   const match = html.match(/<h[23]\b/i);
   if (!match || match.index === undefined || match.index === 0) {
     return { deck: html, rest: '' };
@@ -38,10 +40,8 @@ function splitSummaryAtFirstHeading(html: string): { deck: string; rest: string 
 }
 
 export function ArticleView({ article, onBack }: ArticleViewProps) {
-  const { deck, rest } = article.summary
-    ? splitSummaryAtFirstHeading(article.summary)
-    : { deck: '', rest: '' };
-  const summaryProseClasses =
+  const { deck, rest } = splitContentAtFirstHeading(article.content);
+  const proseClasses =
     'font-display text-lg text-foreground/80 leading-relaxed [&>*+*]:mt-3 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mt-4 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mt-1';
 
   return (
@@ -103,11 +103,11 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
 
           {deck && (
             <motion.div
-              className={`${summaryProseClasses} mb-8`}
+              className={`${proseClasses} mb-8`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              dangerouslySetInnerHTML={{ __html: deck }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(deck) }}
             />
           )}
 
@@ -124,11 +124,11 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
 
           {rest && (
             <motion.div
-              className={`${summaryProseClasses} mb-8`}
+              className={`${proseClasses} mb-8`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              dangerouslySetInnerHTML={{ __html: rest }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(rest) }}
             />
           )}
 
@@ -145,13 +145,17 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
             </div>
           )}
 
-          <motion.div
-            className="font-body prose prose-lg max-w-none"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            dangerouslySetInnerHTML={{ __html: article.content }}
-          />
+          {article.originalLink && (
+            <a
+              href={article.originalLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-body inline-flex items-center gap-2 text-sm font-medium text-accent hover:underline mb-8"
+            >
+              <ExternalLink className="size-4" />
+              View original
+            </a>
+          )}
 
           {article.sources && article.sources.length > 0 && (
             <div className="mt-12 pt-8 border-t border-border">
