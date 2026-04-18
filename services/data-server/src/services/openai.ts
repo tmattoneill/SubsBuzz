@@ -25,6 +25,7 @@ export interface EmailInput {
   originalLink?: string;
   gmailMessageId?: string;  // Source Gmail message ID — used by the worker for post-digest cleanup
   heroImageUrl?: string | null;  // Hero image URL extracted from raw email HTML (worker-side)
+  categoryId?: number | null;  // User-assigned category (TEEPER-105); resolved to name/slug snapshots at persist time
 }
 
 export interface ProcessedEmail {
@@ -41,6 +42,7 @@ export interface ProcessedEmail {
   originalLink?: string;
   gmailMessageId?: string;  // Persisted on digest_emails so cleanup tasks can target the source
   heroImageUrl?: string | null;  // Passthrough from EmailInput — AI does not touch this field
+  categoryId?: number | null;  // Passthrough from EmailInput; snapshotted at persist time
 }
 
 export interface DigestResult {
@@ -139,7 +141,8 @@ Content: ${truncatedContent}`
       keywords: Array.isArray(analysis.externalLinks) ? analysis.externalLinks : [],
       originalLink: email.originalLink,
       gmailMessageId: email.gmailMessageId,
-      heroImageUrl: email.heroImageUrl ?? null
+      heroImageUrl: email.heroImageUrl ?? null,
+      categoryId: email.categoryId ?? null
     };
 
   } catch (error: any) {
@@ -160,7 +163,8 @@ Content: ${truncatedContent}`
       keywords: [],
       originalLink: email.originalLink,
       gmailMessageId: email.gmailMessageId,
-      heroImageUrl: email.heroImageUrl ?? null
+      heroImageUrl: email.heroImageUrl ?? null,
+      categoryId: email.categoryId ?? null
     };
   }
 }
@@ -191,8 +195,17 @@ export async function generateDigest(userId: string, emails: EmailInput[], apiKe
 
     const digest = await storage.createEmailDigest(digestData);
 
+    // Bulk-resolve category snapshots once per digest. Writing the name/slug
+    // into digest_emails at create time preserves historical attribution even
+    // if the category is later renamed or deleted.
+    const categoryIds = Array.from(new Set(
+      processedEmails.map(e => e.categoryId).filter((id): id is number => typeof id === 'number')
+    ));
+    const snapshots = await storage.resolveCategorySnapshots(userId, categoryIds);
+
     // Add all processed emails to the digest
     for (const email of processedEmails) {
+      const snap = email.categoryId != null ? snapshots.get(email.categoryId) : undefined;
       const digestEmailData: InsertDigestEmail = {
         digestId: digest.id,
         sender: email.sender,
@@ -207,7 +220,10 @@ export async function generateDigest(userId: string, emails: EmailInput[], apiKe
         keywords: email.keywords,
         originalLink: email.originalLink || null,
         gmailMessageId: email.gmailMessageId || null,
-        heroImageUrl: email.heroImageUrl ?? null
+        heroImageUrl: email.heroImageUrl ?? null,
+        categoryId: email.categoryId ?? null,
+        categoryNameSnapshot: snap?.name ?? null,
+        categorySlugSnapshot: snap?.slug ?? null,
       };
 
       await storage.addDigestEmail(digestEmailData);
