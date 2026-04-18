@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Clock, ArrowUpRight } from 'lucide-react';
+import { CategoryBadge } from '@/components/categories/CategoryBadge';
 
 export interface ArticleCardData {
   id: string;
@@ -12,6 +13,9 @@ export interface ArticleCardData {
   readTime: string;
   tags: string[];
   size?: 'small' | 'medium' | 'large';
+  categoryName?: string | null;
+  categorySlug?: string | null;
+  categoryColor?: string | null;
 }
 
 interface ArticleCardProps {
@@ -65,6 +69,17 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
       </div>
 
       <div className="p-6 h-[40%] flex flex-col overflow-hidden">
+        {article.categoryName ? (
+          <div className="mb-2">
+            <CategoryBadge
+              name={article.categoryName}
+              slug={article.categorySlug ?? null}
+              color={article.categoryColor ?? null}
+              linkable={false}
+            />
+          </div>
+        ) : null}
+
         <div className="flex items-center gap-2 font-body text-xs text-muted-foreground mb-3">
           <time>
             {new Date(article.date).toLocaleDateString('en-GB', {
