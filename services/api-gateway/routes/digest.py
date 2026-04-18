@@ -384,3 +384,28 @@ async def get_available_digest_dates(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve available digest dates"
         )
+
+
+@router.get("/by-category/{slug}", response_model=DigestResponse)
+async def get_digest_emails_by_category(
+    slug: str,
+    limit: int = Query(50, ge=1, le=200),
+    before: Optional[str] = Query(None, description="ISO-8601 timestamp for cursor pagination"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """
+    Return digest_emails (articles) matching a category slug for the current user.
+    Covers both rename (FK resolves current name) and delete (snapshot slug match)
+    cases on the data-server side.
+    """
+    user_id = current_user["uid"]
+    params: Dict[str, Any] = {"limit": limit}
+    if before:
+        params["before"] = before
+
+    result = await proxy_to_data_server(
+        "GET",
+        f"storage/digests/by-category/{user_id}/{slug}",
+        params=params,
+    )
+    return DigestResponse(success=True, data={"emails": result.get("data", [])})
