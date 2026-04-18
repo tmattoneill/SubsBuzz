@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, Mail, Share2, Bookmark, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Clock, Mail, ChevronRight } from 'lucide-react';
 
 export interface ArticleSource {
   name: string;
@@ -12,7 +12,7 @@ export interface ArticleViewData {
   title: string;
   summary?: string;
   content: string;
-  /** Optional hero image URL. When absent, a gradient plate is shown. */
+  /** Optional hero image URL. Rendered inline below the header when present. */
   image?: string | null;
   topic: string;
   date: string;
@@ -27,77 +27,57 @@ interface ArticleViewProps {
   onBack: () => void;
 }
 
+// Split the summary HTML at the first heading (h2/h3) so we can render the
+// lead/deck before the hero image and the sectioned body after it.
+function splitSummaryAtFirstHeading(html: string): { deck: string; rest: string } {
+  const match = html.match(/<h[23]\b/i);
+  if (!match || match.index === undefined || match.index === 0) {
+    return { deck: html, rest: '' };
+  }
+  return { deck: html.slice(0, match.index), rest: html.slice(match.index) };
+}
+
 export function ArticleView({ article, onBack }: ArticleViewProps) {
+  const { deck, rest } = article.summary
+    ? splitSummaryAtFirstHeading(article.summary)
+    : { deck: '', rest: '' };
+  const summaryProseClasses =
+    'font-display text-lg text-foreground/80 leading-relaxed [&>*+*]:mt-3 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mt-4 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mt-1';
+
   return (
     <motion.div
-      className="min-h-screen bg-background"
+      className="min-h-full bg-background"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
     >
-      <div className="sticky top-0 z-50 backdrop-blur-lg bg-background/80 border-b border-border">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <motion.button
-            type="button"
-            onClick={onBack}
-            className="font-body flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors"
-            whileHover={{ x: -4 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ArrowLeft className="size-5" />
-            <span className="font-medium">Back</span>
-          </motion.button>
+      <div className="max-w-3xl mx-auto px-6 pt-6 pb-16">
+        <motion.button
+          type="button"
+          onClick={onBack}
+          className="font-body mb-6 inline-flex items-center gap-2 text-sm text-foreground/70 hover:text-foreground transition-colors"
+          whileHover={{ x: -4 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ArrowLeft className="size-4" />
+          <span className="font-medium">Back to digest</span>
+        </motion.button>
 
-          <div className="flex items-center gap-3">
-            <motion.button
-              type="button"
-              aria-label="Bookmark"
-              className="size-10 rounded-full bg-secondary hover:bg-accent hover:text-accent-foreground flex items-center justify-center transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Bookmark className="size-5" />
-            </motion.button>
-            <motion.button
-              type="button"
-              aria-label="Share"
-              className="size-10 rounded-full bg-secondary hover:bg-accent hover:text-accent-foreground flex items-center justify-center transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Share2 className="size-5" />
-            </motion.button>
-          </div>
-        </div>
-      </div>
-
-      <motion.div
-        className="relative h-[60vh] overflow-hidden"
-        initial={{ scale: 1.1 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      >
-        {article.image ? (
-          <img
-            src={article.image}
-            alt={article.title}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-secondary via-muted to-accent/20" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 max-w-4xl w-full px-6">
-          <span className="font-body inline-block px-4 py-2 rounded-full bg-accent text-accent-foreground text-sm font-medium">
+        <article>
+          <span className="font-body inline-block text-xs font-semibold uppercase tracking-widest text-accent mb-4">
             {article.topic}
           </span>
-        </div>
-      </motion.div>
 
-      <div className="max-w-4xl mx-auto px-6 -mt-32 relative z-10">
-        <article className="bg-card rounded-2xl border border-border p-8 md:p-12 shadow-2xl">
-          <div className="font-body flex items-center gap-4 text-sm text-muted-foreground mb-8">
+          <motion.h1
+            className="font-display text-3xl md:text-4xl font-bold mb-4 leading-tight"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+          >
+            {article.title}
+          </motion.h1>
+
+          <div className="font-body flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-6 pb-6 border-b border-border">
             <time>
               {new Date(article.date).toLocaleDateString('en-GB', {
                 month: 'long',
@@ -105,87 +85,88 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
                 year: 'numeric',
               })}
             </time>
-            <span>•</span>
+            <span className="opacity-60">•</span>
             <div className="flex items-center gap-1">
               <Clock className="size-4" />
               <span>{article.readTime}</span>
             </div>
-            {article.emailCount && (
+            {article.emailCount ? (
               <>
-                <span>•</span>
+                <span className="opacity-60">•</span>
                 <div className="flex items-center gap-1">
                   <Mail className="size-4" />
                   <span>{article.emailCount} sources</span>
                 </div>
               </>
-            )}
+            ) : null}
           </div>
 
-          <motion.h1
-            className="font-display text-4xl md:text-6xl font-bold mb-6 leading-tight"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            {article.title}
-          </motion.h1>
-
-          {article.summary && (
+          {deck && (
             <motion.div
-              className="font-display text-xl text-foreground/80 mb-8 leading-relaxed [&>*+*]:mt-4 [&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mt-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mt-1"
-              initial={{ opacity: 0, y: 20 }}
+              className={`${summaryProseClasses} mb-8`}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              dangerouslySetInnerHTML={{ __html: article.summary }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              dangerouslySetInnerHTML={{ __html: deck }}
             />
           )}
 
-          <motion.div
-            className="flex flex-wrap gap-2 mb-12 pb-12 border-b border-border"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            {article.tags.map((tag) => (
-              <span
-                key={tag}
-                className="font-body px-3 py-1 rounded-full bg-secondary text-sm text-secondary-foreground"
-              >
-                {tag}
-              </span>
-            ))}
-          </motion.div>
+          {article.image && (
+            <motion.img
+              src={article.image}
+              alt={article.title}
+              className="w-full rounded-xl mb-8 max-h-[480px] object-cover"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+            />
+          )}
+
+          {rest && (
+            <motion.div
+              className={`${summaryProseClasses} mb-8`}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              dangerouslySetInnerHTML={{ __html: rest }}
+            />
+          )}
+
+          {article.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-8">
+              {article.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="font-body px-3 py-1 rounded-full bg-secondary text-sm text-secondary-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
 
           <motion.div
-            className="font-body prose prose-lg max-w-none mb-12"
-            initial={{ opacity: 0, y: 20 }}
+            className="font-body prose prose-lg max-w-none"
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
 
           {article.sources && article.sources.length > 0 && (
-            <motion.div
-              className="mt-16 pt-12 border-t border-border"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-            >
-              <h3 className="font-display text-2xl font-bold mb-6">
+            <div className="mt-12 pt-8 border-t border-border">
+              <h3 className="font-display text-xl font-bold mb-4">
                 Sources Analysed ({article.sources.length})
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {article.sources.map((source, index) => (
-                  <motion.div
+                  <div
                     key={`${source.name}-${index}`}
                     className="p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer group"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.7 + index * 0.1 }}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-1">
                           <Mail className="size-4 text-accent" />
                           <span className="font-body font-medium text-foreground">
                             {source.name}
@@ -203,15 +184,13 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
                       </div>
                       <ChevronRight className="size-5 text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all" />
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           )}
         </article>
       </div>
-
-      <div className="h-24" />
     </motion.div>
   );
 }

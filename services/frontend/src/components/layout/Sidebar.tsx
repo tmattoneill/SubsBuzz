@@ -12,10 +12,8 @@ import {
   CalendarDays,
   Settings,
   Signal,
-  MailPlus,
   Menu,
   X,
-  RefreshCw,
   Bot,
   Lightbulb,
   Archive,
@@ -121,27 +119,12 @@ export function Sidebar() {
 
   const sidebarSurface = (
     <aside className="flex h-full w-72 flex-col border-r border-sidebar-border bg-sidebar p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <MailPlus className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">SubsBuzz</p>
-            <h1 className="text-lg font-semibold text-sidebar-foreground">Digest Control</h1>
-          </div>
-        </div>
-        {!isMobile ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 border-dashed"
-            onClick={() => navigate("/dashboard")}
-          >
-            <RefreshCw className="h-4 w-4" />
-            New digest
-          </Button>
-        ) : null}
+      <div className="mb-6">
+        <img
+          src="/logo.png"
+          alt="SubsBuzz"
+          className="h-auto w-40 object-contain"
+        />
       </div>
 
       <ScrollArea className="flex-1">
@@ -241,15 +224,11 @@ export function Sidebar() {
   return (
     <>
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <MailPlus className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">SubsBuzz</p>
-            <p className="text-sm font-semibold text-foreground">Digest Control</p>
-          </div>
-        </div>
+        <img
+          src="/logo.png"
+          alt="SubsBuzz"
+          className="h-9 w-9 rounded-lg object-contain"
+        />
         <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)}>
           <Menu className="h-5 w-5" />
         </Button>
