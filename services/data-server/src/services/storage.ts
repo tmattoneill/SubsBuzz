@@ -9,6 +9,7 @@ import {
   monitoredEmails,
   emailDigests,
   digestEmails,
+  emailCategories,
   userSettings,
   oauthTokens,
   thematicDigests,
@@ -20,6 +21,8 @@ import {
   type InsertEmailDigest,
   type DigestEmail,
   type InsertDigestEmail,
+  type EmailCategory,
+  type InsertEmailCategory,
   type UserSettings,
   type InsertUserSettings,
   type OAuthToken,
@@ -33,8 +36,9 @@ import {
   type FullThematicDigest
 } from '../db/schema.js';
 import { db } from '../db';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, or, lt, sql, inArray } from 'drizzle-orm';
 import { createHash, randomUUID } from 'crypto';
+import { DEFAULT_CATEGORIES } from './category-defaults.js';
 
 // Helper function to generate userId from email
 export function getUserId(email: string): string {
@@ -42,10 +46,20 @@ export function getUserId(email: string): string {
 }
 
 export interface IStorage {
+  // Email categories
+  getEmailCategories(userId: string): Promise<EmailCategory[]>;
+  getEmailCategory(userId: string, id: number): Promise<EmailCategory | undefined>;
+  createEmailCategory(category: InsertEmailCategory): Promise<EmailCategory>;
+  updateEmailCategory(userId: string, id: number, updates: Partial<Pick<EmailCategory, 'name' | 'color' | 'sortOrder'>>): Promise<EmailCategory | undefined>;
+  deleteEmailCategory(userId: string, id: number): Promise<boolean>;
+  resolveCategorySnapshots(userId: string, categoryIds: number[]): Promise<Map<number, { name: string; slug: string }>>;
+  getDigestEmailsByCategorySlug(userId: string, slug: string, limit: number, before?: Date): Promise<DigestEmail[]>;
+
   // Monitored emails
   getMonitoredEmails(userId: string): Promise<MonitoredEmail[]>;
   getMonitoredEmail(id: number): Promise<MonitoredEmail | undefined>;
   addMonitoredEmail(email: InsertMonitoredEmail): Promise<MonitoredEmail>;
+  updateMonitoredEmail(userId: string, id: number, updates: Partial<Pick<MonitoredEmail, 'active' | 'categoryId'>>): Promise<MonitoredEmail | undefined>;
   removeMonitoredEmail(userId: string, id: number): Promise<void>;
   
   // Email digests
@@ -101,6 +115,159 @@ export class DatabaseStorage implements IStorage {
     return db;
   }
 
+  // Email categories methods
+  async getEmailCategories(userId: string): Promise<EmailCategory[]> {
+    const database = this.ensureDb();
+    const existing = await database.select().from(emailCategories)
+      .where(eq(emailCategories.userId, userId))
+      .orderBy(emailCategories.sortOrder, emailCategories.id);
+
+    if (existing.length > 0) return existing;
+
+    // Lazy-seed defaults the first time this user reads categories.
+    // Idempotent: guarded by the read above; concurrent first-reads race the
+    // unique (user_id, name) constraint — onConflictDoNothing absorbs it.
+    const seeded = DEFAULT_CATEGORIES.map((c) => ({
+      userId,
+      name: c.name,
+      slug: c.slug,
+      color: c.color,
+      isDefault: true,
+      sortOrder: c.sortOrder,
+    }));
+    await database.insert(emailCategories).values(seeded).onConflictDoNothing();
+
+    return await database.select().from(emailCategories)
+      .where(eq(emailCategories.userId, userId))
+      .orderBy(emailCategories.sortOrder, emailCategories.id);
+  }
+
+  async getEmailCategory(userId: string, id: number): Promise<EmailCategory | undefined> {
+    const database = this.ensureDb();
+    const results = await database.select().from(emailCategories)
+      .where(and(eq(emailCategories.id, id), eq(emailCategories.userId, userId)));
+    return results[0];
+  }
+
+  async createEmailCategory(category: InsertEmailCategory): Promise<EmailCategory> {
+    const database = this.ensureDb();
+    const results = await database.insert(emailCategories).values(category).returning();
+    return results[0];
+  }
+
+  async updateEmailCategory(
+    userId: string,
+    id: number,
+    updates: Partial<Pick<EmailCategory, 'name' | 'color' | 'sortOrder'>>
+  ): Promise<EmailCategory | undefined> {
+    const database = this.ensureDb();
+    // Slug is intentionally omitted — immutable after create so /category/:slug
+    // URLs never break on rename. Historical snapshot columns on digest_emails
+    // are similarly frozen.
+    const filtered = Object.fromEntries(
+      Object.entries(updates).filter(([, v]) => v !== undefined)
+    );
+    if (Object.keys(filtered).length === 0) {
+      return this.getEmailCategory(userId, id);
+    }
+    const results = await database.update(emailCategories)
+      .set(filtered)
+      .where(and(eq(emailCategories.id, id), eq(emailCategories.userId, userId)))
+      .returning();
+    return results[0];
+  }
+
+  async deleteEmailCategory(userId: string, id: number): Promise<boolean> {
+    const database = this.ensureDb();
+    const results = await database.delete(emailCategories)
+      .where(and(eq(emailCategories.id, id), eq(emailCategories.userId, userId)))
+      .returning({ id: emailCategories.id });
+    return results.length > 0;
+  }
+
+  async resolveCategorySnapshots(
+    userId: string,
+    categoryIds: number[]
+  ): Promise<Map<number, { name: string; slug: string }>> {
+    const map = new Map<number, { name: string; slug: string }>();
+    if (categoryIds.length === 0) return map;
+
+    const database = this.ensureDb();
+    const rows = await database.select({
+      id: emailCategories.id,
+      name: emailCategories.name,
+      slug: emailCategories.slug,
+    })
+      .from(emailCategories)
+      .where(and(
+        eq(emailCategories.userId, userId),
+        inArray(emailCategories.id, categoryIds)
+      ));
+
+    for (const r of rows) {
+      map.set(r.id, { name: r.name, slug: r.slug });
+    }
+    return map;
+  }
+
+  async getDigestEmailsByCategorySlug(
+    userId: string,
+    slug: string,
+    limit: number,
+    before?: Date
+  ): Promise<DigestEmail[]> {
+    const database = this.ensureDb();
+    // Resolve live categoryId for this user+slug (may be empty if category was
+    // deleted — the snapshot-slug branch below still covers historical rows).
+    const liveCategory = await database.select({ id: emailCategories.id })
+      .from(emailCategories)
+      .where(and(eq(emailCategories.userId, userId), eq(emailCategories.slug, slug)))
+      .limit(1);
+
+    const matchClause = liveCategory.length > 0
+      ? or(
+          eq(digestEmails.categorySlugSnapshot, slug),
+          eq(digestEmails.categoryId, liveCategory[0].id)
+        )
+      : eq(digestEmails.categorySlugSnapshot, slug);
+
+    const whereClause = before
+      ? and(
+          eq(emailDigests.userId, userId),
+          matchClause,
+          lt(digestEmails.receivedAt, before)
+        )
+      : and(eq(emailDigests.userId, userId), matchClause);
+
+    const rows = await database.select({
+      id: digestEmails.id,
+      digestId: digestEmails.digestId,
+      sender: digestEmails.sender,
+      source: digestEmails.source,
+      subject: digestEmails.subject,
+      receivedAt: digestEmails.receivedAt,
+      snippet: digestEmails.snippet,
+      summary: digestEmails.summary,
+      summaryHtml: digestEmails.summaryHtml,
+      fullContent: digestEmails.fullContent,
+      topics: digestEmails.topics,
+      keywords: digestEmails.keywords,
+      originalLink: digestEmails.originalLink,
+      gmailMessageId: digestEmails.gmailMessageId,
+      heroImageUrl: digestEmails.heroImageUrl,
+      categoryId: digestEmails.categoryId,
+      categoryNameSnapshot: digestEmails.categoryNameSnapshot,
+      categorySlugSnapshot: digestEmails.categorySlugSnapshot,
+    })
+      .from(digestEmails)
+      .innerJoin(emailDigests, eq(emailDigests.id, digestEmails.digestId))
+      .where(whereClause)
+      .orderBy(desc(digestEmails.receivedAt))
+      .limit(limit);
+
+    return rows as DigestEmail[];
+  }
+
   // Monitored emails methods
   async getMonitoredEmails(userId: string): Promise<MonitoredEmail[]> {
     const database = this.ensureDb();
@@ -125,6 +292,25 @@ export class DatabaseStorage implements IStorage {
     return results[0];
   }
   
+  async updateMonitoredEmail(
+    userId: string,
+    id: number,
+    updates: Partial<Pick<MonitoredEmail, 'active' | 'categoryId'>>
+  ): Promise<MonitoredEmail | undefined> {
+    const database = this.ensureDb();
+    const filtered = Object.fromEntries(
+      Object.entries(updates).filter(([, v]) => v !== undefined)
+    );
+    if (Object.keys(filtered).length === 0) {
+      return this.getMonitoredEmail(id);
+    }
+    const results = await database.update(monitoredEmails)
+      .set(filtered)
+      .where(and(eq(monitoredEmails.id, id), eq(monitoredEmails.userId, userId)))
+      .returning();
+    return results[0];
+  }
+
   async removeMonitoredEmail(userId: string, id: number): Promise<void> {
     const database = this.ensureDb();
     await database.delete(monitoredEmails)

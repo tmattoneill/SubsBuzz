@@ -46,7 +46,8 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       receivedAt: new Date(email.received_at || email.receivedAt), // Handle both snake_case and camelCase
       originalLink: email.original_link || email.originalLink,
       gmailMessageId: email.gmail_message_id || email.gmailMessageId,  // Source Gmail ID for post-digest cleanup
-      heroImageUrl: email.hero_image_url ?? email.heroImageUrl ?? null  // Extracted by email-worker before text extraction
+      heroImageUrl: email.hero_image_url ?? email.heroImageUrl ?? null,  // Extracted by email-worker before text extraction
+      categoryId: email.category_id ?? email.categoryId ?? null  // User-assigned category per sender (TEEPER-105)
     }));
 
     // Use the user's stored API key if available, fall back to env var

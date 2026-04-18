@@ -801,6 +801,9 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Last Updated:** 18/04/2026, 22:31:50
 
 ### Active Todos
+- [ ] [high] [TEEPER-105] PARENT — Add user-assigned categories to email senders (features/categories branch). See CATEGORIES.md. https://linear.app/teemo-personal-projects/issue/TEEPER-105 (`features/categories`)
+- [ ] [high] [TEEPER-115] Phase 1: Schema + migration — emailCategories table, category_id on monitored_emails + digest_emails, raw SQL in migrate.sql. https://linear.app/teemo-personal-projects/issue/TEEPER-115 (`features/categories`)
+- [ ] [high] [TEEPER-116] Phase 2: Data-server API — categories CRUD, lazy seed, PATCH /monitored-emails/:id, /digests/by-category/:slug. https://linear.app/teemo-personal-projects/issue/TEEPER-116 (`features/categories`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-40] Improve monitored emails UI — currently a single long list; redesign with better visual management (search, filtering, grouping, bulk actions, etc.) https://linear.app/teemo-personal-projects/issue/TEEPER-40 (`main`)
@@ -813,6 +816,11 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] [TEEPER-106] UI cleanup pass — audit services/frontend for dead elements (no handler/route), placeholder elements (TODO/coming soon/lorem), and redundant elements (duplicated functionality). Delete, don't comment out. https://linear.app/teemo-personal-projects/issue/TEEPER-106 (`main`)
 - [ ] [medium] [TEEPER-107] Change default landing page to latest digest (currently lands on historical stats /dashboard). Update post-login redirect in auth-callback.tsx + root route in App.tsx; fall back to stats only if no digest exists. https://linear.app/teemo-personal-projects/issue/TEEPER-107 (`main`)
 - [ ] [medium] [TEEPER-114] Digest generation progress feedback — click Generate, poll /api/digest/latest every 5s, show spinner "Processing N emails", auto-nav when row lands. Optional stretch: /api/digest/task/:taskId exposing Celery AsyncResult. https://linear.app/teemo-personal-projects/issue/TEEPER-114 (`main`)
+- [ ] [medium] [TEEPER-117] Phase 3: API Gateway — email_categories routes + monitored_emails PATCH + /digests/by-category/{slug}. https://linear.app/teemo-personal-projects/issue/TEEPER-117 (`features/categories`)
+- [ ] [medium] [TEEPER-118] Phase 4: Email worker pass-through — sender→category map + normalization helper + digest payload forward. https://linear.app/teemo-personal-projects/issue/TEEPER-118 (`features/categories`)
+- [ ] [medium] [TEEPER-119] Phase 5: Frontend Email Handling — /email-handling with Senders + Categories tabs, add-sender modal, useCategories hook, types. https://linear.app/teemo-personal-projects/issue/TEEPER-119 (`features/categories`)
+- [ ] [medium] [TEEPER-120] Phase 6: Digest chip filter + /category/:slug collection route + Sidebar "Collections" section + ArticleCard badge. https://linear.app/teemo-personal-projects/issue/TEEPER-120 (`features/categories`)
+- [ ] [medium] [TEEPER-121] Phase 7: Categorization banner + integration tests + manual QA (local + dev) + final PR. https://linear.app/teemo-personal-projects/issue/TEEPER-121 (`features/categories`)
 - [ ] [low] Prioritize and schedule the newly created Linear tickets (TEEPER-105 through TEEPER-107) against existing backlog (`main`)
 
 <!-- DEVCTX:END -->
