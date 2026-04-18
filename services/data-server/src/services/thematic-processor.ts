@@ -322,6 +322,7 @@ export async function processRawEmailsIntoThemes(
     receivedAt: email.receivedAt ? new Date(email.receivedAt) : new Date(),
     snippet: email.snippet || email.subject || '',
     summary: email.summary || `Email from ${email.sender}`,
+    summaryHtml: email.summaryHtml ?? null,
     fullContent: email.fullContent || email.content || '',
     topics: Array.isArray(email.topics) ? email.topics : [],
     keywords: Array.isArray(email.keywords) ? email.keywords : [],
