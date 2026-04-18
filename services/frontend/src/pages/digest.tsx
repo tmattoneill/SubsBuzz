@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { Loader2, TrendingUp } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { DigestEmail, FullThematicDigest } from "@/lib/types";
+import { useCategories } from "@/hooks/useCategories";
+import { cn } from "@/lib/utils";
 import { DashboardLayout } from "@/components/layout";
 import { HeroArticle, type HeroArticleData } from "@/components/digest/HeroArticle";
 import { ArticleCard, type ArticleCardData } from "@/components/digest/ArticleCard";
@@ -34,7 +36,17 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function emailToCard(email: DigestEmail): ArticleCardData {
+function categoryFor(email: DigestEmail, liveColor: string | null | undefined) {
+  const name = email.categoryNameSnapshot ?? null;
+  const slug = email.categorySlugSnapshot ?? null;
+  return { name, slug, color: liveColor ?? null };
+}
+
+function emailToCard(
+  email: DigestEmail,
+  liveColor: string | null | undefined,
+): ArticleCardData {
+  const cat = categoryFor(email, liveColor);
   return {
     id: String(email.id),
     title: email.subject,
@@ -44,13 +56,20 @@ function emailToCard(email: DigestEmail): ArticleCardData {
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
     tags: email.topics?.slice(0, 4) ?? [],
+    categoryName: cat.name,
+    categorySlug: cat.slug,
+    categoryColor: cat.color,
   };
 }
 
-function emailToView(email: DigestEmail): ArticleViewData {
+function emailToView(
+  email: DigestEmail,
+  liveColor: string | null | undefined,
+): ArticleViewData {
   const body = email.summaryHtml
     ? email.summaryHtml
     : `<p>${escapeHtml(email.summary)}</p>`;
+  const cat = categoryFor(email, liveColor);
 
   return {
     id: String(email.id),
@@ -62,6 +81,9 @@ function emailToView(email: DigestEmail): ArticleViewData {
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
     tags: email.topics ?? [],
     originalLink: email.originalLink ?? null,
+    categoryName: cat.name,
+    categorySlug: cat.slug,
+    categoryColor: cat.color,
   };
 }
 
@@ -136,11 +158,15 @@ function thematicToView(
   };
 }
 
+const CATEGORY_UNSET = "__uncategorized__";
+
 export default function DigestView() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/digest/:date");
   const [openArticle, setOpenArticle] = useState<ArticleViewData | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const { data: userCategories = [] } = useCategories();
 
   const dateParam = params?.date;
 
@@ -207,6 +233,41 @@ export default function DigestView() {
     () => (digestData?.date ? new Date(digestData.date) : null),
     [digestData?.date],
   );
+
+  const categoryColorById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const c of userCategories) if (c.color) map.set(c.id, c.color);
+    return map;
+  }, [userCategories]);
+
+  const chipRow = useMemo(() => {
+    const counts = new Map<
+      string,
+      { key: string; name: string; count: number; color: string | null }
+    >();
+    for (const e of gridEmails) {
+      const name = e.categoryNameSnapshot ?? null;
+      const key = name ? (e.categorySlugSnapshot ?? name) : CATEGORY_UNSET;
+      const display = name ?? "Uncategorized";
+      const color =
+        (e.categoryId && categoryColorById.get(e.categoryId)) || null;
+      const existing = counts.get(key);
+      if (existing) existing.count += 1;
+      else counts.set(key, { key, name: display, count: 1, color });
+    }
+    return Array.from(counts.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [gridEmails, categoryColorById]);
+
+  const filteredEmails = useMemo(() => {
+    if (!activeCategory) return gridEmails;
+    if (activeCategory === CATEGORY_UNSET) {
+      return gridEmails.filter((e) => !e.categoryNameSnapshot);
+    }
+    return gridEmails.filter(
+      (e) =>
+        (e.categorySlugSnapshot ?? e.categoryNameSnapshot) === activeCategory,
+    );
+  }, [gridEmails, activeCategory]);
 
   if (authLoading || isDigestLoading) {
     return (
@@ -304,24 +365,71 @@ export default function DigestView() {
             <div className="flex items-center justify-between mb-8">
               <h2 className="font-display text-3xl font-bold">Latest from Your Sources</h2>
               <p className="font-body text-muted-foreground">
-                {gridEmails.length}{" "}
-                {gridEmails.length === 1 ? "article" : "articles"}
+                {filteredEmails.length}{" "}
+                {filteredEmails.length === 1 ? "article" : "articles"}
+                {activeCategory ? " filtered" : ""}
               </p>
             </div>
 
-            {gridEmails.length === 0 ? (
+            {chipRow.length > 1 ? (
+              <div className="flex flex-wrap gap-2 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory(null)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border transition",
+                    activeCategory == null
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  All
+                </button>
+                {chipRow.map((chip) => {
+                  const active = activeCategory === chip.key;
+                  return (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={() => setActiveCategory(active ? null : chip.key)}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border transition inline-flex items-center gap-1.5",
+                        active
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {chip.color ? (
+                        <span
+                          aria-hidden
+                          className="inline-block h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: chip.color }}
+                        />
+                      ) : null}
+                      {chip.name} · {chip.count}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {filteredEmails.length === 0 ? (
               <div className="rounded-xl bg-card border border-border p-12 text-center">
                 <p className="font-body text-muted-foreground">
-                  No emails found in this digest.
+                  {activeCategory
+                    ? "No articles in this category for this digest."
+                    : "No emails found in this digest."}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {gridEmails.map((email, index) => {
-                  const card = emailToCard(email);
+                {filteredEmails.map((email, index) => {
+                  const liveColor =
+                    (email.categoryId && categoryColorById.get(email.categoryId)) || null;
+                  const card = emailToCard(email, liveColor);
                   // Give the first card a large slot for visual rhythm when there are enough emails.
                   const size: ArticleCardData["size"] =
-                    index === 0 && gridEmails.length >= 3 ? "large" : "medium";
+                    index === 0 && filteredEmails.length >= 3 ? "large" : "medium";
                   const cardWithSize = { ...card, size };
                   return (
                     <motion.div
@@ -337,7 +445,7 @@ export default function DigestView() {
                     >
                       <ArticleCard
                         article={cardWithSize}
-                        onRead={() => setOpenArticle(emailToView(email))}
+                        onRead={() => setOpenArticle(emailToView(email, liveColor))}
                       />
                     </motion.div>
                   );
