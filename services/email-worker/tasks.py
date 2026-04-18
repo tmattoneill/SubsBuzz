@@ -207,10 +207,19 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
         # Get user's monitored emails
         monitored_response = await data_server.get(f'/api/storage/monitored-emails/{user_id}')
         monitored_emails = monitored_response.get('data', [])
-        
+
+        # Build sender→category map keyed on normalized bare address (lowercased,
+        # stripped). gmail_client.py already extracts the bare email from the
+        # "Name <addr>" From header, so matching on sender directly is safe.
+        sender_to_category: Dict[str, Optional[int]] = {
+            e['email'].strip().lower(): e.get('categoryId')
+            for e in monitored_emails
+            if e.get('active', True)
+        }
+
         # Filter for active emails only
-        active_emails = [email['email'] for email in monitored_emails if email.get('active', True)]
-        
+        active_emails = list(sender_to_category.keys())
+
         if not active_emails:
             logger.info("No active monitored emails user=%s", user_id)
             return {'emails_processed': 0, 'digest_created': False}
@@ -262,7 +271,11 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
                     'subject': email.subject,
                     'received_at': email.received_at,
                     'content': email.content,
-                    'original_link': email.original_link
+                    'original_link': email.original_link,
+                    # User-assigned sender category (TEEPER-105); None for
+                    # pre-feature senders and unmatched addresses. Data-server
+                    # resolves this to name/slug snapshots at persist time.
+                    'category_id': sender_to_category.get((email.sender or '').strip().lower()),
                 }
 
                 # Extract hero image BEFORE replacing content with plain text
