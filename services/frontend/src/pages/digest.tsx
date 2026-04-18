@@ -73,19 +73,20 @@ function collectEmailsFromThematic(d: FullThematicDigest): DigestEmail[] {
 
 function thematicToHero(
   d: FullThematicDigest,
-  sourceCount: number,
+  emails: DigestEmail[],
 ): HeroArticleData | null {
   if (!d.dailySummary) return null;
+  const heroImage = emails.find((e) => e.heroImageUrl)?.heroImageUrl ?? null;
   return {
     id: `thematic-${d.id}`,
     title: "Your Daily Intelligence Brief",
     summary: d.dailySummary,
-    image: null, // no aggregate hero image; gradient plate renders
+    image: heroImage,
     topic: "Meta Summary",
     date: d.date,
     readTime: computeReadTime(d.dailySummary),
     tags: [],
-    emailCount: sourceCount,
+    emailCount: emails.length,
   };
 }
 
@@ -108,12 +109,14 @@ function thematicToView(
     excerpt: e.snippet || e.summary,
   }));
 
+  const heroImage = emails.find((e) => e.heroImageUrl)?.heroImageUrl ?? null;
+
   return {
     id: `thematic-${d.id}`,
     title: "Your Daily Intelligence Brief",
     summary: d.dailySummary,
     content: sections || `<p>${d.dailySummary ?? ""}</p>`,
-    image: null,
+    image: heroImage,
     topic: "Meta Summary",
     date: d.date,
     readTime: computeReadTime(d.dailySummary),
@@ -171,7 +174,7 @@ export default function DigestView() {
     if (isThematicResp) {
       const t = digestData as FullThematicDigest;
       const emails = collectEmailsFromThematic(t);
-      const hero = thematicToHero(t, emails.length);
+      const hero = thematicToHero(t, emails);
       const view = thematicToView(t, emails);
       return {
         heroArticle: hero,
