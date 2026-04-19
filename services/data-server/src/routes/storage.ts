@@ -49,19 +49,57 @@ router.get('/monitored-email/:id', asyncHandler(async (req: Request, res: Respon
 
 // Add monitored email
 router.post('/monitored-emails', asyncHandler(async (req: Request, res: Response) => {
-  const { userId, email, active } = req.body;
-  
+  const { userId, email, active, categoryId } = req.body;
+
   if (!userId || !email) {
     return res.status(400).json(apiError('userId and email are required', 'MISSING_FIELDS'));
   }
-  
+
+  // Cross-user ownership check: ensure the category belongs to this user before
+  // linking. Prevents user A from assigning user B's category to their sender.
+  if (categoryId != null) {
+    const cat = await storage.getEmailCategory(userId, categoryId);
+    if (!cat) {
+      return res.status(400).json(apiError('Invalid categoryId for user', 'INVALID_CATEGORY'));
+    }
+  }
+
   const newMonitoredEmail = await storage.addMonitoredEmail({
     userId,
     email,
-    active: active !== undefined ? active : true
+    active: active !== undefined ? active : true,
+    categoryId: categoryId ?? null,
   });
 
   return res.status(201).json(apiResponse(newMonitoredEmail, 'Monitored email added'));
+}));
+
+// Update monitored email (active toggle / category reassignment)
+router.patch('/monitored-emails/:id', asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) {
+    return res.status(400).json(apiError('Invalid ID', 'INVALID_ID'));
+  }
+  const { userId, active, categoryId } = req.body;
+  if (!userId) {
+    return res.status(400).json(apiError('userId is required', 'MISSING_FIELDS'));
+  }
+
+  if (categoryId != null) {
+    const cat = await storage.getEmailCategory(userId, categoryId);
+    if (!cat) {
+      return res.status(400).json(apiError('Invalid categoryId for user', 'INVALID_CATEGORY'));
+    }
+  }
+
+  const updated = await storage.updateMonitoredEmail(userId, id, {
+    active,
+    categoryId: categoryId === undefined ? undefined : categoryId,
+  });
+  if (!updated) {
+    return res.status(404).json(apiError('Monitored email not found', 'NOT_FOUND'));
+  }
+  return res.json(apiResponse(updated, 'Monitored email updated'));
 }));
 
 // Remove monitored email
@@ -170,7 +208,8 @@ router.get('/digest-emails/:digestId', asyncHandler(async (req: Request, res: Re
 router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) => {
   const {
     digestId, sender, subject, receivedAt, summary, summaryHtml,
-    fullContent, topics, keywords, originalLink, gmailMessageId
+    fullContent, topics, keywords, originalLink, gmailMessageId,
+    categoryId, categoryNameSnapshot, categorySlugSnapshot
   } = req.body;
 
   if (!digestId || !sender || !subject || !summary || !fullContent) {
@@ -188,10 +227,23 @@ router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) =
     topics: topics || [],
     keywords: keywords || [],
     originalLink,
-    gmailMessageId: gmailMessageId || null
+    gmailMessageId: gmailMessageId || null,
+    categoryId: categoryId ?? null,
+    categoryNameSnapshot: categoryNameSnapshot ?? null,
+    categorySlugSnapshot: categorySlugSnapshot ?? null,
   });
 
   return res.status(201).json(apiResponse(newEmail, 'Email added to digest'));
+}));
+
+// Get digest emails by category slug (for collection route)
+router.get('/digests/by-category/:userId/:slug', asyncHandler(async (req: Request, res: Response) => {
+  const { userId, slug } = req.params;
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  const before = req.query.before ? new Date(req.query.before as string) : undefined;
+
+  const emails = await storage.getDigestEmailsByCategorySlug(userId, slug, limit, before);
+  return res.json(apiResponse(emails));
 }));
 
 // ==================== USER SETTINGS ====================

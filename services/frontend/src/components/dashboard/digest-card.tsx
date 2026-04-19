@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  Loader2,
   MessageCircle,
   Paperclip,
   PanelsTopLeft,
@@ -16,14 +17,17 @@ interface DigestCardProps {
 
 export function DigestCard({ card, onClick }: DigestCardProps) {
   const highlight = card.isHighlighted || card.type === "thematic";
+  const pending = card.isPending;
 
   return (
     <Card
+      aria-disabled={pending}
       className={cn(
-        "cursor-pointer border border-border bg-card p-4 transition-all hover:shadow-md",
-        highlight && "bg-primary text-primary-foreground"
+        "relative cursor-pointer border border-border bg-card p-4 transition-all hover:shadow-md",
+        highlight && "bg-primary text-primary-foreground",
+        pending && "pointer-events-none cursor-not-allowed opacity-50 grayscale"
       )}
-      onClick={onClick}
+      onClick={pending ? undefined : onClick}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
@@ -40,11 +44,19 @@ export function DigestCard({ card, onClick }: DigestCardProps) {
       </div>
 
       <div className="mt-4 space-y-3 text-sm">
-        <div className={cn("flex items-center gap-2", highlight ? "text-primary-foreground/90" : "text-foreground")}
-        >
-          <CalendarDays className="h-3.5 w-3.5 text-secondary" />
-          <span>{card.dateLabel}</span>
-        </div>
+        {pending ? (
+          <div className={cn("flex items-center gap-2 font-medium", highlight ? "text-primary-foreground/90" : "text-foreground")}
+          >
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-secondary" />
+            <span>Regenerating…</span>
+          </div>
+        ) : (
+          <div className={cn("flex items-center gap-2", highlight ? "text-primary-foreground/90" : "text-foreground")}
+          >
+            <CalendarDays className="h-3.5 w-3.5 text-secondary" />
+            <span>{card.dateLabel}</span>
+          </div>
+        )}
         <div className="flex items-center gap-4">
           <div className={cn("flex items-center gap-1", highlight ? "text-primary-foreground" : "text-foreground")}
           >

@@ -797,10 +797,11 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `main`
-**Last Updated:** 18/04/2026, 22:31:50
+**Branch:** `features/categories`
+**Last Updated:** 18/04/2026, 23:17:47
 
 ### Active Todos
+- [ ] [high] [TEEPER-105] PARENT — Add user-assigned categories to email senders (features/categories branch). See CATEGORIES.md. https://linear.app/teemo-personal-projects/issue/TEEPER-105 (`features/categories`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-40] Improve monitored emails UI — currently a single long list; redesign with better visual management (search, filtering, grouping, bulk actions, etc.) https://linear.app/teemo-personal-projects/issue/TEEPER-40 (`main`)
@@ -813,6 +814,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] [TEEPER-106] UI cleanup pass — audit services/frontend for dead elements (no handler/route), placeholder elements (TODO/coming soon/lorem), and redundant elements (duplicated functionality). Delete, don't comment out. https://linear.app/teemo-personal-projects/issue/TEEPER-106 (`main`)
 - [ ] [medium] [TEEPER-107] Change default landing page to latest digest (currently lands on historical stats /dashboard). Update post-login redirect in auth-callback.tsx + root route in App.tsx; fall back to stats only if no digest exists. https://linear.app/teemo-personal-projects/issue/TEEPER-107 (`main`)
 - [ ] [medium] [TEEPER-114] Digest generation progress feedback — click Generate, poll /api/digest/latest every 5s, show spinner "Processing N emails", auto-nav when row lands. Optional stretch: /api/digest/task/:taskId exposing Celery AsyncResult. https://linear.app/teemo-personal-projects/issue/TEEPER-114 (`main`)
+- [ ] [medium] [TEEPER-121] Phase 7: Categorization banner + integration tests + manual QA (local + dev) + final PR. https://linear.app/teemo-personal-projects/issue/TEEPER-121 (`features/categories`)
 - [ ] [low] Prioritize and schedule the newly created Linear tickets (TEEPER-105 through TEEPER-107) against existing backlog (`main`)
+- [ ] [low] [TEEPER-122] Fix pre-existing tsc error in thematic-processor.ts:318 — summaryHtml missing in processRawEmailsIntoThemes mapping. One-line add: `summaryHtml: email.summaryHtml ?? null`. Noticed during TEEPER-105 branch check. https://linear.app/teemo-personal-projects/issue/TEEPER-122 (`main`)
 
 <!-- DEVCTX:END -->

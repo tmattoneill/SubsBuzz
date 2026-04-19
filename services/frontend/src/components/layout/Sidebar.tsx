@@ -17,10 +17,12 @@ import {
   Bot,
   Lightbulb,
   Archive,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCategories } from "@/hooks/useCategories";
 
 const navItems = [
   {
@@ -39,17 +41,15 @@ const navItems = [
     icon: CalendarDays,
   },
   {
+    title: "Email Handling",
+    path: "/email-handling/senders",
+    icon: Inbox,
+  },
+  {
     title: "Settings",
     path: "/settings",
     icon: Settings,
   },
-];
-
-const collections = [
-  { name: "This Week", metric: "12 digests" },
-  { name: "AI & SaaS", metric: "7 sources" },
-  { name: "Investing", metric: "5 sources" },
-  { name: "Deep Dives", metric: "Focus" },
 ];
 
 const automation: Array<{
@@ -65,7 +65,10 @@ const automation: Array<{
 
 function NavItem({ title, path, icon: Icon, badge }: typeof navItems[number] & { badge?: string }) {
   const [location] = useLocation();
-  const isActive = location === path || location.startsWith(`${path}/`);
+  // For email-handling, match any sub-tab; otherwise exact/nested match.
+  const isActive = path.startsWith("/email-handling")
+    ? location.startsWith("/email-handling")
+    : location === path || location.startsWith(`${path}/`);
 
   return (
     <Link
@@ -93,9 +96,10 @@ function NavItem({ title, path, icon: Icon, badge }: typeof navItems[number] & {
 
 export function Sidebar() {
   const isMobile = useIsMobile();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { user, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const { data: categories = [] } = useCategories();
 
   const { data: settingsData } = useQuery<any>({
     queryKey: ["/api/settings"],
@@ -145,15 +149,37 @@ export function Sidebar() {
               </Badge>
             </div>
             <div className="space-y-1">
-              {collections.map((item) => (
-                <button
-                  key={item.name}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition hover:bg-sidebar-accent/40"
-                >
-                  <span>{item.name}</span>
-                  <span className="text-xs text-muted-foreground">{item.metric}</span>
-                </button>
-              ))}
+              {categories.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground">
+                  No categories yet.
+                </p>
+              ) : (
+                categories.map((cat) => {
+                  const href = `/category/${cat.slug}`;
+                  const active = location === href;
+                  return (
+                    <Link
+                      key={cat.id}
+                      href={href}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition",
+                        active
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/40"
+                      )}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span
+                          aria-hidden
+                          className="inline-block h-2 w-2 shrink-0 rounded-full border border-border"
+                          style={cat.color ? { backgroundColor: cat.color } : undefined}
+                        />
+                        <span className="truncate">{cat.name}</span>
+                      </span>
+                    </Link>
+                  );
+                })
+              )}
             </div>
           </div>
 

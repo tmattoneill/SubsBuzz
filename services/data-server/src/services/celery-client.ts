@@ -23,12 +23,14 @@ const celeryClient = createClient(REDIS_URL, REDIS_URL);
  * @param userId - The user's Firebase UID
  * @returns Task ID for tracking
  */
-export async function queueDigestGeneration(userId: string): Promise<string> {
-  console.log(`📤 Queuing digest generation task for user ${userId}`);
+export async function queueDigestGeneration(userId: string, force: boolean = false): Promise<string> {
+  console.log(`📤 Queuing digest generation task for user ${userId} (force=${force})`);
 
   try {
-    // Send task to Celery worker with args and kwargs explicitly defined
-    const task = celeryClient.sendTask('tasks.process_user_emails', [userId], {});
+    // Send task to Celery worker with args and kwargs explicitly defined.
+    // `force=true` bypasses the worker's same-day idempotency guard and is
+    // set when the user explicitly confirms a re-run from the UI.
+    const task = celeryClient.sendTask('tasks.process_user_emails', [userId, force], {});
 
     console.log(`✅ Task queued with ID: ${task.taskId}`);
 

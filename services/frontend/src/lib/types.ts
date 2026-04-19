@@ -2,6 +2,18 @@ export interface MonitoredEmail {
   id: number;
   email: string;
   active: boolean;
+  categoryId?: number | null;
+}
+
+export interface EmailCategory {
+  id: number;
+  userId: string;
+  name: string;
+  slug: string;
+  color?: string | null;
+  isDefault: boolean;
+  sortOrder: number;
+  createdAt?: string;
 }
 
 export interface NewsletterSender {
@@ -38,6 +50,11 @@ export interface DigestEmail {
   keywords: string[];
   originalLink?: string;
   heroImageUrl?: string | null;  // Extracted from raw email HTML by email-worker. NULL for pre-feature rows.
+  // Category attribution (TEEPER-105). Snapshot fields are frozen at digest-create time
+  // so historical rows survive rename/delete of the underlying category.
+  categoryId?: number | null;
+  categoryNameSnapshot?: string | null;
+  categorySlugSnapshot?: string | null;
   isExpanded?: boolean;
 }
 
@@ -125,6 +142,7 @@ export interface DigestKanbanCard {
   type?: "regular" | "thematic";
   sectionsCount?: number;
   isHighlighted?: boolean;
+  isPending?: boolean;
 }
 
 export interface DigestKanbanColumn {

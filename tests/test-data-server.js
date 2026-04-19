@@ -5,8 +5,10 @@
  * Tests the Data Server HTTP endpoints, authentication, and database operations
  */
 
-// Env vars are loaded by tests/run-tests.js when run via `npm test`.
-// When run individually, the defaults below apply.
+// Load env vars from .env.local / .env.dev so module-level reads below
+// (INTERNAL_API_SECRET, DATA_SERVER_URL) pick up the real values whether this
+// file is run standalone or through run-tests.js.
+import './load-env.js';
 // Using native fetch available in Node.js 18+
 const fetch = globalThis.fetch;
 
@@ -52,16 +54,17 @@ function recordTest(name, passed, message = '') {
 // HTTP helper function
 async function makeRequest(endpoint, options = {}) {
   const url = `${DATA_SERVER_URL}${endpoint}`;
-  const defaultOptions = {
+  const mergedOptions = {
     timeout: TIMEOUT_MS,
+    ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers
-    }
+      ...options.headers,
+    },
   };
-  
+
   try {
-    const response = await fetch(url, { ...defaultOptions, ...options });
+    const response = await fetch(url, mergedOptions);
     const contentType = response.headers.get('content-type');
     let data = null;
     
@@ -287,6 +290,203 @@ async function testPerformanceMetrics() {
   }
 }
 
+// ─── Email categories (TEEPER-105) ──────────────────────────────────────────
+// Covers lazy seeding, slug immutability, cross-user isolation, and
+// ON DELETE SET NULL propagation to monitored_emails.
+
+// Data-server routes all wrap responses as { success, data }. Extract payload.
+function payload(res) {
+  if (res && res.data && typeof res.data === 'object' && 'data' in res.data) return res.data.data;
+  return res?.data;
+}
+
+async function testCategoriesLazySeed() {
+  const headers = { 'x-internal-api-key': INTERNAL_API_SECRET };
+  const userId = `test-cat-seed-${Date.now()}`;
+  try {
+    const r1 = await makeRequest(`/api/storage/email-categories/${userId}`, { headers });
+    const list1 = payload(r1);
+    if (!r1.ok || !Array.isArray(list1) || list1.length !== 10) {
+      recordTest('Categories: lazy seed returns 10 defaults', false,
+        `Got ${r1.status}, length=${Array.isArray(list1) ? list1.length : 'n/a'}`);
+      return;
+    }
+    recordTest('Categories: lazy seed returns 10 defaults', true);
+
+    const r2 = await makeRequest(`/api/storage/email-categories/${userId}`, { headers });
+    const list2 = payload(r2);
+    if (r2.ok && Array.isArray(list2) && list2.length === 10) {
+      recordTest('Categories: seed is idempotent', true);
+    } else {
+      recordTest('Categories: seed is idempotent', false,
+        `Second call returned length=${list2?.length}`);
+    }
+  } catch (error) {
+    recordTest('Categories: lazy seed', false, error.message);
+  }
+}
+
+async function testCategoriesSlugImmutable() {
+  const headers = { 'x-internal-api-key': INTERNAL_API_SECRET };
+  const userId = `test-cat-slug-${Date.now()}`;
+  try {
+    // seed first
+    await makeRequest(`/api/storage/email-categories/${userId}`, { headers });
+
+    const createRes = await makeRequest('/api/storage/email-categories', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userId, name: 'Indie Zines' }),
+    });
+    const created = payload(createRes);
+    if (!createRes.ok || !created?.id) {
+      recordTest('Categories: slug immutable on rename', false,
+        `Create failed: ${createRes.status}`);
+      return;
+    }
+    const originalSlug = created.slug;
+
+    const patchRes = await makeRequest(`/api/storage/email-categories/${created.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ userId, name: 'Zines' }),
+    });
+    const patched = payload(patchRes);
+    if (patchRes.ok && patched?.name === 'Zines' && patched.slug === originalSlug) {
+      recordTest('Categories: slug immutable on rename', true);
+    } else {
+      recordTest('Categories: slug immutable on rename', false,
+        `name=${patched?.name} slug=${patched?.slug} (expected slug=${originalSlug})`);
+    }
+  } catch (error) {
+    recordTest('Categories: slug immutable on rename', false, error.message);
+  }
+}
+
+async function testCategoriesDuplicateName() {
+  const headers = { 'x-internal-api-key': INTERNAL_API_SECRET };
+  const userId = `test-cat-dup-${Date.now()}`;
+  try {
+    await makeRequest(`/api/storage/email-categories/${userId}`, { headers });
+    const name = `Dup ${Date.now()}`;
+    const a = await makeRequest('/api/storage/email-categories', {
+      method: 'POST', headers, body: JSON.stringify({ userId, name }),
+    });
+    const b = await makeRequest('/api/storage/email-categories', {
+      method: 'POST', headers, body: JSON.stringify({ userId, name }),
+    });
+    if (a.ok && b.status === 409) {
+      recordTest('Categories: duplicate name returns 409', true);
+    } else {
+      recordTest('Categories: duplicate name returns 409', false,
+        `a=${a.status} b=${b.status}`);
+    }
+  } catch (error) {
+    recordTest('Categories: duplicate name returns 409', false, error.message);
+  }
+}
+
+async function testCategoriesCrossUserIsolation() {
+  const headers = { 'x-internal-api-key': INTERNAL_API_SECRET };
+  const userA = `test-cat-isoA-${Date.now()}`;
+  const userB = `test-cat-isoB-${Date.now()}`;
+  try {
+    await makeRequest(`/api/storage/email-categories/${userA}`, { headers });
+    const createRes = await makeRequest('/api/storage/email-categories', {
+      method: 'POST', headers,
+      body: JSON.stringify({ userId: userA, name: `A-only ${Date.now()}` }),
+    });
+    const created = payload(createRes);
+    if (!createRes.ok || !created?.id) {
+      recordTest('Categories: cross-user isolation', false, `seed failed ${createRes.status}`);
+      return;
+    }
+
+    // User B tries to PATCH user A's category. Route scopes by userId in body
+    // → should 404 (not found for user B).
+    const crossPatch = await makeRequest(`/api/storage/email-categories/${created.id}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ userId: userB, name: 'hijacked' }),
+    });
+    if (crossPatch.status === 404) {
+      recordTest('Categories: cross-user PATCH is 404', true);
+    } else {
+      recordTest('Categories: cross-user PATCH is 404', false, `status=${crossPatch.status}`);
+    }
+
+    // User B cannot assign user A's category when creating a monitored email.
+    const crossAssign = await makeRequest('/api/storage/monitored-emails', {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        userId: userB,
+        email: `iso-${Date.now()}@test.dev`,
+        active: true,
+        categoryId: created.id,
+      }),
+    });
+    if (crossAssign.status >= 400 && crossAssign.status < 500) {
+      recordTest('Categories: cross-user monitored-email assign is rejected', true);
+    } else {
+      recordTest('Categories: cross-user monitored-email assign is rejected', false,
+        `status=${crossAssign.status}`);
+    }
+  } catch (error) {
+    recordTest('Categories: cross-user isolation', false, error.message);
+  }
+}
+
+async function testCategoryDeleteSetsNull() {
+  const headers = { 'x-internal-api-key': INTERNAL_API_SECRET };
+  const userId = `test-cat-del-${Date.now()}`;
+  try {
+    await makeRequest(`/api/storage/email-categories/${userId}`, { headers });
+    const catRes = await makeRequest('/api/storage/email-categories', {
+      method: 'POST', headers,
+      body: JSON.stringify({ userId, name: `Ephemeral ${Date.now()}` }),
+    });
+    const cat = payload(catRes);
+    if (!catRes.ok || !cat?.id) {
+      recordTest('Categories: delete sets monitored_emails.category_id NULL', false,
+        `seed ${catRes.status}`);
+      return;
+    }
+    const senderRes = await makeRequest('/api/storage/monitored-emails', {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        userId, email: `del-${Date.now()}@test.dev`, active: true, categoryId: cat.id,
+      }),
+    });
+    const sender = payload(senderRes);
+    if (!senderRes.ok || !sender?.id) {
+      recordTest('Categories: delete sets monitored_emails.category_id NULL', false,
+        `sender create ${senderRes.status}`);
+      return;
+    }
+
+    const del = await makeRequest(`/api/storage/email-categories/${cat.id}`, {
+      method: 'DELETE', headers,
+      body: JSON.stringify({ userId }),
+    });
+    if (!del.ok) {
+      recordTest('Categories: delete sets monitored_emails.category_id NULL', false,
+        `delete ${del.status}`);
+      return;
+    }
+
+    const listRes = await makeRequest(`/api/storage/monitored-emails/${userId}`, { headers });
+    const list = payload(listRes);
+    const row = Array.isArray(list) ? list.find((s) => s.id === sender.id) : null;
+    if (row && row.categoryId == null) {
+      recordTest('Categories: delete sets monitored_emails.category_id NULL', true);
+    } else {
+      recordTest('Categories: delete sets monitored_emails.category_id NULL', false,
+        `row=${JSON.stringify(row)}`);
+    }
+  } catch (error) {
+    recordTest('Categories: delete sets monitored_emails.category_id NULL', false, error.message);
+  }
+}
+
 // Main test execution
 async function runDataServerTests() {
   log('🧪 Starting Data Server Tests', 'info');
@@ -301,6 +501,11 @@ async function runDataServerTests() {
     { name: 'API Endpoint Responses', fn: testAPIEndpointResponses },
     { name: 'Error Handling', fn: testErrorHandling },
     { name: 'Response Format', fn: testResponseFormat },
+    { name: 'Categories: lazy seed', fn: testCategoriesLazySeed },
+    { name: 'Categories: slug immutable', fn: testCategoriesSlugImmutable },
+    { name: 'Categories: duplicate name', fn: testCategoriesDuplicateName },
+    { name: 'Categories: cross-user isolation', fn: testCategoriesCrossUserIsolation },
+    { name: 'Categories: delete sets NULL', fn: testCategoryDeleteSetsNull },
     { name: 'Performance Metrics', fn: testPerformanceMetrics }
   ];
   

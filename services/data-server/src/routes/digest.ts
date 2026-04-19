@@ -46,7 +46,8 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       receivedAt: new Date(email.received_at || email.receivedAt), // Handle both snake_case and camelCase
       originalLink: email.original_link || email.originalLink,
       gmailMessageId: email.gmail_message_id || email.gmailMessageId,  // Source Gmail ID for post-digest cleanup
-      heroImageUrl: email.hero_image_url ?? email.heroImageUrl ?? null  // Extracted by email-worker before text extraction
+      heroImageUrl: email.hero_image_url ?? email.heroImageUrl ?? null,  // Extracted by email-worker before text extraction
+      categoryId: email.category_id ?? email.categoryId ?? null  // User-assigned category per sender (TEEPER-105)
     }));
 
     // Use the user's stored API key if available, fall back to env var
@@ -86,13 +87,13 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
 
 // Generate digest automatically (new simple endpoint)
 router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
-  const { user_id } = req.body;
+  const { user_id, force } = req.body;
 
   if (!user_id) {
     return res.status(400).json(apiError('user_id is required', 'MISSING_FIELDS'));
   }
 
-  console.log(`🚀 Auto-generating digest for user ${user_id}`);
+  console.log(`🚀 Auto-generating digest for user ${user_id} (force=${!!force})`);
 
   try {
     // Get monitored emails for the user
@@ -110,7 +111,7 @@ router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
     }
 
     // Queue the digest generation task to Celery worker
-    const taskId = await queueDigestGeneration(user_id);
+    const taskId = await queueDigestGeneration(user_id, !!force);
 
     return res.json(apiResponse({
       message: 'Digest generation started successfully',
