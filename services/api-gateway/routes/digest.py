@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional, List
 
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, Query, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from auth import get_current_user
@@ -394,7 +395,7 @@ async def get_available_digest_dates(
         )
 
 
-@router.get("/by-category/{slug}", response_model=DigestResponse)
+@router.get("/by-category/{slug}")
 async def get_digest_emails_by_category(
     slug: str,
     limit: int = Query(50, ge=1, le=200),
@@ -416,4 +417,6 @@ async def get_digest_emails_by_category(
         f"storage/digests/by-category/{user_id}/{slug}",
         params=params,
     )
-    return DigestResponse(success=True, data=result.get("data", []))
+    # data is a list of digest_emails — JSONResponse avoids Pydantic rejecting
+    # a list assigned to DigestResponse.data: Dict[str, Any]
+    return JSONResponse({"success": True, "data": result.get("data", [])})
