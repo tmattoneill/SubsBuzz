@@ -5,8 +5,8 @@
  * Tests the API Gateway HTTP endpoints, JWT authentication, and service proxying
  */
 
-// Env vars are loaded by tests/run-tests.js when run via `npm test`.
-// When run individually, the defaults below apply.
+// Load env vars from .env.local / .env.dev whether run standalone or via run-tests.js.
+import './load-env.js';
 // Using native fetch available in Node.js 18+
 const fetch = globalThis.fetch;
 

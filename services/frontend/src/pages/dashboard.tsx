@@ -11,8 +11,22 @@ import { EmailDigest, DigestKanbanColumn, ChartDataPoint } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import { DashboardLayout } from "@/components/layout";
 import { StatsCard, KanbanBoard, BarChart } from "@/components/dashboard";
+import { AddSenderModal } from "@/components/settings/add-sender-modal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-function categorizeDigests(digests: EmailDigest[]): DigestKanbanColumn[] {
+function categorizeDigests(
+  digests: EmailDigest[],
+  pendingToday: boolean = false,
+): DigestKanbanColumn[] {
   const today = new Date();
   const startOfWeek = new Date();
   startOfWeek.setDate(today.getDate() - 6);
@@ -41,21 +55,33 @@ function categorizeDigests(digests: EmailDigest[]): DigestKanbanColumn[] {
     id: key,
     title,
     count: columns[key].length,
-      cards: columns[key].map((digest, index) => ({
-        id: digest.id,
-        title: formatDate(new Date(digest.date)),
-        description: `${digest.emailsProcessed} emails summarised with ${digest.topicsIdentified} topics`,
-        dateLabel: new Date(digest.date).toLocaleString(undefined, {
-          month: "short",
+      cards: columns[key].map((digest, index) => {
+        const d = new Date(digest.date);
+        const datePart = d.toLocaleDateString("en-GB", {
+          weekday: "short",
           day: "numeric",
-          year: "numeric",
-        }),
-        dateISO: new Date(digest.date).toISOString().split("T")[0],
-        emailsProcessed: digest.emailsProcessed,
-        topicsIdentified: digest.topicsIdentified,
-        type: "regular",
-        isHighlighted: key === "today" && index === 0,
-      })),
+          month: "short",
+          timeZone: "UTC",
+        });
+        const timePart = d.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "UTC",
+          hour12: false,
+        });
+        return {
+          id: digest.id,
+          title: formatDate(d),
+          description: `${digest.emailsProcessed} emails summarised with ${digest.topicsIdentified} topics`,
+          dateLabel: `${datePart}, ${timePart} UTC`,
+          dateISO: d.toISOString().split("T")[0],
+          emailsProcessed: digest.emailsProcessed,
+          topicsIdentified: digest.topicsIdentified,
+          type: "regular" as const,
+          isHighlighted: key === "today" && index === 0,
+          isPending: key === "today" && pendingToday,
+        };
+      }),
   });
 
   return [
@@ -71,7 +97,12 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-
+  const [isAddSenderOpen, setIsAddSenderOpen] = useState(false);
+  const [isRerunConfirmOpen, setIsRerunConfirmOpen] = useState(false);
+  // Digest id being regenerated. Worker runs for minutes, far outlasting the
+  // /generate POST — so poll until the row's id changes (createEmailDigest
+  // delete-and-replaces on same-day collision).
+  const [pendingDigestId, setPendingDigestId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -82,6 +113,7 @@ export default function Dashboard() {
   const { data: digestHistoryResponse, isLoading: isHistoryLoading } = useQuery({
     queryKey: ["/api/digest/history"],
     refetchOnWindowFocus: false,
+    refetchInterval: pendingDigestId !== null ? 3000 : false,
   });
 
   const digestHistory: EmailDigest[] = Array.isArray(digestHistoryResponse)
@@ -89,9 +121,8 @@ export default function Dashboard() {
     : digestHistoryResponse?.digests ?? digestHistoryResponse?.data ?? [];
 
   const generateDigestMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.post("/api/digest/generate", {});
-      return response;
+    mutationFn: async (force: boolean = false) => {
+      return await api.post("/api/digest/generate", { force });
     },
     onSuccess: () => {
       toast({
@@ -101,6 +132,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/digest/history"] });
     },
     onError: (error: any) => {
+      setPendingDigestId(null);
       toast({
         title: "Digest generation failed",
         description: error.message ?? "Failed to generate digest. Please try again.",
@@ -108,6 +140,44 @@ export default function Dashboard() {
       });
     },
   });
+
+  const todaysDigest = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return digestHistory.find((digest) => {
+      const d = new Date(digest.date);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() === today.getTime();
+    });
+  }, [digestHistory]);
+
+  const hasTodaysDigest = !!todaysDigest;
+
+  // Clear pending state once the row has been replaced (id changes) or removed.
+  useEffect(() => {
+    if (pendingDigestId === null) return;
+    if (!todaysDigest || todaysDigest.id !== pendingDigestId) {
+      setPendingDigestId(null);
+      toast({
+        title: "Digest regenerated",
+        description: "Today's digest has been refreshed.",
+      });
+    }
+  }, [pendingDigestId, todaysDigest, toast]);
+
+  const handleGenerateDigestClick = () => {
+    if (hasTodaysDigest) {
+      setIsRerunConfirmOpen(true);
+    } else {
+      generateDigestMutation.mutate(false);
+    }
+  };
+
+  const handleConfirmRerun = () => {
+    setIsRerunConfirmOpen(false);
+    if (todaysDigest) setPendingDigestId(todaysDigest.id);
+    generateDigestMutation.mutate(true);
+  };
 
   const filteredDigests = useMemo(() => {
     if (!searchQuery) return digestHistory;
@@ -122,7 +192,10 @@ export default function Dashboard() {
     });
   }, [digestHistory, searchQuery]);
 
-  const kanbanColumns = useMemo(() => categorizeDigests(filteredDigests), [filteredDigests]);
+  const kanbanColumns = useMemo(
+    () => categorizeDigests(filteredDigests, pendingDigestId !== null),
+    [filteredDigests, pendingDigestId],
+  );
 
   const stats = useMemo(() => {
     const totalDigests = digestHistory.length;
@@ -190,7 +263,7 @@ export default function Dashboard() {
     <DashboardLayout
       headerProps={{
         onSearch: setSearchQuery,
-        onAddClick: () => setLocation("/settings"),
+        onAddClick: () => setIsAddSenderOpen(true),
       }}
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-6">
@@ -202,7 +275,7 @@ export default function Dashboard() {
             </p>
           </div>
           <Button
-            onClick={() => generateDigestMutation.mutate()}
+            onClick={handleGenerateDigestClick}
             disabled={generateDigestMutation.isPending}
             className="flex items-center gap-2"
           >
@@ -292,6 +365,25 @@ export default function Dashboard() {
           <KanbanBoard columns={kanbanColumns} onCardClick={handleViewDigest} />
         )}
       </div>
+      <AddSenderModal open={isAddSenderOpen} onOpenChange={setIsAddSenderOpen} />
+      <AlertDialog open={isRerunConfirmOpen} onOpenChange={setIsRerunConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Re-run today's digest?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A digest already exists for today. Re-running will replace it with a freshly
+              generated version.
+              <br />
+              <br />
+              <strong>Note:</strong> This will incur additional OpenAI token usage.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRerun}>Yes, re-run</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

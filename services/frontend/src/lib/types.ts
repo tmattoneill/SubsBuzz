@@ -142,6 +142,7 @@ export interface DigestKanbanCard {
   type?: "regular" | "thematic";
   sectionsCount?: number;
   isHighlighted?: boolean;
+  isPending?: boolean;
 }
 
 export interface DigestKanbanColumn {

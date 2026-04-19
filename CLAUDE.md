@@ -797,8 +797,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `main`
-**Last Updated:** 18/04/2026, 22:31:50
+**Branch:** `features/categories`
+**Last Updated:** 18/04/2026, 23:17:47
 
 ### Active Todos
 - [ ] [high] [TEEPER-105] PARENT — Add user-assigned categories to email senders (features/categories branch). See CATEGORIES.md. https://linear.app/teemo-personal-projects/issue/TEEPER-105 (`features/categories`)
@@ -822,5 +822,6 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] [TEEPER-120] Phase 6: Digest chip filter + /category/:slug collection route + Sidebar "Collections" section + ArticleCard badge. https://linear.app/teemo-personal-projects/issue/TEEPER-120 (`features/categories`)
 - [ ] [medium] [TEEPER-121] Phase 7: Categorization banner + integration tests + manual QA (local + dev) + final PR. https://linear.app/teemo-personal-projects/issue/TEEPER-121 (`features/categories`)
 - [ ] [low] Prioritize and schedule the newly created Linear tickets (TEEPER-105 through TEEPER-107) against existing backlog (`main`)
+- [ ] [low] [TEEPER-122] Fix pre-existing tsc error in thematic-processor.ts:318 — summaryHtml missing in processRawEmailsIntoThemes mapping. One-line add: `summaryHtml: email.summaryHtml ?? null`. Noticed during TEEPER-105 branch check. https://linear.app/teemo-personal-projects/issue/TEEPER-122 (`main`)
 
 <!-- DEVCTX:END -->

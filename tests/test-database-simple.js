@@ -3,7 +3,8 @@
  * Simple Database Test - Direct PostgreSQL Connection
  */
 
-// No additional imports needed - using only Node.js built-ins
+// Load env vars from .env.local / .env.dev whether run standalone or via run-tests.js.
+import './load-env.js';
 
 // Test configuration
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/subsbuzz_dev';
