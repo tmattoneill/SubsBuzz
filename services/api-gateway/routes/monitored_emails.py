@@ -3,7 +3,7 @@ Monitored emails routes for the API Gateway - proxies to Data Server
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, status
@@ -28,11 +28,13 @@ class MonitoredEmailRequest(BaseModel):
     """Request model for adding monitored email"""
     email: EmailStr
     active: bool = True
+    categoryId: Optional[int] = None
 
 
 class MonitoredEmailUpdate(BaseModel):
     """Request model for updating monitored email"""
-    active: bool
+    active: Optional[bool] = None
+    categoryId: Optional[int] = None
 
 
 # Helper function to proxy requests to Data Server
@@ -115,21 +117,25 @@ async def add_monitored_email(
     user_id = current_user["uid"]
     
     try:
+        payload: Dict[str, Any] = {
+            "userId": user_id,
+            "email": str(request.email),
+            "active": request.active,
+        }
+        if request.categoryId is not None:
+            payload["categoryId"] = request.categoryId
+
         result = await proxy_to_data_server(
             "POST",
             "storage/monitored-emails",
-            json_data={
-                "userId": user_id,
-                "email": str(request.email),
-                "active": request.active
-            }
+            json_data=payload
         )
-        
+
         return MonitoredEmailResponse(
             success=True,
             data=result.get("data", {})
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -138,6 +144,32 @@ async def add_monitored_email(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to add monitored email"
         )
+
+
+@router.patch("/{email_id}", response_model=MonitoredEmailResponse)
+async def update_monitored_email(
+    email_id: int,
+    request: MonitoredEmailUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Update a monitored email (toggle active / reassign category) for the current user.
+    Ownership is enforced on the data-server side (scoped UPDATE returns 404 otherwise).
+    """
+    user_id = current_user["uid"]
+
+    payload: Dict[str, Any] = {"userId": user_id}
+    if request.active is not None:
+        payload["active"] = request.active
+    if request.categoryId is not None:
+        payload["categoryId"] = request.categoryId
+
+    result = await proxy_to_data_server(
+        "PATCH",
+        f"storage/monitored-emails/{email_id}",
+        json_data=payload
+    )
+    return MonitoredEmailResponse(success=True, data=result.get("data", {}))
 
 
 @router.get("/{email_id}", response_model=MonitoredEmailResponse)

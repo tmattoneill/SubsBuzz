@@ -5,10 +5,11 @@
  * Tests DB-backed OAuth session token storage, retrieval, refresh, and validation.
  * Covers the 30-day session token flow introduced with persistent OAuth sessions.
  *
- * Env vars are loaded by tests/run-tests.js when run via `npm test`.
- * When run individually: DATA_SERVER_URL and INTERNAL_API_SECRET must be set or defaults apply.
+ * Env vars are loaded automatically via ./load-env.js whether this file runs
+ * standalone or through run-tests.js.
  */
 
+import './load-env.js';
 const fetch = globalThis.fetch;
 
 const DATA_SERVER_URL = process.env.DATA_SERVER_URL || 'http://localhost:3001';

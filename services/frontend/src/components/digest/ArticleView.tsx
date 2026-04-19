@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, Mail, ChevronRight, ExternalLink } from 'lucide-react';
 import { sanitizeHtml } from '@/lib/sanitize-html';
+import { CategoryBadge } from '@/components/categories/CategoryBadge';
 
 export interface ArticleSource {
   name: string;
@@ -22,6 +23,9 @@ export interface ArticleViewData {
   sources?: ArticleSource[];
   /** Link back to the source newsletter. Rendered as "View original" below the body. */
   originalLink?: string | null;
+  categoryName?: string | null;
+  categorySlug?: string | null;
+  categoryColor?: string | null;
 }
 
 interface ArticleViewProps {
@@ -64,6 +68,16 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
         </motion.button>
 
         <article>
+          {article.categoryName ? (
+            <div className="mb-3">
+              <CategoryBadge
+                name={article.categoryName}
+                slug={article.categorySlug ?? null}
+                color={article.categoryColor ?? null}
+              />
+            </div>
+          ) : null}
+
           <span className="font-body inline-block text-xs font-semibold uppercase tracking-widest text-accent mb-4">
             {article.topic}
           </span>

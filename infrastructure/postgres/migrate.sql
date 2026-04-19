@@ -55,3 +55,41 @@ ALTER TABLE digest_emails
 -- pre-feature rows fall back to wrapping the plain `summary` in <p>.
 ALTER TABLE digest_emails
   ADD COLUMN IF NOT EXISTS summary_html TEXT;
+
+-- ── 2026-Q2: user-assigned sender categories (TEEPER-105) ─────────────────────
+-- User-scoped category table. Lazy-seeded with 10 defaults on first GET
+-- /api/email-categories. Slugs are immutable after create so /category/:slug
+-- URLs never 404 on rename. Unique on (user_id, name) and (user_id, slug).
+CREATE TABLE IF NOT EXISTS email_categories (
+  id         SERIAL PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  slug       TEXT NOT NULL,
+  color      TEXT,
+  is_default BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT email_categories_user_name_unique UNIQUE (user_id, name),
+  CONSTRAINT email_categories_user_slug_unique UNIQUE (user_id, slug)
+);
+CREATE INDEX IF NOT EXISTS email_categories_user_idx
+  ON email_categories (user_id);
+
+-- monitored_emails: per-sender category. Nullable; existing rows keep NULL
+-- until the user categorises them via the banner / edit flow.
+ALTER TABLE monitored_emails
+  ADD COLUMN IF NOT EXISTS category_id INTEGER
+  REFERENCES email_categories (id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS monitored_emails_category_idx
+  ON monitored_emails (category_id);
+
+-- digest_emails: hybrid storage — FK for live lookups + snapshot text columns
+-- so the Collections page keeps working after a category is renamed or deleted.
+-- Snapshots are written at digest-create time and never mutated after.
+ALTER TABLE digest_emails
+  ADD COLUMN IF NOT EXISTS category_id INTEGER
+    REFERENCES email_categories (id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS category_name_snapshot TEXT,
+  ADD COLUMN IF NOT EXISTS category_slug_snapshot TEXT;
+CREATE INDEX IF NOT EXISTS digest_emails_category_slug_idx
+  ON digest_emails (category_slug_snapshot);

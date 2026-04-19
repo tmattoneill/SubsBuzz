@@ -553,6 +553,9 @@ public/
 # Ephemeral working notes (not tracked)
 CLEANUP.md
 
+# Test run output
+tests/tests.out
+
 # Local MCP server config (machine-specific paths)
 .mcp.json
 

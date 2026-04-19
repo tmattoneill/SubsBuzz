@@ -21,18 +21,50 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Schema for user-scoped sender categories (TEEPER-105).
+// Lazy-seeded with 10 defaults on first GET. Slugs are immutable after create
+// (renames update `name` only) so /category/:slug URLs never 404.
+export const emailCategories = pgTable("email_categories", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  color: text("color"),
+  isDefault: boolean("is_default").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (t) => [
+  unique("email_categories_user_name_unique").on(t.userId, t.name),
+  unique("email_categories_user_slug_unique").on(t.userId, t.slug),
+]);
+
+export const insertEmailCategorySchema = createInsertSchema(emailCategories).pick({
+  userId: true,
+  name: true,
+  slug: true,
+  color: true,
+  isDefault: true,
+  sortOrder: true,
+});
+
+export type InsertEmailCategory = z.infer<typeof insertEmailCategorySchema>;
+export type EmailCategory = typeof emailCategories.$inferSelect;
+
 // Schema for monitored email addresses
 export const monitoredEmails = pgTable("monitored_emails", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
   email: text("email").notNull(),
   active: boolean("active").notNull().default(true),
+  // Nullable for pre-feature rows; new senders set via the add-sender modal.
+  categoryId: integer("category_id").references(() => emailCategories.id, { onDelete: "set null" }),
 }, (t) => [unique("monitored_emails_user_email_unique").on(t.userId, t.email)]);
 
 export const insertMonitoredEmailSchema = createInsertSchema(monitoredEmails).pick({
   userId: true,
   email: true,
   active: true,
+  categoryId: true,
 });
 
 export type InsertMonitoredEmail = z.infer<typeof insertMonitoredEmailSchema>;
@@ -74,6 +106,12 @@ export const digestEmails = pgTable("digest_emails", {
   originalLink: text("original_link"),
   gmailMessageId: text("gmail_message_id"),  // Source Gmail message ID — required for post-processing cleanup. Nullable for pre-feature rows.
   heroImageUrl: text("hero_image_url"),      // Extracted hero image URL from email HTML. Nullable — set when worker finds a likely content image.
+  // Category attribution (TEEPER-105). FK may be nulled by category delete,
+  // but the snapshot columns preserve name/slug for historical /category/:slug
+  // lookups even after the underlying category is renamed or removed.
+  categoryId: integer("category_id").references(() => emailCategories.id, { onDelete: "set null" }),
+  categoryNameSnapshot: text("category_name_snapshot"),
+  categorySlugSnapshot: text("category_slug_snapshot"),
 });
 
 export const insertDigestEmailSchema = createInsertSchema(digestEmails).omit({
