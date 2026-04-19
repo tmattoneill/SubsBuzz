@@ -5,8 +5,10 @@
  * Tests the Data Server HTTP endpoints, authentication, and database operations
  */
 
-// Env vars are loaded by tests/run-tests.js when run via `npm test`.
-// When run individually, the defaults below apply.
+// Load env vars from .env.local / .env.dev so module-level reads below
+// (INTERNAL_API_SECRET, DATA_SERVER_URL) pick up the real values whether this
+// file is run standalone or through run-tests.js.
+import './load-env.js';
 // Using native fetch available in Node.js 18+
 const fetch = globalThis.fetch;
 
@@ -52,16 +54,17 @@ function recordTest(name, passed, message = '') {
 // HTTP helper function
 async function makeRequest(endpoint, options = {}) {
   const url = `${DATA_SERVER_URL}${endpoint}`;
-  const defaultOptions = {
+  const mergedOptions = {
     timeout: TIMEOUT_MS,
+    ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers
-    }
+      ...options.headers,
+    },
   };
-  
+
   try {
-    const response = await fetch(url, { ...defaultOptions, ...options });
+    const response = await fetch(url, mergedOptions);
     const contentType = response.headers.get('content-type');
     let data = null;
     

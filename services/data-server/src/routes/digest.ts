@@ -87,13 +87,13 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
 
 // Generate digest automatically (new simple endpoint)
 router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
-  const { user_id } = req.body;
+  const { user_id, force } = req.body;
 
   if (!user_id) {
     return res.status(400).json(apiError('user_id is required', 'MISSING_FIELDS'));
   }
 
-  console.log(`🚀 Auto-generating digest for user ${user_id}`);
+  console.log(`🚀 Auto-generating digest for user ${user_id} (force=${!!force})`);
 
   try {
     // Get monitored emails for the user
@@ -111,7 +111,7 @@ router.post('/generate', asyncHandler(async (req: Request, res: Response) => {
     }
 
     // Queue the digest generation task to Celery worker
-    const taskId = await queueDigestGeneration(user_id);
+    const taskId = await queueDigestGeneration(user_id, !!force);
 
     return res.json(apiResponse({
       message: 'Digest generation started successfully',

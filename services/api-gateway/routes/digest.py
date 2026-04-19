@@ -251,21 +251,29 @@ async def create_digest(
         )
 
 
+class GenerateDigestRequest(BaseModel):
+    """Request body for /digest/generate. `force=True` re-runs today's digest
+    even if one already exists (user confirmed the extra token cost)."""
+    force: bool = False
+
+
 @router.post("/generate", response_model=DigestResponse)
 async def generate_digest(
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    body: GenerateDigestRequest = GenerateDigestRequest(),
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     """
     Generate a new digest automatically by fetching recent emails
     """
     user_id = current_user["uid"]
-    
+
     try:
         result = await proxy_to_data_server(
             "POST",
             "digest/generate",
             json_data={
-                "user_id": user_id
+                "user_id": user_id,
+                "force": body.force,
             }
         )
         
@@ -408,4 +416,4 @@ async def get_digest_emails_by_category(
         f"storage/digests/by-category/{user_id}/{slug}",
         params=params,
     )
-    return DigestResponse(success=True, data={"emails": result.get("data", [])})
+    return DigestResponse(success=True, data=result.get("data", []))

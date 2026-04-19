@@ -158,16 +158,19 @@ async def _generate_daily_digests_async():
         raise
 
 @app.task(bind=True, retry_kwargs={'max_retries': 3, 'countdown': 30})
-def process_user_emails(self, user_id: str):
+def process_user_emails(self, user_id: str, force: bool = False):
     """
     Process emails for a specific user
     Can be called manually or as part of daily digest generation
+
+    force=True bypasses the same-day idempotency guard, used when the user
+    explicitly confirms a re-run of today's digest from the UI.
     """
     try:
-        logger.info("Processing emails user=%s task_id=%s", user_id, self.request.id)
+        logger.info("Processing emails user=%s task_id=%s force=%s", user_id, self.request.id, force)
         start = datetime.utcnow()
 
-        result = asyncio.run(process_user_emails_async(user_id))
+        result = asyncio.run(process_user_emails_async(user_id, force=force))
 
         duration = (datetime.utcnow() - start).total_seconds()
         logger.info("Email processing complete user=%s emails=%d duration=%.1fs", user_id, result.get('emails_processed', 0), duration)
@@ -177,7 +180,7 @@ def process_user_emails(self, user_id: str):
         logger.error("Email processing failed user=%s: %s", user_id, exc, exc_info=True)
         raise self.retry(exc=exc)
 
-async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
+async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[str, Any]:
     """Async implementation of user email processing"""
     try:
         # Idempotency guard: skip if a digest already exists for today (UTC).
@@ -187,22 +190,28 @@ async def process_user_emails_async(user_id: str) -> Dict[str, Any]:
         # repeat run incurs full Gmail + OpenAI cost and overwrites the prior
         # digest in place (storage.createEmailDigest deletes-and-replaces on
         # same-day collision, masking the duplication in the data).
-        today_str = datetime.utcnow().strftime('%Y-%m-%d')
-        try:
-            await data_server.get(f'/api/storage/email-digest/{user_id}/date/{today_str}')
-            logger.info("Digest already exists user=%s date=%s — skipping", user_id, today_str)
-            return {
-                'emails_processed': 0,
-                'digest_created': False,
-                'reason': 'already_processed_today',
-            }
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code != 404:
-                # Real error (5xx, auth, etc.) — log and bail rather than
-                # silently proceeding into a possibly-duplicate run.
-                logger.error("Idempotency check failed user=%s status=%d: %s", user_id, e.response.status_code, e)
-                raise
-            # 404 = no digest yet today — proceed normally.
+        #
+        # force=True bypasses this check — user explicitly confirmed a re-run
+        # in the UI after being warned about additional token usage.
+        if not force:
+            today_str = datetime.utcnow().strftime('%Y-%m-%d')
+            try:
+                await data_server.get(f'/api/storage/email-digest/{user_id}/date/{today_str}')
+                logger.info("Digest already exists user=%s date=%s — skipping", user_id, today_str)
+                return {
+                    'emails_processed': 0,
+                    'digest_created': False,
+                    'reason': 'already_processed_today',
+                }
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code != 404:
+                    # Real error (5xx, auth, etc.) — log and bail rather than
+                    # silently proceeding into a possibly-duplicate run.
+                    logger.error("Idempotency check failed user=%s status=%d: %s", user_id, e.response.status_code, e)
+                    raise
+                # 404 = no digest yet today — proceed normally.
+        else:
+            logger.info("Force re-run requested user=%s — bypassing idempotency guard", user_id)
 
         # Get user's monitored emails
         monitored_response = await data_server.get(f'/api/storage/monitored-emails/{user_id}')

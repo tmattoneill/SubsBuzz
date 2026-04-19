@@ -30,7 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { ConfigModal } from "@/components/ui/config-modal";
+import { AddSenderModal } from "@/components/settings/add-sender-modal";
 import {
   Dialog,
   DialogContent,
@@ -67,7 +67,7 @@ export default function Settings() {
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isAddSenderOpen, setIsAddSenderOpen] = useState(false);
   // Tracks the action the user has selected but not yet confirmed — used when
   // re-consent is required before persisting a non-'none' action.
   const [pendingCleanupAction, setPendingCleanupAction] =
@@ -139,27 +139,6 @@ export default function Settings() {
     },
   });
 
-  // Add email mutation
-  const addEmailMutation = useMutation({
-    mutationFn: async (email: string) => {
-      await apiRequest('POST', '/api/monitored-emails', { email });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Email added successfully",
-        description: "The email address will be monitored for future digests.",
-      });
-      refetchMonitoredEmails();
-    },
-    onError: (error) => {
-      toast({
-        title: "Failed to add email",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   // Remove email mutation
   const removeEmailMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -220,11 +199,6 @@ export default function Settings() {
       });
     },
   });
-
-  // Add email
-  const handleAddEmail = (email: string) => {
-    addEmailMutation.mutate(email);
-  };
 
   // Remove email
   const handleRemoveEmail = (id: number) => {
@@ -414,7 +388,7 @@ export default function Settings() {
             <CardFooter>
               <Button
                 className="w-full bg-primary text-white hover:bg-blue-600"
-                onClick={() => setIsConfigModalOpen(true)}
+                onClick={() => setIsAddSenderOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" /> Add new email source
               </Button>
@@ -651,15 +625,7 @@ export default function Settings() {
           </Card>
         </div>
 
-        <ConfigModal
-          isOpen={isConfigModalOpen}
-          onClose={() => setIsConfigModalOpen(false)}
-          monitoredEmails={monitoredEmails}
-          userSettings={userSettings}
-          onAddEmail={handleAddEmail}
-          onRemoveEmail={handleRemoveEmail}
-          onUpdateSettings={handleUpdateSettings}
-        />
+        <AddSenderModal open={isAddSenderOpen} onOpenChange={setIsAddSenderOpen} />
 
         {/* Re-consent gate: shown when the user picks a cleanup action that
             requires the gmail.modify scope they haven't granted yet. */}

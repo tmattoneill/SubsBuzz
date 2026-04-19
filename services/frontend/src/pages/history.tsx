@@ -10,11 +10,13 @@ import { useAuth } from "@/lib/AuthContext";
 import { formatDate } from "@/lib/utils";
 import { EmailDigest, FullThematicDigest } from "@/lib/types";
 import { DashboardLayout } from "@/components/layout";
+import { AddSenderModal } from "@/components/settings/add-sender-modal";
 
 export default function History() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [isAddSenderOpen, setIsAddSenderOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -46,7 +48,7 @@ export default function History() {
   return (
     <DashboardLayout
       headerProps={{
-        onAddClick: () => setLocation("/settings"),
+        onAddClick: () => setIsAddSenderOpen(true),
       }}
     >
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-6">
@@ -160,6 +162,7 @@ export default function History() {
           </Card>
         )}
       </div>
+      <AddSenderModal open={isAddSenderOpen} onOpenChange={setIsAddSenderOpen} />
     </DashboardLayout>
   );
 }
