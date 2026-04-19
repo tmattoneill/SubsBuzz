@@ -87,8 +87,8 @@ export default function CategoryCollection() {
   );
 
   const { data: emails = [], isLoading, isError } = useQuery<DigestEmail[]>({
-    queryKey: ["/api/digests/by-category", slug],
-    queryFn: () => api.get<DigestEmail[]>(`/api/digests/by-category/${slug}?limit=100`),
+    queryKey: ["/api/digest/by-category", slug],
+    queryFn: () => api.get<DigestEmail[]>(`/api/digest/by-category/${slug}?limit=100`),
     enabled: !!slug,
   });
 
