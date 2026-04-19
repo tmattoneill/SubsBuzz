@@ -165,6 +165,23 @@ export default function Dashboard() {
     }
   }, [pendingDigestId, todaysDigest, toast]);
 
+  // Safety timeout: never leave the card spinning past 5 min. Worker runs
+  // typically complete in 20–60s; anything longer is almost certainly a
+  // silent failure (idempotency guard, worker crash, Celery queue stuck).
+  useEffect(() => {
+    if (pendingDigestId === null) return;
+    const timeout = setTimeout(() => {
+      setPendingDigestId(null);
+      toast({
+        title: "Regeneration timed out",
+        description:
+          "The digest didn't update within 5 minutes. Check the worker logs or try again.",
+        variant: "destructive",
+      });
+    }, 5 * 60 * 1000);
+    return () => clearTimeout(timeout);
+  }, [pendingDigestId, toast]);
+
   const handleGenerateDigestClick = () => {
     if (hasTodaysDigest) {
       setIsRerunConfirmOpen(true);
