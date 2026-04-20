@@ -13,6 +13,7 @@ import { runDataServerTests } from './test-data-server.js';
 import { runAPIGatewayTests } from './test-api-gateway.js';
 import { runIntegrationTests } from './test-integration.js';
 import { runOAuthTokenTests } from './test-oauth-tokens.js';
+import { runLlmProviderTests } from './test-llm-provider.js';
 
 // Test configuration
 const TEST_MODE = process.env.TEST_MODE || 'full'; // full, quick, individual
@@ -193,6 +194,11 @@ async function runAllTests() {
       name: 'Database Tests',
       function: runDatabaseTests,
       description: 'PostgreSQL connectivity, schema validation, and performance testing'
+    },
+    {
+      name: 'LLM Provider Tests',
+      function: runLlmProviderTests,
+      description: 'resolveProvider / mergeCompletionParams unit tests (TEEPER-149)'
     },
     {
       name: 'Data Server Tests',

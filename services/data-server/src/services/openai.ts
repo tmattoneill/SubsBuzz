@@ -1,21 +1,24 @@
 /**
- * OpenAI Service - AI Processing and Analysis
- * 
- * Extracted from server/openai.ts for the data server
+ * LLM Service - AI Processing and Analysis
+ *
+ * Routes all completions through the provider abstraction in ./llm/provider.
+ * Filename retained (was openai.ts) to avoid churning imports across routes
+ * and the thematic processor — TEEPER-139.
  */
 
-import OpenAI from 'openai';
 import { storage } from './storage';
 import { InsertEmailDigest, InsertDigestEmail } from '../db/schema.js';
+import {
+  ProviderSelection,
+  resolveProvider,
+  getClient,
+  mergeCompletionParams,
+  ProviderConfigError,
+} from './llm/provider';
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('⚠️  OPENAI_API_KEY is not set — AI summarisation will use fallback text');
+if (!process.env.DEEPSEEK_API_KEY && !process.env.OPENAI_API_KEY) {
+  console.warn('⚠️  Neither DEEPSEEK_API_KEY nor OPENAI_API_KEY is set — AI summarisation will use fallback text');
 }
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export interface EmailInput {
   sender: string;
@@ -50,33 +53,32 @@ export interface DigestResult {
   processedEmails: ProcessedEmail[];
 }
 
-function getClient(apiKey?: string | null): OpenAI {
-  return apiKey ? new OpenAI({ apiKey }) : openai;
-}
-
 // ---------------------------------------------------------------------------
-// Model-specific gotcha — gpt-5.4-nano defaults to reasoning mode. Without
-// `reasoning_effort: 'none'` on every completion below, the model spends the
-// full `max_completion_tokens` budget on internal reasoning and returns empty
-// content (symptom: blank digests, no error — the HTTP call itself succeeds).
-// If you swap models or add a new completion call, decide per model whether
-// reasoning mode still needs to be explicitly disabled. See docs/WORKFLOW.md
-// "Non-obvious things to remember" for the broader context.
+// Per-provider reasoning-mode gotcha — OpenAI's gpt-5.4-nano defaults to
+// reasoning mode; without `reasoning_effort: 'none'` the model burns the full
+// `max_completion_tokens` budget on internal reasoning and returns empty
+// content (blank digests, no error — the HTTP call itself succeeds). That
+// flag is injected automatically by `mergeCompletionParams` for the OpenAI
+// provider via its `extraParams` (see ./llm/provider.ts). DeepSeek has no
+// equivalent — the flag is omitted for that provider. If you swap models
+// within a provider or add a new provider, revisit reasoning-mode handling
+// in provider.ts. See docs/WORKFLOW.md "Non-obvious things to remember".
 // ---------------------------------------------------------------------------
 
 /**
- * Process individual email with OpenAI
+ * Process individual email through the selected LLM provider.
  */
-export async function processEmailWithAI(email: EmailInput, apiKey?: string | null): Promise<ProcessedEmail> {
+export async function processEmailWithAI(email: EmailInput, settings: ProviderSelection): Promise<ProcessedEmail> {
   console.log(`🤖 Processing email: ${email.subject}`);
-  
+
   try {
-    const client = getClient(apiKey);
+    const cfg = resolveProvider(settings);
+    const client = getClient(cfg);
     // Truncate content to avoid excessive token usage
     const truncatedContent = email.content?.slice(0, 4000) || '';
 
-    const completion = await client.chat.completions.create({
-      model: 'gpt-5.4-nano',
+    const completion = await client.chat.completions.create(mergeCompletionParams({
+      model: cfg.model,
       messages: [
         {
           role: 'system',
@@ -110,12 +112,11 @@ Content: ${truncatedContent}`
       ],
       temperature: 0.7,
       max_completion_tokens: 1800,
-      reasoning_effort: 'none'
-    } as any);
+    }, cfg) as any);
 
     const response = completion.choices[0]?.message?.content;
     if (!response) {
-      throw new Error('No response from OpenAI');
+      throw new Error('No response from LLM');
     }
 
     // Strip markdown code fences if present (```json ... ```)
@@ -146,8 +147,12 @@ Content: ${truncatedContent}`
     };
 
   } catch (error: any) {
-    console.error(`Error processing email with OpenAI: ${error?.message || error}`);
-    if (error?.status) console.error(`OpenAI HTTP status: ${error.status}`);
+    if (error instanceof ProviderConfigError) {
+      console.error(`LLM provider config error (${error.code}): ${error.message}`);
+    } else {
+      console.error(`Error processing email with LLM: ${error?.message || error}`);
+      if (error?.status) console.error(`LLM HTTP status: ${error.status}`);
+    }
 
     // Fallback to basic processing
     return {
@@ -170,11 +175,11 @@ Content: ${truncatedContent}`
 }
 
 /**
- * Generate digest from processed emails
+ * Generate digest from processed emails using the user's selected LLM provider.
  */
-export async function generateDigest(userId: string, emails: EmailInput[], apiKey?: string | null): Promise<DigestResult> {
+export async function generateDigest(userId: string, emails: EmailInput[], settings: ProviderSelection): Promise<DigestResult> {
   console.log(`📊 Generating digest for user ${userId} with ${emails.length} emails`);
-  
+
   if (emails.length === 0) {
     throw new Error('No emails provided for digest generation');
   }
@@ -182,7 +187,7 @@ export async function generateDigest(userId: string, emails: EmailInput[], apiKe
   try {
     // Process all emails with AI
     const processedEmails = await Promise.all(
-      emails.map(email => processEmailWithAI(email, apiKey))
+      emails.map(email => processEmailWithAI(email, settings))
     );
 
     // Create digest record
@@ -308,7 +313,7 @@ export async function getLatestThematicDigest(userId: string): Promise<any> {
 /**
  * Analyze email content for themes (used by thematic processor)
  */
-export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: string | null): Promise<any> {
+export async function analyzeEmailForThemes(emails: ProcessedEmail[], settings: ProviderSelection): Promise<any> {
   console.log(`🔍 Analyzing ${emails.length} emails for themes`);
 
   if (emails.length === 0) {
@@ -316,15 +321,16 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
   }
 
   try {
-    const client = getClient(apiKey);
+    const cfg = resolveProvider(settings);
+    const client = getClient(cfg);
     // Combine all email content for analysis
     const emailSummaries = emails.map(email =>
       `From: ${email.sender}\nSubject: ${email.subject}\nSummary: ${email.summary}\nTopics: ${email.topics.join(', ')}`
     ).join('\n\n---\n\n');
 
-    const completion = await client.chat.completions.create({
-      model: 'gpt-5.4-nano',
-      response_format: { type: 'json_object' },
+    const completion = await client.chat.completions.create(mergeCompletionParams({
+      model: cfg.model,
+      response_format: { type: 'json_object' as const },
       messages: [
         {
           role: 'system',
@@ -354,12 +360,11 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
       ],
       temperature: 0.7,
       max_completion_tokens: 2000,
-      reasoning_effort: 'none'
-    } as any);
+    }, cfg) as any);
 
     const response = completion.choices[0]?.message?.content;
     if (!response) {
-      throw new Error('No response from OpenAI theme analysis');
+      throw new Error('No response from LLM theme analysis');
     }
 
     // Strip markdown code fences if present (```json ... ```)
@@ -371,8 +376,12 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
     return JSON.parse(cleanedResponse);
 
   } catch (error: any) {
-    console.error('Error analyzing emails for themes:', error?.message || error);
-    if (error?.status) console.error(`OpenAI HTTP status: ${error.status}`);
+    if (error instanceof ProviderConfigError) {
+      console.error(`LLM provider config error (${error.code}): ${error.message}`);
+    } else {
+      console.error('Error analyzing emails for themes:', error?.message || error);
+      if (error?.status) console.error(`LLM HTTP status: ${error.status}`);
+    }
 
     // Rich fallback using actual email content
     const topicData: Record<string, { emails: ProcessedEmail[]; indexes: number[] }> = {};
@@ -424,18 +433,19 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], apiKey?: s
 export async function generateDailySummary(
   themes: { name: string; summary: string }[],
   totalEmails: number,
-  apiKey?: string | null
+  settings: ProviderSelection
 ): Promise<string> {
   if (themes.length === 0) return '';
 
   try {
-    const client = getClient(apiKey);
+    const cfg = resolveProvider(settings);
+    const client = getClient(cfg);
     const themeDescriptions = themes
       .map(t => `- ${t.name}: ${t.summary}`)
       .join('\n');
 
-    const completion = await client.chat.completions.create({
-      model: 'gpt-5.4-nano',
+    const completion = await client.chat.completions.create(mergeCompletionParams({
+      model: cfg.model,
       messages: [
         {
           role: 'system',
@@ -457,8 +467,7 @@ Tone: Authoritative but conversational — like The Economist meets Morning Brew
       ],
       temperature: 0.7,
       max_completion_tokens: 1500,
-      reasoning_effort: 'none'
-    } as any);
+    }, cfg) as any);
 
     const content = completion.choices[0]?.message?.content?.trim() || '';
     if (!content) {
@@ -469,40 +478,45 @@ Tone: Authoritative but conversational — like The Economist meets Morning Brew
     }
     return content;
   } catch (error: any) {
-    console.error(`Error generating daily summary: ${error?.message || error}`);
-    if (error?.status) console.error(`OpenAI HTTP status: ${error.status}`);
+    if (error instanceof ProviderConfigError) {
+      console.error(`LLM provider config error (${error.code}): ${error.message}`);
+    } else {
+      console.error(`Error generating daily summary: ${error?.message || error}`);
+      if (error?.status) console.error(`LLM HTTP status: ${error.status}`);
+    }
     return '';
   }
 }
 
 /**
- * Health check for OpenAI service
+ * Health check — resolves the user's selected provider and fires a minimal
+ * completion against it. Name retained for backward-compat with existing
+ * route imports; internally it now supports both OpenAI and DeepSeek.
  */
-export async function checkOpenAIHealth(apiKey?: string | null): Promise<boolean> {
+export async function checkOpenAIHealth(settings: ProviderSelection): Promise<boolean> {
   try {
-    const client = getClient(apiKey);
-    if (!apiKey && !process.env.OPENAI_API_KEY) {
-      console.warn('OpenAI API key not configured');
-      return false;
-    }
+    const cfg = resolveProvider(settings);
+    const client = getClient(cfg);
 
-    // Simple test call
-    const completion = await client.chat.completions.create({
-      model: 'gpt-5.4-nano',
+    const completion = await client.chat.completions.create(mergeCompletionParams({
+      model: cfg.model,
       messages: [
         {
-          role: 'user',
+          role: 'user' as const,
           content: 'Test message for health check'
         }
       ],
       max_completion_tokens: 20,
-      reasoning_effort: 'none'
-    } as any);
+    }, cfg) as any);
 
     return completion.choices.length > 0;
 
   } catch (error) {
-    console.error('OpenAI health check failed:', error);
+    if (error instanceof ProviderConfigError) {
+      console.warn(`LLM health check skipped — ${error.message}`);
+    } else {
+      console.error('LLM health check failed:', error);
+    }
     return false;
   }
 }

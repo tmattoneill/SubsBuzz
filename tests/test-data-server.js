@@ -487,6 +487,95 @@ async function testCategoryDeleteSetsNull() {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// User settings — LLM provider round-trip (TEEPER-150)
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function testLlmProviderRoundTrip() {
+  const headers = { 'x-internal-api-key': INTERNAL_API_SECRET };
+  const userId = `test-llm-${Date.now()}`;
+
+  try {
+    // Default provider on a fresh user — relies on the DB default set by
+    // migrate.sql ('deepseek'). getUserSettings lazily creates a row on first
+    // GET, so this also exercises that path.
+    const g1 = await makeRequest(`/api/storage/user-settings/${userId}`, { headers });
+    const s1 = payload(g1);
+    if (g1.ok && s1?.llmProvider === 'deepseek' && s1.llmMigrationNoticeSeen === false) {
+      recordTest('Settings: new user defaults to deepseek + unseen notice', true);
+    } else {
+      recordTest('Settings: new user defaults to deepseek + unseen notice', false,
+        `got provider=${s1?.llmProvider} seen=${s1?.llmMigrationNoticeSeen}`);
+    }
+
+    // Write + read-back — the core round-trip.
+    const p1 = await makeRequest(`/api/storage/user-settings/${userId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ llmProvider: 'openai', llmMigrationNoticeSeen: true }),
+    });
+    const s2 = payload(p1);
+    if (p1.ok && s2?.llmProvider === 'openai' && s2.llmMigrationNoticeSeen === true) {
+      recordTest('Settings: PATCH llmProvider=openai round-trips', true);
+    } else {
+      recordTest('Settings: PATCH llmProvider=openai round-trips', false,
+        `status=${p1.status} provider=${s2?.llmProvider} seen=${s2?.llmMigrationNoticeSeen}`);
+    }
+
+    const g2 = await makeRequest(`/api/storage/user-settings/${userId}`, { headers });
+    const s3 = payload(g2);
+    if (g2.ok && s3?.llmProvider === 'openai' && s3.llmMigrationNoticeSeen === true) {
+      recordTest('Settings: GET reflects PATCHed llmProvider', true);
+    } else {
+      recordTest('Settings: GET reflects PATCHed llmProvider', false,
+        `provider=${s3?.llmProvider} seen=${s3?.llmMigrationNoticeSeen}`);
+    }
+
+    // Invalid provider must be rejected by the validator.
+    const bad = await makeRequest(`/api/storage/user-settings/${userId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ llmProvider: 'bogus-provider' }),
+    });
+    if (bad.status === 400) {
+      recordTest('Settings: invalid llmProvider returns 400', true);
+    } else {
+      recordTest('Settings: invalid llmProvider returns 400', false, `got ${bad.status}`);
+    }
+
+    // Unknown top-level fields are rejected outright — guards against drift
+    // between the API contract and the DB schema.
+    const unknown = await makeRequest(`/api/storage/user-settings/${userId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ somethingBogus: 'x' }),
+    });
+    if (unknown.status === 400) {
+      recordTest('Settings: unknown field returns 400', true);
+    } else {
+      recordTest('Settings: unknown field returns 400', false, `got ${unknown.status}`);
+    }
+
+    // The raw openaiApiKey must never leave the server — GET returns
+    // `openaiApiKeyConfigured` only. Write a key first, then read back.
+    await makeRequest(`/api/storage/user-settings/${userId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ openaiApiKey: 'sk-test-roundtrip-value' }),
+    });
+    const g3 = await makeRequest(`/api/storage/user-settings/${userId}`, { headers });
+    const s4 = payload(g3);
+    if (g3.ok && s4?.openaiApiKey === undefined && s4?.openaiApiKeyConfigured === true) {
+      recordTest('Settings: GET masks openaiApiKey as openaiApiKeyConfigured', true);
+    } else {
+      recordTest('Settings: GET masks openaiApiKey as openaiApiKeyConfigured', false,
+        `raw=${s4?.openaiApiKey ? 'LEAKED' : 'ok'} configured=${s4?.openaiApiKeyConfigured}`);
+    }
+  } catch (error) {
+    recordTest('Settings: LLM provider round-trip', false, error.message);
+  }
+}
+
 // Main test execution
 async function runDataServerTests() {
   log('🧪 Starting Data Server Tests', 'info');
@@ -506,6 +595,7 @@ async function runDataServerTests() {
     { name: 'Categories: duplicate name', fn: testCategoriesDuplicateName },
     { name: 'Categories: cross-user isolation', fn: testCategoriesCrossUserIsolation },
     { name: 'Categories: delete sets NULL', fn: testCategoryDeleteSetsNull },
+    { name: 'Settings: LLM provider round-trip', fn: testLlmProviderRoundTrip },
     { name: 'Performance Metrics', fn: testPerformanceMetrics }
   ];
   

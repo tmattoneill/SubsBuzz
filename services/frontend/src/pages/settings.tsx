@@ -39,7 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MonitoredEmail, UserSettings, InboxCleanupAction } from "@/lib/types";
+import { MonitoredEmail, UserSettings, InboxCleanupAction, LlmProvider } from "@/lib/types";
 import { apiRequest } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -110,8 +110,13 @@ export default function Settings() {
     topicClusteringEnabled: true,
     emailNotificationsEnabled: false,
     themeMode: "system",
-    themeColor: "blue"
+    themeColor: "blue",
+    llmProvider: "deepseek",
   };
+
+  // TEEPER-139: when the toggle is ON, the user pays for their own OpenAI tokens.
+  // When OFF, the shared DeepSeek server key is used.
+  const useOwnOpenAiKey = userSettings.llmProvider === "openai";
 
   // Form schema for OpenAI API key
   const apiKeySchema = z.object({
@@ -220,7 +225,9 @@ export default function Settings() {
   const handleTestApiKey = async () => {
     setIsTestingApiKey(true);
     try {
-      await apiRequest('GET', '/api/settings/test-api-key');
+      // Only the OpenAI key is user-supplied. The DeepSeek key is server-managed
+      // and not testable from the Settings page.
+      await apiRequest('GET', '/api/settings/test-api-key?provider=openai');
       toast({ title: "API key is valid", description: "OpenAI is reachable and responding correctly." });
     } catch (error: any) {
       toast({
@@ -231,6 +238,13 @@ export default function Settings() {
     } finally {
       setIsTestingApiKey(false);
     }
+  };
+
+  // Toggle between the shared DeepSeek server key and the user's own OpenAI key.
+  // Immediate PATCH — there's no Save button for this surface.
+  const handleProviderToggle = (checked: boolean) => {
+    const nextProvider: LlmProvider = checked ? "openai" : "deepseek";
+    updateSettingsMutation.mutate({ llmProvider: nextProvider });
   };
 
   // Submit Gmail settings form
@@ -399,15 +413,36 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Key className="mr-2 h-5 w-5 text-primary" />
-                OpenAI API Configuration
+                AI Provider
               </CardTitle>
               <CardDescription>
-                Configure your OpenAI API Key for generating digests
+                Choose which AI service generates your digests
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              {/* TEEPER-139: DeepSeek (default) vs. user-supplied OpenAI key */}
+              <div className="flex items-start justify-between gap-4 rounded-md border p-4">
+                <div className="space-y-1">
+                  <p className="font-medium">Use my own OpenAI API key</p>
+                  <p className="text-sm text-muted-foreground">
+                    {useOwnOpenAiKey
+                      ? "Your OpenAI key below is used for every digest. You pay OpenAI's token costs."
+                      : "SubsBuzz's built-in DeepSeek v3.2 is used. No key needed. Free."}
+                  </p>
+                </div>
+                <Switch
+                  checked={useOwnOpenAiKey}
+                  onCheckedChange={handleProviderToggle}
+                  disabled={updateSettingsMutation.isPending}
+                  aria-label="Use my own OpenAI API key"
+                />
+              </div>
+
               <Form {...apiKeyForm}>
-                <form onSubmit={apiKeyForm.handleSubmit(onApiKeySubmit)} className="space-y-4">
+                <form
+                  onSubmit={apiKeyForm.handleSubmit(onApiKeySubmit)}
+                  className={`space-y-4 ${useOwnOpenAiKey ? "" : "opacity-50"}`}
+                >
                   <FormField
                     control={apiKeyForm.control}
                     name="apiKey"
@@ -415,14 +450,17 @@ export default function Settings() {
                       <FormItem>
                         <FormLabel>OpenAI API Key</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="sk-..." 
-                            type="password" 
-                            {...field} 
+                          <Input
+                            placeholder="sk-..."
+                            type="password"
+                            disabled={!useOwnOpenAiKey}
+                            {...field}
                           />
                         </FormControl>
                         <FormDescription>
-                          Your API key is securely stored and used for AI-powered digest generation.
+                          {userSettings.openaiApiKeyConfigured
+                            ? "A key is saved. Paste a new one to replace it."
+                            : "Your key is stored securely and only used when the toggle above is on."}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -434,7 +472,7 @@ export default function Settings() {
                       variant="outline"
                       className="flex-1"
                       onClick={handleTestApiKey}
-                      disabled={isTestingApiKey || updateApiKeyMutation.isPending}
+                      disabled={!useOwnOpenAiKey || isTestingApiKey || updateApiKeyMutation.isPending}
                     >
                       {isTestingApiKey ? (
                         <>
@@ -448,7 +486,7 @@ export default function Settings() {
                     <Button
                       type="submit"
                       className="flex-1 bg-primary text-white hover:bg-blue-600"
-                      disabled={updateApiKeyMutation.isPending || isTestingApiKey}
+                      disabled={!useOwnOpenAiKey || updateApiKeyMutation.isPending || isTestingApiKey}
                     >
                       {updateApiKeyMutation.isPending ? (
                         <>

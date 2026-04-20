@@ -248,20 +248,72 @@ router.get('/digests/by-category/:userId/:slug', asyncHandler(async (req: Reques
 
 // ==================== USER SETTINGS ====================
 
+// Strip the raw OpenAI key from any settings response — callers only need to
+// know whether one is configured, not the key itself. Returning the plaintext
+// key from a GET (even over the internal API) is a needless exposure.
+function maskUserSettings(settings: any) {
+  if (!settings) return settings;
+  const { openaiApiKey, ...rest } = settings;
+  return {
+    ...rest,
+    openaiApiKeyConfigured: typeof openaiApiKey === 'string' && openaiApiKey.length > 0,
+  };
+}
+
+const ALLOWED_SETTINGS_FIELDS = new Set([
+  'dailyDigestEnabled',
+  'topicClusteringEnabled',
+  'emailNotificationsEnabled',
+  'themeMode',
+  'themeColor',
+  'openaiApiKey',
+  'firstName',
+  'lastName',
+  'location',
+  'inboxCleanupAction',
+  'inboxCleanupLabelName',
+  'llmProvider',
+  'llmMigrationNoticeSeen',
+]);
+
+const VALID_LLM_PROVIDERS = new Set(['deepseek', 'openai']);
+
 // Get user settings
 router.get('/user-settings/:userId', asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const settings = await storage.getUserSettings(userId);
-  return res.json(apiResponse(settings));
+  return res.json(apiResponse(maskUserSettings(settings)));
 }));
 
 // Update user settings
 router.patch('/user-settings/:userId', asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
-  const updates = req.body;
-  
-  const updatedSettings = await storage.updateUserSettings(userId, updates);
-  return res.json(apiResponse(updatedSettings, 'Settings updated'));
+  const body = req.body ?? {};
+
+  const unknownFields = Object.keys(body).filter(k => !ALLOWED_SETTINGS_FIELDS.has(k));
+  if (unknownFields.length > 0) {
+    return res.status(400).json(apiError(
+      `Unknown settings fields: ${unknownFields.join(', ')}`,
+      'UNKNOWN_FIELDS',
+    ));
+  }
+
+  if (body.llmProvider !== undefined && !VALID_LLM_PROVIDERS.has(body.llmProvider)) {
+    return res.status(400).json(apiError(
+      `llmProvider must be one of: ${[...VALID_LLM_PROVIDERS].join(', ')}`,
+      'INVALID_LLM_PROVIDER',
+    ));
+  }
+
+  if (body.llmMigrationNoticeSeen !== undefined && typeof body.llmMigrationNoticeSeen !== 'boolean') {
+    return res.status(400).json(apiError(
+      'llmMigrationNoticeSeen must be boolean',
+      'INVALID_FIELD_TYPE',
+    ));
+  }
+
+  const updatedSettings = await storage.updateUserSettings(userId, body);
+  return res.json(apiResponse(maskUserSettings(updatedSettings), 'Settings updated'));
 }));
 
 // ==================== OAUTH TOKENS ====================

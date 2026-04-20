@@ -7,6 +7,7 @@
 
 import { storage } from './storage';
 import { analyzeEmailForThemes, generateDailySummary, ProcessedEmail } from './openai';
+import { ProviderSelection } from './llm/provider';
 import {
   InsertThematicDigest,
   InsertThematicSection,
@@ -38,7 +39,7 @@ export interface ThematicAnalysis {
 /**
  * Stage 1: NLP Analysis and Email Clustering
  */
-async function stageOneAnalysis(emails: ProcessedEmail[], apiKey?: string | null): Promise<ThematicAnalysis> {
+async function stageOneAnalysis(emails: ProcessedEmail[], settings: ProviderSelection): Promise<ThematicAnalysis> {
   console.log('📊 Stage 1: NLP Analysis and Email Clustering');
 
   if (emails.length === 0) {
@@ -50,8 +51,7 @@ async function stageOneAnalysis(emails: ProcessedEmail[], apiKey?: string | null
   }
 
   try {
-    // Use OpenAI for advanced theme analysis
-    const analysis = await analyzeEmailForThemes(emails, apiKey);
+    const analysis = await analyzeEmailForThemes(emails, settings);
     
     return {
       themes: analysis.themes || [],
@@ -220,17 +220,16 @@ export async function processEmailsIntoThemes(
   userId: string,
   emails: ProcessedEmail[],
   emailDigestId?: number,
-  apiKey?: string | null
+  settings: ProviderSelection = {}
 ): Promise<ThematicProcessingResult> {
   console.log(`🎯 Starting thematic processing for user ${userId} with ${emails.length} emails`);
-  
+
   if (emails.length === 0) {
     throw new Error('No emails provided for thematic processing');
   }
 
   try {
-    // Stage 1: NLP Analysis and Email Clustering
-    const analysis = await stageOneAnalysis(emails, apiKey);
+    const analysis = await stageOneAnalysis(emails, settings);
     
     if (analysis.themes.length === 0) {
       throw new Error('No themes identified from email analysis');
@@ -243,7 +242,7 @@ export async function processEmailsIntoThemes(
     console.log(`📝 Stage 2 complete: Enhanced ${enhancedThemes.length} themes`);
 
     // Stage 2.5: Generate overall daily synthesis paragraph
-    const dailySummary = await generateDailySummary(enhancedThemes, emails.length, apiKey);
+    const dailySummary = await generateDailySummary(enhancedThemes, emails.length, settings);
     console.log(`📰 Daily summary: ${dailySummary ? dailySummary.slice(0, 80) + '...' : '(none)'}`);
 
     // If no emailDigestId provided, we need to create a basic digest first

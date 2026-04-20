@@ -93,3 +93,27 @@ ALTER TABLE digest_emails
   ADD COLUMN IF NOT EXISTS category_slug_snapshot TEXT;
 CREATE INDEX IF NOT EXISTS digest_emails_category_slug_idx
   ON digest_emails (category_slug_snapshot);
+
+-- ── 2026-Q2: LLM provider selection (TEEPER-139) ──────────────────────────────
+-- Default 'deepseek' uses the server-side DEEPSEEK_API_KEY. 'openai' uses the
+-- per-user key in openai_api_key. Future values: 'anthropic' | 'gemini' |
+-- 'grok' | 'ollama'. Legacy openai_api_key column retained for one release.
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS llm_provider TEXT NOT NULL DEFAULT 'deepseek';
+
+-- One-time modal flag so the frontend can show the "we switched default to
+-- DeepSeek" notice exactly once per existing user who has an OpenAI key saved.
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS llm_migration_notice_seen BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Backfill: users who already saved a personal OpenAI key stay on OpenAI. They
+-- chose that deliberately and are paying for those tokens — silently moving
+-- them to DeepSeek would change their digest output between deploy and their
+-- next login. New users land on 'deepseek' from the column default above.
+-- The idempotency guard (llm_provider = 'deepseek') ensures this UPDATE is
+-- safe to re-run on every deploy.
+UPDATE user_settings
+   SET llm_provider = 'openai'
+ WHERE openai_api_key IS NOT NULL
+   AND length(openai_api_key) > 0
+   AND llm_provider = 'deepseek';

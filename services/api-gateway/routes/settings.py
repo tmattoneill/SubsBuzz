@@ -39,6 +39,12 @@ class SettingsUpdateRequest(BaseModel):
     # for any value other than "none".
     inboxCleanupAction: Optional[str] = None
     inboxCleanupLabelName: Optional[str] = None
+    # LLM provider selection (TEEPER-139). 'deepseek' uses the shared server key;
+    # 'openai' uses the user's personal openaiApiKey.
+    llmProvider: Optional[str] = None
+    # One-time migration modal acknowledgement — set true once the user has seen
+    # the "we switched default to DeepSeek" notice.
+    llmMigrationNoticeSeen: Optional[bool] = None
 
 
 # Keep in sync with:
@@ -52,9 +58,20 @@ INBOX_CLEANUP_ACTIONS = {
     "trash",
 }
 
+# Keep in sync with services/data-server/src/services/llm/provider.ts (ProviderId).
+# 'deepseek' is the server-managed shared key; a user cannot supply one. Future
+# values will include 'anthropic' | 'gemini' | 'grok' | 'ollama'.
+LLM_PROVIDERS = {"deepseek", "openai"}
+# Providers whose API key is user-supplied (as opposed to server-managed).
+USER_KEYED_PROVIDERS = {"openai"}
+
 
 class ApiKeyRequest(BaseModel):
     apiKey: str
+    # Optional to keep the legacy `{ apiKey }` body shape backward-compatible.
+    # Only providers in USER_KEYED_PROVIDERS are accepted — 'deepseek' uses the
+    # shared server key and is rejected if specified here.
+    provider: Optional[str] = None
 
 
 # Helper function to proxy requests to Data Server
@@ -167,6 +184,17 @@ async def update_user_settings(
                 detail=(
                     f"Invalid inboxCleanupAction '{action}'. "
                     f"Must be one of: {', '.join(sorted(INBOX_CLEANUP_ACTIONS))}"
+                )
+            )
+
+    if "llmProvider" in update_data:
+        provider = update_data["llmProvider"]
+        if provider not in LLM_PROVIDERS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Invalid llmProvider '{provider}'. "
+                    f"Must be one of: {', '.join(sorted(LLM_PROVIDERS))}"
                 )
             )
 
@@ -342,12 +370,30 @@ async def update_theme_preferences(
 
 @router.get("/test-api-key")
 async def test_api_key(
+    provider: Optional[str] = None,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Test whether the user's stored OpenAI API key is valid"""
+    """Test whether the selected provider's API key is valid.
+
+    `provider` (optional) picks which provider to test — defaults to 'openai'
+    for backward compatibility with the existing UI. 'deepseek' tests the
+    server-managed shared key.
+    """
     user_id = current_user["uid"]
+    provider = provider or "openai"
+    if provider not in LLM_PROVIDERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Invalid provider '{provider}'. "
+                f"Must be one of: {', '.join(sorted(LLM_PROVIDERS))}"
+            )
+        )
     try:
-        result = await proxy_to_data_server("GET", f"digest/openai-health?userId={user_id}")
+        result = await proxy_to_data_server(
+            "GET",
+            f"digest/openai-health?userId={user_id}&provider={provider}"
+        )
         return result
     except HTTPException:
         raise
@@ -364,14 +410,33 @@ async def update_api_key(
     request: ApiKeyRequest,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Store the user's OpenAI API key in their settings"""
+    """Store a user-supplied provider API key.
+
+    Only providers whose key is user-supplied (USER_KEYED_PROVIDERS) can be
+    written via this endpoint. 'deepseek' is rejected — it uses the shared
+    server-side key, never a user key. The legacy `{ apiKey }` body shape
+    (no `provider` field) is accepted and defaults to 'openai'.
+    """
     user_id = current_user["uid"]
+    provider = request.provider or "openai"
+    if provider not in USER_KEYED_PROVIDERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Provider '{provider}' does not accept user-supplied keys. "
+                f"Accepted providers: {', '.join(sorted(USER_KEYED_PROVIDERS))}"
+            )
+        )
+
+    # Only OpenAI is user-keyed today — if more providers are added, route the
+    # payload to the right column here (e.g. anthropicApiKey, geminiApiKey).
+    payload = {"openaiApiKey": request.apiKey}
 
     try:
-        result = await proxy_to_data_server(
+        await proxy_to_data_server(
             "PATCH",
             f"storage/user-settings/{user_id}",
-            json_data={"openaiApiKey": request.apiKey}
+            json_data=payload
         )
         return {"success": True, "message": "API key updated"}
 

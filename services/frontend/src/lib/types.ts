@@ -77,6 +77,12 @@ export type InboxCleanupAction =
   | "mark_read_label_archive"
   | "trash";
 
+// LLM provider selection (TEEPER-139). Keep in sync with:
+// - services/data-server/src/services/llm/provider.ts (ProviderId)
+// - services/api-gateway/routes/settings.py (LLM_PROVIDERS)
+// Future values: "anthropic" | "gemini" | "grok" | "ollama".
+export type LlmProvider = "deepseek" | "openai";
+
 export interface UserSettings {
   id: number;
   dailyDigestEnabled: boolean;
@@ -87,9 +93,15 @@ export interface UserSettings {
   firstName?: string | null;
   lastName?: string | null;
   location?: string | null;
+  // The raw openaiApiKey is NEVER sent back from the API — storage.ts strips
+  // it and substitutes `openaiApiKeyConfigured`. Kept optional here only for
+  // the rare direct-DB writes; treat it as write-only from the frontend.
   openaiApiKey?: string | null;
+  openaiApiKeyConfigured?: boolean;
   inboxCleanupAction?: InboxCleanupAction;
   inboxCleanupLabelName?: string | null;
+  llmProvider?: LlmProvider;
+  llmMigrationNoticeSeen?: boolean;
 }
 
 // Thematic digest types for new meta-summary system

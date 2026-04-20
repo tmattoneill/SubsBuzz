@@ -139,6 +139,11 @@ export const userSettings = pgTable("user_settings", {
   // Requires gmail.modify OAuth scope when set to anything other than "none".
   inboxCleanupAction: text("inbox_cleanup_action").notNull().default("none"),
   inboxCleanupLabelName: text("inbox_cleanup_label_name").default("SubsBuzz"),
+  // LLM provider selection (TEEPER-139). 'deepseek' (default) uses the server
+  // DEEPSEEK_API_KEY; 'openai' uses the user's openai_api_key above. Future:
+  // 'anthropic' | 'gemini' | 'grok' | 'ollama'.
+  llmProvider: text("llm_provider").notNull().default("deepseek"),
+  llmMigrationNoticeSeen: boolean("llm_migration_notice_seen").notNull().default(false),
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
@@ -150,6 +155,8 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
   themeColor: true,
   inboxCleanupAction: true,
   inboxCleanupLabelName: true,
+  llmProvider: true,
+  llmMigrationNoticeSeen: true,
 });
 
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
