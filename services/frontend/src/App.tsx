@@ -19,6 +19,7 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import AuthCallback from "@/pages/auth-callback";
+import { DeepSeekMigrationModal } from "@/components/settings/DeepSeekMigrationModal";
 
 function Router() {
   return (
@@ -56,6 +57,7 @@ function App() {
             <TooltipProvider>
               <Toaster />
               <Router />
+              <DeepSeekMigrationModal />
             </TooltipProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -50,15 +50,22 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       categoryId: email.category_id ?? email.categoryId ?? null  // User-assigned category per sender (TEEPER-105)
     }));
 
-    // Use the user's stored API key if available, fall back to env var
-    let userApiKey: string | null = null;
+    // Resolve the user's LLM provider selection (DeepSeek default, OpenAI
+    // override — see services/llm/provider.ts). TEEPER-139.
+    let providerSelection: { llmProvider: 'deepseek' | 'openai'; openaiApiKey: string | null } = {
+      llmProvider: 'deepseek',
+      openaiApiKey: null,
+    };
     try {
       const userSettings = await storage.getUserSettings(user_id);
-      userApiKey = userSettings?.openaiApiKey || null;
+      providerSelection = {
+        llmProvider: (userSettings?.llmProvider as 'deepseek' | 'openai') ?? 'deepseek',
+        openaiApiKey: userSettings?.openaiApiKey || null,
+      };
     } catch (_) { /* non-fatal */ }
 
-    // Generate digest using existing OpenAI service
-    const digestResult = await generateDigest(user_id, transformedEmails, userApiKey);
+    // Generate digest using the LLM service
+    const digestResult = await generateDigest(user_id, transformedEmails, providerSelection);
 
     // Automatically run thematic processing (non-fatal if it fails)
     try {
@@ -67,7 +74,7 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
         user_id,
         digestResult.processedEmails,
         digestResult.digest.id,
-        userApiKey
+        providerSelection
       );
       console.log('✅ Thematic digest created');
     } catch (thematicError: any) {
@@ -388,22 +395,36 @@ router.get('/stats/:userId', asyncHandler(async (req: Request, res: Response) =>
 
 // ==================== OPENAI HEALTH ====================
 
-// Test OpenAI connectivity — uses user's stored key if userId provided
+// Test LLM connectivity — resolves the user's provider (DeepSeek default, OpenAI override).
 router.get('/openai-health', asyncHandler(async (req: Request, res: Response) => {
   const userId = req.query.userId as string | undefined;
-  let apiKey: string | null = null;
+  const providerOverride = req.query.provider as 'deepseek' | 'openai' | undefined;
+
+  let selection: { llmProvider: 'deepseek' | 'openai'; openaiApiKey: string | null } = {
+    llmProvider: providerOverride ?? 'deepseek',
+    openaiApiKey: null,
+  };
 
   if (userId) {
     const userSettings = await storage.getUserSettings(userId);
-    apiKey = userSettings?.openaiApiKey || null;
+    selection = {
+      llmProvider: providerOverride ?? ((userSettings?.llmProvider as 'deepseek' | 'openai') ?? 'deepseek'),
+      openaiApiKey: userSettings?.openaiApiKey || null,
+    };
   }
 
-  const healthy = await checkOpenAIHealth(apiKey);
+  const healthy = await checkOpenAIHealth(selection);
 
   if (healthy) {
-    return res.json({ success: true, message: 'OpenAI API key is valid and reachable' });
+    return res.json({ success: true, message: `${selection.llmProvider} provider is reachable`, provider: selection.llmProvider });
   } else {
-    return res.status(503).json({ success: false, message: apiKey ? 'Stored API key is invalid' : 'OPENAI_API_KEY env var is not set or invalid' });
+    return res.status(503).json({
+      success: false,
+      provider: selection.llmProvider,
+      message: selection.llmProvider === 'deepseek'
+        ? 'DEEPSEEK_API_KEY is missing or invalid'
+        : (selection.openaiApiKey ? 'Stored OpenAI API key is invalid' : 'OPENAI_API_KEY env var is not set or invalid'),
+    });
   }
 }));
 
