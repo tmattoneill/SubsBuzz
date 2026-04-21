@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "generated": "2026-04-21T06:04:36.858Z",
+  "categories": {
+    "consumer-electronics": {
+      "16_9": [],
+      "3_4": [],
+      "1_1": []
+    },
+    "culture-entertainment": {
+      "16_9": [],
+      "3_4": [],
+      "1_1": []
+    },
+    "digest-cover": {
+      "16_9": [
+        "digest-cover/16_9/tmattoneill_An_illustration_depicting_A_SUMMARY_OF_NEWSLETTER_40264b5c-7e08-4217-8e77-b889a7d5687b_0.webp",
+        "digest-cover/16_9/tmattoneill_An_illustration_depicting_A_SUMMARY_OF_NEWSLETTER_40264b5c-7e08-4217-8e77-b889a7d5687b_1.webp",
+        "digest-cover/16_9/tmattoneill_An_illustration_depicting_A_SUMMARY_OF_NEWSLETTER_40264b5c-7e08-4217-8e77-b889a7d5687b_2.webp",
+        "digest-cover/16_9/tmattoneill_An_illustration_depicting_A_SUMMARY_OF_NEWSLETTER_40264b5c-7e08-4217-8e77-b889a7d5687b_3.webp",
+        "digest-cover/16_9/tmattoneill_An_illustration_depicting_A_SUMMARY_OF_NEWSLETTER_e0f9e910-4923-4f4a-baa5-6fefc3e0d048_0.webp",
+        "digest-cover/16_9/tmattoneill_An_illustration_depicting_A_SUMMARY_OF_NEWSLETTER_e0f9e910-4923-4f4a-baa5-6fefc3e0d048_1.webp",
+        "digest-cover/16_9/tmattoneill_An_illustration_depicting_A_SUMMARY_OF_NEWSLETTER_e0f9e910-4923-4f4a-baa5-6fefc3e0d048_3.webp"
+      ],
+      "3_4": [],
+      "1_1": []
+    },
+    "finance": {
+      "16_9": [
+        "finance/16_9/tmattoneill_Create_a_hero_image_for_a_newsletter_for_the_cate_ba7e0cbf-1242-4ad0-8e38-ee75a52253c5_0.webp",
+        "finance/16_9/tmattoneill_Create_a_hero_image_for_a_newsletter_for_the_cate_ba7e0cbf-1242-4ad0-8e38-ee75a52253c5_1.webp",
+        "finance/16_9/tmattoneill_Create_a_hero_image_for_a_newsletter_for_the_cate_ba7e0cbf-1242-4ad0-8e38-ee75a52253c5_3.webp"
+      ],
+      "3_4": [
+        "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__d45fa9b9-9891-4206-abb8-96c82ff2ac32_0.webp",
+        "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__f053607e-0a2d-431c-a58e-7f2c2e930a82_0.webp",
+        "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__f053607e-0a2d-431c-a58e-7f2c2e930a82_3.webp"
+      ],
+      "1_1": [
+        "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__6f56238e-0575-4423-8a9c-43d3656c0f9b_1.webp",
+        "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_4ddf2990-c00d-420a-8066-efc2182d8621_1.webp",
+        "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_f71ca4d2-ed5c-4e3b-89b7-9d3c605b9231_0.webp"
+      ]
+    },
+    "food-dining": {
+      "16_9": [],
+      "3_4": [],
+      "1_1": []
+    },
+    "general-news": {
+      "16_9": [
+        "general-news/16_9/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__1767c3bb-4dfc-43f8-8d8b-5546364a47ec_0.webp",
+        "general-news/16_9/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__1767c3bb-4dfc-43f8-8d8b-5546364a47ec_2.webp",
+        "general-news/16_9/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__1767c3bb-4dfc-43f8-8d8b-5546364a47ec_3.webp"
+      ],
+      "3_4": [
+        "general-news/3_4/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__50c13367-3579-4233-9d11-17a86e723bf3_1.webp",
+        "general-news/3_4/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__50c13367-3579-4233-9d11-17a86e723bf3_2.webp",
+        "general-news/3_4/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__50c13367-3579-4233-9d11-17a86e723bf3_3.webp"
+      ],
+      "1_1": [
+        "general-news/1_1/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__da11f3f7-6d83-4238-85bc-4135e81ee93d_0.webp",
+        "general-news/1_1/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__da11f3f7-6d83-4238-85bc-4135e81ee93d_1.webp",
+        "general-news/1_1/tmattoneill_An_illustration_depicting_WORLD_NEWS_AND_EVENTS.__da11f3f7-6d83-4238-85bc-4135e81ee93d_2.webp"
+      ]
+    },
+    "industry-news": {
+      "16_9": [],
+      "3_4": [],
+      "1_1": []
+    },
+    "programming-software": {
+      "16_9": [],
+      "3_4": [],
+      "1_1": []
+    },
+    "retail-commerce": {
+      "16_9": [],
+      "3_4": [],
+      "1_1": []
+    },
+    "science-technology": {
+      "16_9": [],
+      "3_4": [],
+      "1_1": []
+    },
+    "travel": {
+      "16_9": [],
+      "3_4": [],
+      "1_1": []
+    }
+  }
+}

@@ -6,6 +6,11 @@ import { Loader2, TrendingUp } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { DigestEmail, FullThematicDigest } from "@/lib/types";
 import { useCategories } from "@/hooks/useCategories";
+import {
+  warmHeroManifest,
+  getArticleHeroFallbackSync,
+  type HeroManifest,
+} from "@/lib/article-heroes";
 import { cn } from "@/lib/utils";
 import { DashboardLayout } from "@/components/layout";
 import { HeroArticle, type HeroArticleData } from "@/components/digest/HeroArticle";
@@ -45,13 +50,14 @@ function categoryFor(email: DigestEmail, liveColor: string | null | undefined) {
 function emailToCard(
   email: DigestEmail,
   liveColor: string | null | undefined,
+  manifest: HeroManifest | null,
 ): ArticleCardData {
   const cat = categoryFor(email, liveColor);
   return {
     id: String(email.id),
     title: email.subject,
     excerpt: email.snippet || email.summary,
-    image: email.heroImageUrl ?? null,
+    image: email.heroImageUrl ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "3_4"),
     topic: topicFor(email),
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
@@ -65,6 +71,7 @@ function emailToCard(
 function emailToView(
   email: DigestEmail,
   liveColor: string | null | undefined,
+  manifest: HeroManifest | null,
 ): ArticleViewData {
   const body = email.summaryHtml
     ? email.summaryHtml
@@ -75,7 +82,7 @@ function emailToView(
     id: String(email.id),
     title: email.subject,
     content: body,
-    image: email.heroImageUrl ?? null,
+    image: email.heroImageUrl ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "16_9"),
     topic: topicFor(email),
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
@@ -102,9 +109,12 @@ function collectEmailsFromThematic(d: FullThematicDigest): DigestEmail[] {
 function thematicToHero(
   d: FullThematicDigest,
   emails: DigestEmail[],
+  manifest: HeroManifest | null,
 ): HeroArticleData | null {
   if (!d.dailySummary) return null;
-  const heroImage = emails.find((e) => e.heroImageUrl)?.heroImageUrl ?? null;
+  const heroImage =
+    emails.find((e) => e.heroImageUrl)?.heroImageUrl ??
+    getArticleHeroFallbackSync(manifest, null, "16_9");
   return {
     id: `thematic-${d.id}`,
     title: "Your Daily Intelligence Brief",
@@ -121,6 +131,7 @@ function thematicToHero(
 function thematicToView(
   d: FullThematicDigest,
   emails: DigestEmail[],
+  manifest: HeroManifest | null,
 ): ArticleViewData {
   // Render the daily summary as the deck, then each section's theme + summary
   // as an h3 + paragraph block. ArticleView splits on the first h3 to place
@@ -142,7 +153,9 @@ function thematicToView(
     excerpt: e.snippet || e.summary,
   }));
 
-  const heroImage = emails.find((e) => e.heroImageUrl)?.heroImageUrl ?? null;
+  const heroImage =
+    emails.find((e) => e.heroImageUrl)?.heroImageUrl ??
+    getArticleHeroFallbackSync(manifest, null, "16_9");
 
   return {
     id: `thematic-${d.id}`,
@@ -192,6 +205,13 @@ export default function DigestView() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: heroManifest = null } = useQuery<HeroManifest | null>({
+    queryKey: ["article-hero-manifest"],
+    queryFn: warmHeroManifest,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
   // Shape-derived values. Fall back safely when the API response is shaped
   // as either a FullThematicDigest or a basic EmailDigest with an `emails` array.
   const { heroArticle, gridEmails, thematicViewData, isThematic } = useMemo(() => {
@@ -210,8 +230,8 @@ export default function DigestView() {
     if (isThematicResp) {
       const t = digestData as FullThematicDigest;
       const emails = collectEmailsFromThematic(t);
-      const hero = thematicToHero(t, emails);
-      const view = thematicToView(t, emails);
+      const hero = thematicToHero(t, emails, heroManifest);
+      const view = thematicToView(t, emails, heroManifest);
       return {
         heroArticle: hero,
         gridEmails: emails,
@@ -227,7 +247,7 @@ export default function DigestView() {
       thematicViewData: null,
       isThematic: false,
     };
-  }, [digestData]);
+  }, [digestData, heroManifest]);
 
   const digestDate = useMemo(
     () => (digestData?.date ? new Date(digestData.date) : null),
@@ -426,7 +446,7 @@ export default function DigestView() {
                 {filteredEmails.map((email, index) => {
                   const liveColor =
                     (email.categoryId && categoryColorById.get(email.categoryId)) || null;
-                  const card = emailToCard(email, liveColor);
+                  const card = emailToCard(email, liveColor, heroManifest);
                   // Give the first card a large slot for visual rhythm when there are enough emails.
                   const size: ArticleCardData["size"] =
                     index === 0 && filteredEmails.length >= 3 ? "large" : "medium";
@@ -445,7 +465,7 @@ export default function DigestView() {
                     >
                       <ArticleCard
                         article={cardWithSize}
-                        onRead={() => setOpenArticle(emailToView(email, liveColor))}
+                        onRead={() => setOpenArticle(emailToView(email, liveColor, heroManifest))}
                       />
                     </motion.div>
                   );

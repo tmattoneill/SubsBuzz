@@ -13,6 +13,11 @@ import {
 } from "@/components/digest/ArticleView";
 import { useCategories } from "@/hooks/useCategories";
 import type { DigestEmail } from "@/lib/types";
+import {
+  warmHeroManifest,
+  getArticleHeroFallbackSync,
+  type HeroManifest,
+} from "@/lib/article-heroes";
 
 function computeReadTime(content: string | undefined | null): string {
   const len = (content ?? "").length;
@@ -33,12 +38,12 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function toCard(email: DigestEmail, color: string | null): ArticleCardData {
+function toCard(email: DigestEmail, color: string | null, manifest: HeroManifest | null): ArticleCardData {
   return {
     id: String(email.id),
     title: email.subject,
     excerpt: email.snippet || email.summary,
-    image: email.heroImageUrl ?? null,
+    image: email.heroImageUrl ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "3_4"),
     topic: topicFor(email),
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
@@ -49,7 +54,7 @@ function toCard(email: DigestEmail, color: string | null): ArticleCardData {
   };
 }
 
-function toView(email: DigestEmail, color: string | null): ArticleViewData {
+function toView(email: DigestEmail, color: string | null, manifest: HeroManifest | null): ArticleViewData {
   const body = email.summaryHtml
     ? email.summaryHtml
     : `<p>${escapeHtml(email.summary)}</p>`;
@@ -57,7 +62,7 @@ function toView(email: DigestEmail, color: string | null): ArticleViewData {
     id: String(email.id),
     title: email.subject,
     content: body,
-    image: email.heroImageUrl ?? null,
+    image: email.heroImageUrl ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "16_9"),
     topic: topicFor(email),
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
@@ -90,6 +95,13 @@ export default function CategoryCollection() {
     queryKey: ["/api/digest/by-category", slug],
     queryFn: () => api.get<DigestEmail[]>(`/api/digest/by-category/${slug}?limit=100`),
     enabled: !!slug,
+  });
+
+  const { data: heroManifest = null } = useQuery<HeroManifest | null>({
+    queryKey: ["article-hero-manifest"],
+    queryFn: warmHeroManifest,
+    staleTime: Infinity,
+    gcTime: Infinity,
   });
 
   const color = liveCategory?.color ?? null;
@@ -176,8 +188,8 @@ export default function CategoryCollection() {
                   transition={{ duration: 0.4, delay: 0.03 * index }}
                 >
                   <ArticleCard
-                    article={toCard(email, color)}
-                    onRead={() => setOpenArticle(toView(email, color))}
+                    article={toCard(email, color, heroManifest)}
+                    onRead={() => setOpenArticle(toView(email, color, heroManifest))}
                   />
                 </motion.div>
               ))}
