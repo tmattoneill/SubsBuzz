@@ -228,9 +228,14 @@ export async function processEmailsIntoThemes(
     throw new Error('No emails provided for thematic processing');
   }
 
+  // Tracks which stage we were in when a throw fired — surfaced in the catch
+  // below so digest.ts:80 can attribute failures to stage-1/stage-2.5/stage-3.
+  let currentStage = 'init';
+
   try {
+    currentStage = 'stage-1:analysis';
     const analysis = await stageOneAnalysis(emails, settings);
-    
+
     if (analysis.themes.length === 0) {
       throw new Error('No themes identified from email analysis');
     }
@@ -238,14 +243,17 @@ export async function processEmailsIntoThemes(
     console.log(`📊 Stage 1 complete: ${analysis.themes.length} themes identified`);
 
     // Stage 2: LLM Synthesis and Narrative Generation
+    currentStage = 'stage-2:synthesis';
     const enhancedThemes = await stageTwoSynthesis(analysis.themes, emails);
     console.log(`📝 Stage 2 complete: Enhanced ${enhancedThemes.length} themes`);
 
     // Stage 2.5: Generate overall daily synthesis paragraph
+    currentStage = 'stage-2.5:daily-summary';
     const dailySummary = await generateDailySummary(enhancedThemes, emails.length, settings);
     console.log(`📰 Daily summary: ${dailySummary ? dailySummary.slice(0, 80) + '...' : '(none)'}`);
 
     // If no emailDigestId provided, we need to create a basic digest first
+    currentStage = 'stage-2.6:ensure-digest-row';
     let finalEmailDigestId = emailDigestId;
     if (!finalEmailDigestId) {
       // Create a basic email digest for linking
@@ -257,13 +265,19 @@ export async function processEmailsIntoThemes(
       });
       finalEmailDigestId = basicDigest.id;
 
-      // Add emails to the digest
+      // Add emails to the digest. Coerce receivedAt to Date — callers that
+      // JSON-serialised their emails (e.g. the /thematic/process HTTP route)
+      // pass it as an ISO string, and Drizzle's PgTimestamp.mapToDriverValue
+      // calls .toISOString() on the value, which blows up on strings with
+      // "TypeError: value.toISOString is not a function".
       for (const email of emails) {
         await storage.addDigestEmail({
           digestId: basicDigest.id,
           sender: email.sender,
           subject: email.subject,
-          receivedAt: email.receivedAt,
+          receivedAt: email.receivedAt instanceof Date
+            ? email.receivedAt
+            : new Date(email.receivedAt),
           summary: email.summary,
           summaryHtml: (email as any).summaryHtml ?? null,
           fullContent: email.fullContent,
@@ -276,6 +290,7 @@ export async function processEmailsIntoThemes(
     }
 
     // Stage 3: Database Storage and Source Linking
+    currentStage = 'stage-3:storage';
     const thematicDigestId = await stageThreeStorage(
       userId,
       finalEmailDigestId,
@@ -298,8 +313,13 @@ export async function processEmailsIntoThemes(
     console.log(`🎉 Thematic processing complete:`, result);
     return result;
 
-  } catch (error) {
-    console.error('Error in thematic processing:', error);
+  } catch (error: any) {
+    console.error(
+      `[thematic] throw at stage=${currentStage} ` +
+      `user=${userId} digestId=${emailDigestId ?? 'none'} ` +
+      `name=${error?.name ?? 'Error'} message=${error?.message ?? String(error)}`
+    );
+    if (error?.stack) console.error(error.stack);
     throw error;
   }
 }

@@ -78,7 +78,19 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
       );
       console.log('✅ Thematic digest created');
     } catch (thematicError: any) {
-      console.error(`Thematic processing failed (non-fatal): ${thematicError?.message || thematicError}`);
+      // Non-fatal for the HTTP response, but log loudly — silent failures here
+      // produce basic email_digests rows with no matching thematic_digests row,
+      // which renders in the UI as "digest without meta-summary". See
+      // devctx note 2026-04-21.
+      console.error(
+        `[thematic] FAILED user=${user_id} digestId=${digestResult.digest.id} ` +
+        `provider=${providerSelection.llmProvider} ` +
+        `name=${thematicError?.name ?? 'Error'} ` +
+        `code=${thematicError?.code ?? 'none'} ` +
+        `status=${thematicError?.status ?? 'none'} ` +
+        `message=${thematicError?.message ?? String(thematicError)}`
+      );
+      if (thematicError?.stack) console.error(thematicError.stack);
     }
 
     return res.status(201).json(apiResponse(digestResult, 'Digest created successfully'));
@@ -338,10 +350,17 @@ router.post('/thematic/process', asyncHandler(async (req: Request, res: Response
     // Import thematic processor (would be moved to services)
     const { thematicProcessor } = await import('../services/thematic-processor.js');
     
-    const thematicDigestId = await thematicProcessor.processEmailsIntoThemes(userId, emails);
+    // emailDigestId is validated above; pass it through so the processor
+    // links the new thematic row to the existing email_digests row instead
+    // of creating a duplicate basic digest.
+    const result = await thematicProcessor.processEmailsIntoThemes(
+      userId,
+      emails,
+      emailDigestId,
+    );
 
     return res.status(201).json(apiResponse({
-      thematicDigestId,
+      thematicDigestId: (result as any)?.thematicDigestId ?? result,
       emailsProcessed: emails.length,
       userId
     }, 'Thematic digest created successfully'));

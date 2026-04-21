@@ -275,7 +275,7 @@ router.post('/process', asyncHandler(async (req: Request, res: Response) => {
     // Import and use thematic processor
     const { thematicProcessor } = await import('../services/thematic-processor.js');
     
-    const thematicDigestId = await thematicProcessor.processEmailsIntoThemes(userId, emails);
+    const thematicDigestId = await thematicProcessor.processEmailsIntoThemes(userId, emails, emailDigestId);
     
     return res.status(201).json(apiResponse({
       thematicDigestId,
