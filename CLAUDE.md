@@ -798,10 +798,12 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 19/04/2026, 08:10:36
+**Last Updated:** 21/04/2026, 07:46:53
 
 ### Active Todos
 - [ ] [high] Deploy and manually QA the categories feature in dev environment (`main`)
+- [ ] [high] Decide on hero image storage strategy and commit the article heroes fallback system (digest.tsx, category-collection.tsx, article-heroes.ts, scripts/, package.json prebuild hook) (`main`)
+- [ ] [high] Commit the tasks.py timeout increase from 60→300s fix (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-40] Improve monitored emails UI — currently a single long list; redesign with better visual management (search, filtering, grouping, bulk actions, etc.) https://linear.app/teemo-personal-projects/issue/TEEPER-40 (`main`)
@@ -816,6 +818,9 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Commit the modified CLAUDE.md documentation updates (`main`)
 - [ ] [medium] Run full regression testing on digest generation with categories (`main`)
 - [ ] [medium] Consider creating integration tests for the categories workflow end-to-end (`main`)
+- [ ] [medium] Add and commit the new services/frontend/README.md documentation (`main`)
+- [ ] [medium] Test the hero image fallback system in development environment (`main`)
 - [ ] [low] [TEEPER-122] Fix pre-existing tsc error in thematic-processor.ts:318 — summaryHtml missing in processRawEmailsIntoThemes mapping. One-line add: `summaryHtml: email.summaryHtml ?? null`. Noticed during TEEPER-105 branch check. https://linear.app/teemo-personal-projects/issue/TEEPER-122 (`main`)
+- [ ] [low] Document the decision rationale for hero image storage approach in commit message (`main`)
 
 <!-- DEVCTX:END -->
