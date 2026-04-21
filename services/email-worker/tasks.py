@@ -69,7 +69,7 @@ class DataServerClient:
                 f"{self.base_url}{endpoint}",
                 json=data,
                 headers=self.headers,
-                timeout=60.0
+                timeout=300.0
             )
             response.raise_for_status()
             return response.json()
