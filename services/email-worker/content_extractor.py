@@ -270,7 +270,15 @@ class ContentExtractor:
     _HERO_URL_BLACKLIST = re.compile(
         r'(pixel|tracking|beacon|open\.gif|spacer|transparent'
         r'|1x1|analytics|googletagmanager|doubleclick'
-        r'|/logo|/avatar|/icon|/unsub|/footer)',
+        r'|/logo|/avatar|/icon|/unsub|/footer'
+        # Publisher-branded email-banner assets (e.g. NYT-Alert-Header-Desktop-Black2.png)
+        r'|/email-images/[^?]*-(header|alert|banner|promo)-'
+        # Publisher tracker-redirect domains (link.<publisher>.com/img/ wrappers)
+        r'|link\.(cntraveler|wired|newyorker|vogue|vanityfair|gq|bonappetit|architecturaldigest|self|glamour|epicurious|teenvogue|allure|pitchfork|them|arstechnica)\.com/img/'
+        # LiveIntent impression beacons (any subdomain)
+        r'|liveintent\.'
+        # LiveIntent-style tracking beacon fingerprint: /imp? with li= param
+        r'|/imp\?[^"\s]*li=)',
         re.I,
     )
     # Alt-text hints the image is NOT a hero
