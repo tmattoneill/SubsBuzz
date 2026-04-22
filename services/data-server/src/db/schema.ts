@@ -63,6 +63,10 @@ export const monitoredEmails = pgTable("monitored_emails", {
   // banner eligible when sender has ≥2 subscriptions. Set by "Looks good" /
   // "Adjust" / explicit close / 48h auto-dismiss.
   splitBannerDismissedAt: timestamp("split_banner_dismissed_at", { withTimezone: true }),
+  // splitLocked: user collapsed this sender's subscriptions via "Keep as one"
+  // — resolveSubscription forces Tier 5 for any future inbound message,
+  // ignoring List-Id, so a noisy publisher can't re-split the same newsletter.
+  splitLocked: boolean("split_locked").notNull().default(false),
 }, (t) => [unique("monitored_emails_user_email_unique").on(t.userId, t.email)]);
 
 export const insertMonitoredEmailSchema = createInsertSchema(monitoredEmails).pick({

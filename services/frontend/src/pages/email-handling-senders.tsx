@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Merge, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -19,6 +19,7 @@ import {
   SplitDetectionBanner,
   shouldShowSplitBanner,
 } from "@/components/email-handling/split-detection-banner";
+import { KeepAsOneDialog } from "@/components/email-handling/keep-as-one-dialog";
 import type { MonitoredEmail, EmailCategory, Subscription } from "@/lib/types";
 
 // Smart sender parsing view. A sender's row is flat when it has 0–1
@@ -29,6 +30,7 @@ export default function EmailHandlingSenders() {
   const qc = useQueryClient();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [mergeTarget, setMergeTarget] = useState<{ sender: MonitoredEmail; subs: Subscription[] } | null>(null);
 
   const { data: senders = [], isLoading: sendersLoading } = useQuery<MonitoredEmail[]>({
     queryKey: ["/api/monitored-emails"],
@@ -173,7 +175,7 @@ export default function EmailHandlingSenders() {
             <TableRow>
               <TableHead>Email</TableHead>
               <TableHead className="w-[260px]">Category</TableHead>
-              <TableHead className="w-[80px] text-right">Actions</TableHead>
+              <TableHead className="w-[140px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -217,18 +219,33 @@ export default function EmailHandlingSenders() {
                         Multiple ({subs.length})
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteSender.mutate(s.id);
-                          }}
-                          disabled={deleteSender.isPending}
-                          aria-label={`Remove ${s.email}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMergeTarget({ sender: s, subs });
+                            }}
+                            title="Collapse all into one subscription"
+                            aria-label={`Keep ${s.email} as one subscription`}
+                          >
+                            <Merge className="mr-1 h-4 w-4" />
+                            Keep as one
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSender.mutate(s.id);
+                            }}
+                            disabled={deleteSender.isPending}
+                            aria-label={`Remove ${s.email}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>,
                   );
@@ -347,6 +364,18 @@ export default function EmailHandlingSenders() {
       </div>
 
       <AddSenderModal open={isAddOpen} onOpenChange={setIsAddOpen} />
+      {mergeTarget ? (
+        <KeepAsOneDialog
+          open={!!mergeTarget}
+          onOpenChange={(open) => {
+            if (!open) setMergeTarget(null);
+          }}
+          senderEmail={mergeTarget.sender.email}
+          senderId={mergeTarget.sender.id}
+          subscriptions={mergeTarget.subs}
+          categoryMap={categoryMap}
+        />
+      ) : null}
     </section>
   );
 }

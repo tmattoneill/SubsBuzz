@@ -35,6 +35,10 @@ class RecategoriseRequest(BaseModel):
     categoryId: Optional[int] = None
 
 
+class MergeSubscriptionsRequest(BaseModel):
+    keepSubscriptionId: int
+
+
 async def proxy_to_data_server(
     method: str,
     path: str,
@@ -107,6 +111,22 @@ async def dismiss_banner(
         "POST",
         f"subscriptions/sender/{sender_id}/dismiss-banner",
         json_data={"userId": user_id},
+    )
+    return SubscriptionResponse(success=True, data=result.get("data", {}))
+
+
+@router.post("/sender/{sender_id}/merge", response_model=SubscriptionResponse)
+async def merge_subscriptions(
+    sender_id: int,
+    request: MergeSubscriptionsRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    user_id = current_user["uid"]
+    payload = {"userId": user_id, "keepSubscriptionId": request.keepSubscriptionId}
+    result = await proxy_to_data_server(
+        "POST",
+        f"subscriptions/sender/{sender_id}/merge",
+        json_data=payload,
     )
     return SubscriptionResponse(success=True, data=result.get("data", {}))
 

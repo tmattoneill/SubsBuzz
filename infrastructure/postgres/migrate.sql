@@ -163,3 +163,11 @@ CREATE INDEX IF NOT EXISTS idx_digest_emails_subscription
 -- or the 48h auto-dismiss). NULL = banner eligible to show.
 ALTER TABLE monitored_emails
   ADD COLUMN IF NOT EXISTS split_banner_dismissed_at TIMESTAMPTZ;
+
+-- split_locked: user explicitly collapsed this sender's children via "Keep as
+-- one". resolveSubscription forces Tier-5 derivation (from address) for any
+-- future inbound message, ignoring List-Id entirely. Protects against noisy
+-- publishers whose List-Id varies per message but who always represent the
+-- same newsletter (e.g. breakingnews@nytimes.com).
+ALTER TABLE monitored_emails
+  ADD COLUMN IF NOT EXISTS split_locked BOOLEAN NOT NULL DEFAULT FALSE;

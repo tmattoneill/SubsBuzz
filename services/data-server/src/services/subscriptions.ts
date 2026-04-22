@@ -91,13 +91,37 @@ export function deriveSubscriptionKey(signals: SubscriptionSignals): { key: stri
  * Look up or create a subscription row for this (userId, subscription_key).
  * Re-running on the same inbound message returns the existing row unchanged
  * apart from the bumped last_seen_at / message_count counters.
+ *
+ * If the parent sender has `split_locked=true` (set by the user via "Keep
+ * as one"), we force Tier 5 derivation regardless of List-Id — so a noisy
+ * publisher can't re-split the same newsletter into multiple subscriptions.
  */
 export async function resolveSubscription(
   userId: string,
   senderId: number,
   signals: SubscriptionSignals,
 ): Promise<ResolveSubscriptionResult> {
-  const { key, tier, parsedListId } = deriveSubscriptionKey(signals);
+  // Fetch sender first so split_locked can override the derivation tier.
+  const senderRows = await getDatabase()
+    .select({
+      id: monitoredEmails.id,
+      categoryId: monitoredEmails.categoryId,
+      splitLocked: monitoredEmails.splitLocked,
+    })
+    .from(monitoredEmails)
+    .where(eq(monitoredEmails.id, senderId))
+    .limit(1);
+  const senderRow = senderRows[0];
+  const senderFallbackCategoryId = senderRow?.categoryId ?? null;
+  const splitLocked = senderRow?.splitLocked ?? false;
+
+  const { key, tier, parsedListId } = splitLocked
+    ? {
+        key: signals.fromAddress.toLowerCase().trim(),
+        tier: 5 as const,
+        parsedListId: null as ParsedListId | null,
+      }
+    : deriveSubscriptionKey(signals);
 
   // Fast path: existing subscription — just bump counters.
   const existingRows = await getDatabase()
@@ -119,14 +143,6 @@ export async function resolveSubscription(
       isSecondSubscription: false,
     };
   }
-
-  // Slow path: derive display name + category, insert, detect split.
-  const sender = await getDatabase()
-    .select({ id: monitoredEmails.id, categoryId: monitoredEmails.categoryId })
-    .from(monitoredEmails)
-    .where(eq(monitoredEmails.id, senderId))
-    .limit(1);
-  const senderFallbackCategoryId = sender[0]?.categoryId ?? null;
 
   const { displayName, displayNameSource } = deriveDisplayName(key, parsedListId, signals);
   const { categoryId, categorySource, categoryConfidence } = await resolveCategory(

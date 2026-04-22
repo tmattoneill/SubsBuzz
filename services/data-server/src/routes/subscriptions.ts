@@ -9,7 +9,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { asyncHandler } from '../middleware/error';
 import { getDatabase } from '../db';
 import {
@@ -238,6 +238,89 @@ router.patch('/digest-email/:id/recategorise', asyncHandler(async (req: Request,
     .where(eq(digestEmails.subscriptionId, subscriptionId));
 
   return res.json(apiResponse({ digestEmailId, subscriptionId, categoryId }));
+}));
+
+// POST /api/subscriptions/sender/:senderId/merge — "Keep as one". Collapses
+// every subscription under a sender into the one the user chose, re-points
+// all digest_emails at the kept subscription, re-keys the kept sub to the
+// sender's from address (Tier 5), and locks the sender against any future
+// List-Id splits. Idempotent: running against a sender that already has one
+// subscription just flips split_locked + dismisses the banner.
+router.post('/sender/:senderId/merge', asyncHandler(async (req: Request, res: Response) => {
+  const senderId = parseInt(req.params.senderId, 10);
+  if (isNaN(senderId)) return res.status(400).json(apiError('Invalid senderId', 'INVALID_ID'));
+  const { userId, keepSubscriptionId } = req.body ?? {};
+  if (!userId) return res.status(400).json(apiError('userId is required', 'MISSING_FIELDS'));
+  if (typeof keepSubscriptionId !== 'number') {
+    return res.status(400).json(apiError('keepSubscriptionId (number) is required', 'MISSING_FIELDS'));
+  }
+
+  const db = getDatabase();
+
+  // Verify sender ownership + pull from address (the post-merge key).
+  const senderRows = await db
+    .select({ id: monitoredEmails.id, email: monitoredEmails.email })
+    .from(monitoredEmails)
+    .where(and(eq(monitoredEmails.id, senderId), eq(monitoredEmails.userId, userId)))
+    .limit(1);
+  if (senderRows.length === 0) {
+    return res.status(404).json(apiError('Sender not found', 'NOT_FOUND'));
+  }
+  const sender = senderRows[0];
+  const newKey = sender.email.trim().toLowerCase();
+
+  // Pull all subscriptions for this sender + the kept one to confirm it
+  // belongs to this user-and-sender.
+  const allSubs = await db
+    .select({ id: subscriptions.id, subscriptionKey: subscriptions.subscriptionKey })
+    .from(subscriptions)
+    .where(and(eq(subscriptions.userId, userId), eq(subscriptions.senderId, senderId)));
+  const kept = allSubs.find((s) => s.id === keepSubscriptionId);
+  if (!kept) {
+    return res.status(404).json(apiError('keepSubscriptionId not found under this sender', 'NOT_FOUND'));
+  }
+  const siblingIds = allSubs.map((s) => s.id).filter((id) => id !== kept.id);
+
+  // 1. Re-point every digest_email under a sibling subscription to the kept one.
+  // 2. Delete sibling subscriptions (they have no digest_emails left).
+  // 3. Re-key the kept sub to the sender's from address with Tier 5 so future
+  //    Tier-1 List-Id messages are routed to it via split_locked.
+  //    If the kept sub already carries that key we skip the update to avoid
+  //    a no-op write.
+  // 4. Flip the sender's split_locked + dismiss the banner.
+  // 5. Mark the kept sub user_confirmed.
+  if (siblingIds.length > 0) {
+    await db
+      .update(digestEmails)
+      .set({ subscriptionId: kept.id })
+      .where(inArray(digestEmails.subscriptionId, siblingIds));
+    await db
+      .delete(subscriptions)
+      .where(inArray(subscriptions.id, siblingIds));
+  }
+
+  if (kept.subscriptionKey !== newKey) {
+    await db
+      .update(subscriptions)
+      .set({ subscriptionKey: newKey, subscriptionKeyTier: 5, userConfirmed: true })
+      .where(eq(subscriptions.id, kept.id));
+  } else {
+    await db
+      .update(subscriptions)
+      .set({ subscriptionKeyTier: 5, userConfirmed: true })
+      .where(eq(subscriptions.id, kept.id));
+  }
+
+  await db
+    .update(monitoredEmails)
+    .set({ splitLocked: true, splitBannerDismissedAt: new Date() })
+    .where(eq(monitoredEmails.id, senderId));
+
+  return res.json(apiResponse({
+    senderId,
+    keptSubscriptionId: kept.id,
+    mergedCount: siblingIds.length,
+  }, 'Subscriptions merged and sender locked'));
 }));
 
 export { router as subscriptionsRoutes };
