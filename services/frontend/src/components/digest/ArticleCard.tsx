@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ArrowUpRight } from 'lucide-react';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
@@ -6,8 +7,10 @@ export interface ArticleCardData {
   id: string;
   title: string;
   excerpt: string;
-  /** Optional hero image URL. When absent, the card shows a gradient plate. */
+  /** Primary hero image URL (the article's own image). Falls back to fallbackImage on load error or bad dimensions. */
   image?: string | null;
+  /** Manifest fallback image — used when `image` is absent, fails to load, or is banner-shaped. */
+  fallbackImage?: string | null;
   topic: string;
   date: string;
   readTime: string;
@@ -23,6 +26,9 @@ interface ArticleCardProps {
   onRead?: () => void;
 }
 
+// Max width:height ratio before we treat an image as a newsletter banner.
+const BANNER_RATIO_THRESHOLD = 3.5;
+
 export function ArticleCard({ article, onRead }: ArticleCardProps) {
   const heightClass =
     article.size === 'large'
@@ -30,6 +36,39 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
       : article.size === 'medium'
       ? 'h-[450px]'
       : 'h-[400px]';
+
+  // Track rejected URLs so we step down: primary → fallback → gradient.
+  // Stored in a ref so mutations don't cause renders; errorCount triggers them.
+  const rejectedRef = useRef(new Set<string>());
+  const [, setErrorCount] = useState(0);
+
+  const bumpError = (url: string) => {
+    rejectedRef.current.add(url);
+    setErrorCount((n) => n + 1);
+  };
+
+  // Derive display URL from props on every render — so when fallbackImage
+  // arrives (manifest loaded after mount) we naturally pick it up.
+  const candidates = [article.image, article.fallbackImage].filter(
+    (u): u is string => Boolean(u) && !rejectedRef.current.has(u),
+  );
+  const displaySrc = candidates[0] ?? null;
+
+  const handleError = () => {
+    if (displaySrc) bumpError(displaySrc);
+  };
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (
+      img.naturalWidth > 0 &&
+      img.naturalHeight > 0 &&
+      img.naturalWidth / img.naturalHeight > BANNER_RATIO_THRESHOLD
+    ) {
+      // Too wide to be a hero — treat as rejected and step down to fallback.
+      if (displaySrc) bumpError(displaySrc);
+    }
+  };
 
   return (
     <motion.article
@@ -39,13 +78,15 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="relative h-[60%] overflow-hidden">
-        {article.image ? (
+        {displaySrc ? (
           <motion.img
-            src={article.image}
+            src={displaySrc}
             alt={article.title}
             className="absolute inset-0 w-full h-full object-cover"
             whileHover={{ scale: 1.08 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            onError={handleError}
+            onLoad={handleLoad}
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-secondary via-muted to-accent/20" />

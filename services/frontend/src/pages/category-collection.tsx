@@ -16,6 +16,7 @@ import type { DigestEmail } from "@/lib/types";
 import {
   warmHeroManifest,
   getArticleHeroFallbackSync,
+  isGoodHeroUrl,
   type HeroManifest,
 } from "@/lib/article-heroes";
 
@@ -43,7 +44,8 @@ function toCard(email: DigestEmail, color: string | null, manifest: HeroManifest
     id: String(email.id),
     title: email.subject,
     excerpt: email.snippet || email.summary,
-    image: email.heroImageUrl ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "3_4"),
+    image: isGoodHeroUrl(email.heroImageUrl) ? email.heroImageUrl : null,
+    fallbackImage: getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "3_4"),
     topic: topicFor(email),
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
@@ -62,7 +64,7 @@ function toView(email: DigestEmail, color: string | null, manifest: HeroManifest
     id: String(email.id),
     title: email.subject,
     content: body,
-    image: email.heroImageUrl ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "16_9"),
+    image: (isGoodHeroUrl(email.heroImageUrl) ? email.heroImageUrl : null) ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "16_9"),
     topic: topicFor(email),
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),

@@ -10,6 +10,18 @@ const MANIFEST_URL = "/article-heroes/manifest.json";
 const BASE_URL = "/article-heroes/";
 const FALLBACK_CATEGORY = "general-news";
 
+// Mirror of the backend _HERO_URL_BLACKLIST — rejects tracking pixels, logos,
+// publisher banner assets, and known ad-network domains. Stored heroImageUrl
+// values pre-dating the backend filter may match these; treat them as null so
+// the manifest fallback is used instead.
+const HERO_URL_REJECT =
+  /pixel|tracking|beacon|open\.gif|spacer|transparent|1x1|analytics|googletagmanager|doubleclick|\/logo|\/avatar|\/icon|\/unsub|\/footer|\/email-images\/[^?]*-(header|alert|banner|promo)-|link\.(cntraveler|wired|newyorker|vogue|vanityfair|gq|bonappetit|architecturaldigest|self|glamour|epicurious|teenvogue|allure|pitchfork|them|arstechnica)\.com\/img\/|liveintent\.|\/imp\?[^"\s]*li=/i;
+
+export function isGoodHeroUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return !HERO_URL_REJECT.test(url);
+}
+
 let manifestPromise: Promise<HeroManifest | null> | null = null;
 
 function pickRandom<T>(arr: T[]): T | undefined {

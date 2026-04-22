@@ -798,17 +798,13 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 21/04/2026, 22:17:10
+**Last Updated:** 21/04/2026, 22:18:20
 
 ### Active Todos
-- [ ] [high] Validate DeepSeek integration is working correctly in production with fallback to OpenAI (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
-- [ ] [medium] [TEEPER-40] Improve monitored emails UI — currently a single long list; redesign with better visual management (search, filtering, grouping, bulk actions, etc.) https://linear.app/teemo-personal-projects/issue/TEEPER-40 (`main`)
 - [ ] [medium] [TEEPER-86] Remove Firebase from api-gateway — dead code (firebase_admin init, /auth/firebase endpoint, requirements.txt entry). Refactor not a delete. https://linear.app/teemo-personal-projects/issue/TEEPER-86 (`main`)
-- [ ] [medium] [TEEPER-103] Sidebar logout UX — add confirmation modal (AlertDialog) + fix cramped X-button formatting against the edge. services/frontend/src/components/layout/Sidebar.tsx:93-109. https://linear.app/teemo-personal-projects/issue/TEEPER-103 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
-- [ ] [medium] [TEEPER-45] Logging + monitoring + alerting for Celery beat scheduler (3AM UTC digest run — no observability currently). https://linear.app/teemo-personal-projects/issue/TEEPER-45 (`main`)
 - [ ] [medium] [TEEPER-49] Debug CSS specificity + next-themes integration timing issues (ui-overhaul branch — FOUC, theme flicker, Tailwind overrides). https://linear.app/teemo-personal-projects/issue/TEEPER-49 (`main`)
 - [ ] [medium] [TEEPER-106] UI cleanup pass — audit services/frontend for dead elements (no handler/route), placeholder elements (TODO/coming soon/lorem), and redundant elements (duplicated functionality). Delete, don't comment out. https://linear.app/teemo-personal-projects/issue/TEEPER-106 (`main`)
 - [ ] [medium] [TEEPER-107] Change default landing page to latest digest (currently lands on historical stats /dashboard). Update post-login redirect in auth-callback.tsx + root route in App.tsx; fall back to stats only if no digest exists. https://linear.app/teemo-personal-projects/issue/TEEPER-107 (`main`)

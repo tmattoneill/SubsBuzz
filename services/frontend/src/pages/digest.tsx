@@ -9,6 +9,7 @@ import { useCategories } from "@/hooks/useCategories";
 import {
   warmHeroManifest,
   getArticleHeroFallbackSync,
+  isGoodHeroUrl,
   type HeroManifest,
 } from "@/lib/article-heroes";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,8 @@ function emailToCard(
     id: String(email.id),
     title: email.subject,
     excerpt: email.snippet || email.summary,
-    image: email.heroImageUrl ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "3_4"),
+    image: isGoodHeroUrl(email.heroImageUrl) ? email.heroImageUrl : null,
+    fallbackImage: getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "3_4"),
     topic: topicFor(email),
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
@@ -82,7 +84,7 @@ function emailToView(
     id: String(email.id),
     title: email.subject,
     content: body,
-    image: email.heroImageUrl ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "16_9"),
+    image: (isGoodHeroUrl(email.heroImageUrl) ? email.heroImageUrl : null) ?? getArticleHeroFallbackSync(manifest, email.categorySlugSnapshot, "16_9"),
     topic: topicFor(email),
     date: email.receivedAt,
     readTime: computeReadTime(email.summaryHtml ?? email.summary),
@@ -113,7 +115,7 @@ function thematicToHero(
 ): HeroArticleData | null {
   if (!d.dailySummary) return null;
   const heroImage =
-    emails.find((e) => e.heroImageUrl)?.heroImageUrl ??
+    emails.find((e) => isGoodHeroUrl(e.heroImageUrl))?.heroImageUrl ??
     getArticleHeroFallbackSync(manifest, null, "16_9");
   return {
     id: `thematic-${d.id}`,
@@ -154,7 +156,7 @@ function thematicToView(
   }));
 
   const heroImage =
-    emails.find((e) => e.heroImageUrl)?.heroImageUrl ??
+    emails.find((e) => isGoodHeroUrl(e.heroImageUrl))?.heroImageUrl ??
     getArticleHeroFallbackSync(manifest, null, "16_9");
 
   return {
