@@ -1,16 +1,53 @@
 {
   "version": 1,
-  "generated": "2026-04-22T09:47:20.199Z",
+  "generated": "2026-04-22T14:25:13.493Z",
   "categories": {
     "consumer-electronics": {
-      "16_9": [],
-      "3_4": [],
-      "1_1": []
+      "16_9": [
+        "consumer-electronics/16_9/tmattoneill_An_illustration_depicting_CONSUMER_ELECTRONICS._I_8feb6a77-a98f-4e0a-b358-3e5ade69e43b_1.webp",
+        "consumer-electronics/16_9/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS._a64dbc27-dae9-4b27-a0f3-f76778026cb0_0.webp",
+        "consumer-electronics/16_9/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS._ae38f5dd-418e-4137-b11e-90069f392169_0.webp",
+        "consumer-electronics/16_9/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS__d88ed40f-0c1d-4852-bd89-58eedee25d00_0.webp",
+        "consumer-electronics/16_9/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_8bcc1e4f-148f-41d8-a72e-da60af111c24_3.webp"
+      ],
+      "3_4": [
+        "consumer-electronics/3_4/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS._1a573ac9-2749-4207-b772-eb6ae403ba08_1.webp",
+        "consumer-electronics/3_4/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS._1a573ac9-2749-4207-b772-eb6ae403ba08_2.webp",
+        "consumer-electronics/3_4/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS._9933baa4-2f8c-4b44-b769-b89de0a902cd_0.webp",
+        "consumer-electronics/3_4/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS__d38fe4a2-d39c-4aa0-8099-5b3f5746df3f_0.webp",
+        "consumer-electronics/3_4/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_e7247c56-1fc0-49bc-aa8f-49a386283eaf_1.webp"
+      ],
+      "1_1": [
+        "consumer-electronics/1_1/tmattoneill_An_illustration_depicting_CONSUMER_ELECTRONICS._I_ee8f7514-60ce-4b95-a4c5-ac8461c97577_1.webp",
+        "consumer-electronics/1_1/tmattoneill_An_illustration_depicting_CONSUMER_ELECTRONICS._I_ee8f7514-60ce-4b95-a4c5-ac8461c97577_2.webp",
+        "consumer-electronics/1_1/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS._c0dd1daf-6892-45c8-aba5-56685bf96b90_0.webp",
+        "consumer-electronics/1_1/tmattoneill_Create_a_hero_graphic_for_a_CONSUMER_ELECTRONICS._c0dd1daf-6892-45c8-aba5-56685bf96b90_2.webp",
+        "consumer-electronics/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_16f2d081-35df-4f2f-8c6c-73ac024bdd11_0.webp",
+        "consumer-electronics/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_16f2d081-35df-4f2f-8c6c-73ac024bdd11_2.webp"
+      ]
     },
     "culture-entertainment": {
-      "16_9": [],
-      "3_4": [],
-      "1_1": []
+      "16_9": [
+        "culture-entertainment/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_0997685c-6150-4fcf-bada-a34281119eea_0.webp",
+        "culture-entertainment/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_0997685c-6150-4fcf-bada-a34281119eea_2.webp",
+        "culture-entertainment/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_0997685c-6150-4fcf-bada-a34281119eea_3.webp",
+        "culture-entertainment/16_9/tmattoneill_httpss.mj.runrJeyOGRi3UM_An_illustration_depictin_e162ff90-fa41-4b8b-991e-a2f1de9aa7c0_1.webp",
+        "culture-entertainment/16_9/tmattoneill_httpss.mj.runrJeyOGRi3UM_An_illustration_depictin_e162ff90-fa41-4b8b-991e-a2f1de9aa7c0_2.webp"
+      ],
+      "3_4": [
+        "culture-entertainment/3_4/tmattoneill_An_illustration_depicting_CULTURE_AND_ARTS._In_th_45ffec0a-1e3e-41d5-bafc-b9819df5f8b8_0.webp",
+        "culture-entertainment/3_4/tmattoneill_An_illustration_depicting_CULTURE_AND_ARTS._In_th_45ffec0a-1e3e-41d5-bafc-b9819df5f8b8_3.webp",
+        "culture-entertainment/3_4/tmattoneill_httpss.mj.runrJeyOGRi3UM_An_illustration_depictin_b03f2a8b-5882-4adc-864a-334be9d37521_0.webp",
+        "culture-entertainment/3_4/tmattoneill_httpss.mj.runrJeyOGRi3UM_An_illustration_depictin_b03f2a8b-5882-4adc-864a-334be9d37521_2.webp",
+        "culture-entertainment/3_4/tmattoneill_httpss.mj.runrJeyOGRi3UM_An_illustration_depictin_b03f2a8b-5882-4adc-864a-334be9d37521_3.webp"
+      ],
+      "1_1": [
+        "culture-entertainment/1_1/tmattoneill_An_illustration_depicting_CULTURE_AND_ARTS._In_th_81a9d9eb-1387-4e0e-ba75-be55fa8d9ce3_1.webp",
+        "culture-entertainment/1_1/tmattoneill_An_illustration_depicting_CULTURE_AND_ARTS._In_th_d13dc0bf-ce59-44de-8d41-65d0bc173d27_0.webp",
+        "culture-entertainment/1_1/tmattoneill_httpss.mj.runJqyLUODSqAg_An_illustration_depictin_082b361c-934e-4848-84bc-fdc3e3f6903d_2.webp",
+        "culture-entertainment/1_1/tmattoneill_httpss.mj.runJqyLUODSqAg_An_illustration_depictin_082b361c-934e-4848-84bc-fdc3e3f6903d_3.webp",
+        "culture-entertainment/1_1/tmattoneill_httpss.mj.runl6Ax50-vMR8_An_illustration_depictin_937a7f58-cd49-4159-a345-5a79ce73bc82_2.webp"
+      ]
     },
     "digest-cover": {
       "16_9": [
@@ -29,23 +66,47 @@
       "16_9": [
         "finance/16_9/tmattoneill_Create_a_hero_image_for_a_newsletter_for_the_cate_ba7e0cbf-1242-4ad0-8e38-ee75a52253c5_0.webp",
         "finance/16_9/tmattoneill_Create_a_hero_image_for_a_newsletter_for_the_cate_ba7e0cbf-1242-4ad0-8e38-ee75a52253c5_1.webp",
-        "finance/16_9/tmattoneill_Create_a_hero_image_for_a_newsletter_for_the_cate_ba7e0cbf-1242-4ad0-8e38-ee75a52253c5_3.webp"
+        "finance/16_9/tmattoneill_Create_a_hero_image_for_a_newsletter_for_the_cate_ba7e0cbf-1242-4ad0-8e38-ee75a52253c5_3.webp",
+        "finance/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_453a5ba9-3c6e-4452-8a13-6288bff80571_0.webp",
+        "finance/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_453a5ba9-3c6e-4452-8a13-6288bff80571_3.webp"
       ],
       "3_4": [
         "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__d45fa9b9-9891-4206-abb8-96c82ff2ac32_0.webp",
         "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__f053607e-0a2d-431c-a58e-7f2c2e930a82_0.webp",
-        "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__f053607e-0a2d-431c-a58e-7f2c2e930a82_3.webp"
+        "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__f053607e-0a2d-431c-a58e-7f2c2e930a82_3.webp",
+        "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_e16b31fb-5f1d-4f19-bd5f-48789c1aca69_1.webp",
+        "finance/3_4/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_e16b31fb-5f1d-4f19-bd5f-48789c1aca69_2.webp"
       ],
       "1_1": [
         "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_BUSINESS_AND_FINANCE__6f56238e-0575-4423-8a9c-43d3656c0f9b_1.webp",
         "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_4ddf2990-c00d-420a-8066-efc2182d8621_1.webp",
-        "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_f71ca4d2-ed5c-4e3b-89b7-9d3c605b9231_0.webp"
+        "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_f71ca4d2-ed5c-4e3b-89b7-9d3c605b9231_0.webp",
+        "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_f71ca4d2-ed5c-4e3b-89b7-9d3c605b9231_1.webp",
+        "finance/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_f71ca4d2-ed5c-4e3b-89b7-9d3c605b9231_2.webp"
       ]
     },
     "food-dining": {
-      "16_9": [],
-      "3_4": [],
-      "1_1": []
+      "16_9": [
+        "food-dining/16_9/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_b127c008-3abf-45e8-9d71-ea9d2ec6bab1_2.webp",
+        "food-dining/16_9/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_b39daa81-2e6f-4c78-b9bb-d7447595bd80_1.webp",
+        "food-dining/16_9/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_b39daa81-2e6f-4c78-b9bb-d7447595bd80_3.webp",
+        "food-dining/16_9/tmattoneill_Create_a_hero_graphic_for_a_FOOD_AND_DINING_newsl_4e4b0512-627b-4af3-946b-5ffb329b4ff3_1.webp",
+        "food-dining/16_9/tmattoneill_Create_a_hero_graphic_for_a_FOOD_AND_DINING_newsl_60458339-b012-4d43-8f34-4d338c5473b4_3.webp"
+      ],
+      "3_4": [
+        "food-dining/3_4/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_41839902-8163-4780-80c4-ad621b9ea3f7_0.webp",
+        "food-dining/3_4/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_41839902-8163-4780-80c4-ad621b9ea3f7_1.webp",
+        "food-dining/3_4/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_41839902-8163-4780-80c4-ad621b9ea3f7_3.webp",
+        "food-dining/3_4/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_bb13df30-7de0-4ea6-be00-0f745c818b82_1.webp",
+        "food-dining/3_4/tmattoneill_Create_a_hero_graphic_for_a_FOOD_AND_DINING_newsl_67f64fc2-2e62-4fa3-82f4-65fc7d4421e0_0.webp"
+      ],
+      "1_1": [
+        "food-dining/1_1/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_e2d00583-0c53-485c-84fb-fcf8294d9373_1.webp",
+        "food-dining/1_1/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_e2d00583-0c53-485c-84fb-fcf8294d9373_2.webp",
+        "food-dining/1_1/tmattoneill_An_illustration_depicting_FOOD_AND_DINING._In_the_eada0c78-be86-4435-a165-ec8ea3fddd5c_1.webp",
+        "food-dining/1_1/tmattoneill_Create_a_hero_graphic_for_a_FOOD_AND_DINING_newsl_0d1b7dd0-b015-4231-9f5f-d8709530d9dd_0.webp",
+        "food-dining/1_1/tmattoneill_Create_a_hero_graphic_for_a_FOOD_AND_DINING_newsl_0d1b7dd0-b015-4231-9f5f-d8709530d9dd_1.webp"
+      ]
     },
     "general-news": {
       "16_9": [
@@ -65,29 +126,119 @@
       ]
     },
     "industry-news": {
-      "16_9": [],
-      "3_4": [],
-      "1_1": []
+      "16_9": [
+        "industry-news/16_9/tmattoneill_Create_a_hero_graphic_for_a_MARKETING_AND_ADVERTI_4cc8fb11-67dc-4cbc-b862-297ce43d3c79_0.webp",
+        "industry-news/16_9/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_2b119362-4b92-405a-bdd7-e15674700f85_1.webp",
+        "industry-news/16_9/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_2b119362-4b92-405a-bdd7-e15674700f85_3.webp",
+        "industry-news/16_9/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_9eb1d208-7f0e-4d94-8c05-ce942a8ac687_2.webp",
+        "industry-news/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_62bd6b88-2ade-4784-a3eb-3c1ad074d803_2.webp"
+      ],
+      "3_4": [
+        "industry-news/3_4/tmattoneill_Create_a_hero_graphic_for_a_ADVERTISING_AND_MARKE_93e0cdfd-f4d6-4f5e-9c96-1293167af180_1.webp",
+        "industry-news/3_4/tmattoneill_Create_a_hero_graphic_for_a_ADVERTISING_AND_MARKE_974f32ad-7d66-409e-929a-ab021f579b03_0.webp",
+        "industry-news/3_4/tmattoneill_Create_a_hero_graphic_for_a_MARKETING_AND_ADVERTI_84509081-07d0-4f75-873e-927e539545d6_1.webp",
+        "industry-news/3_4/tmattoneill_Create_a_hero_graphic_for_a_MARKETING_AND_ADVERTI_84509081-07d0-4f75-873e-927e539545d6_2.webp",
+        "industry-news/3_4/tmattoneill_Create_a_hero_graphic_for_a_MARKETING_AND_ADVERTI_84509081-07d0-4f75-873e-927e539545d6_3.webp"
+      ],
+      "1_1": [
+        "industry-news/1_1/tmattoneill_Create_a_hero_graphic_for_a_ADVERTISING_AND_MARKE_0c7c94c6-b4db-4b30-9745-8c5a784045b1_2.webp",
+        "industry-news/1_1/tmattoneill_Create_a_hero_graphic_for_a_ADVERTISING_AND_MARKE_0c7c94c6-b4db-4b30-9745-8c5a784045b1_3.webp",
+        "industry-news/1_1/tmattoneill_Create_a_hero_graphic_for_a_ADVERTISING_AND_MARKE_1e619a88-e8ec-4ecf-aa72-64b937eb220d_0.webp",
+        "industry-news/1_1/tmattoneill_Create_a_hero_graphic_for_a_ADVERTISING_AND_MARKE_1e619a88-e8ec-4ecf-aa72-64b937eb220d_3.webp",
+        "industry-news/1_1/tmattoneill_Create_a_hero_graphic_for_a_ADVERTISING_AND_MARKE_80e52567-a6c1-4076-bb28-9f26701a0647_2.webp"
+      ]
     },
     "programming-software": {
-      "16_9": [],
-      "3_4": [],
-      "1_1": []
+      "16_9": [
+        "programming-software/16_9/tmattoneill_Create_a_hero_graphic_for_a_A_COMPUTER_MONITOR_WI_f51e0f7e-fd3d-421b-8972-6ed9a93e055a_2.webp",
+        "programming-software/16_9/tmattoneill_Create_a_hero_graphic_for_a_Programming_and_Softw_5cf01f68-f4e8-4c78-be0d-d2d04ecd1ffb_3.webp",
+        "programming-software/16_9/tmattoneill_Create_a_hero_graphic_for_a_SOFTWARE_DEVELOPMENT__6f818484-f7d1-442d-9c84-50a0f4554bec_0.webp",
+        "programming-software/16_9/tmattoneill_Create_a_hero_graphic_for_a_SOFTWARE_DEVELOPMENT__6f818484-f7d1-442d-9c84-50a0f4554bec_3.webp",
+        "programming-software/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_ede316fc-fa50-4885-9b0e-b9b0645a68ed_1.webp"
+      ],
+      "3_4": [
+        "programming-software/3_4/tmattoneill_Create_a_hero_graphic_for_a_AI_AND_COMPUTER_PROGR_c67c7fb6-c180-4076-94fe-2c3261b0e734_1.webp",
+        "programming-software/3_4/tmattoneill_Create_a_hero_graphic_for_a_AI_AND_COMPUTER_PROGR_c67c7fb6-c180-4076-94fe-2c3261b0e734_2.webp",
+        "programming-software/3_4/tmattoneill_Create_a_hero_graphic_for_a_COMPUTER_ENGINEERING__25dbc1f4-dfc6-4033-87e0-7f3ef40171ec_1.webp",
+        "programming-software/3_4/tmattoneill_Create_a_hero_graphic_for_a_PERSON_WRITING_CODE_O_3de0d01a-7bf4-4dd1-95d7-5b549eae0e6b_2.webp",
+        "programming-software/3_4/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_70fe21a3-c07a-4c99-8ff1-a53db0213d83_3.webp"
+      ],
+      "1_1": [
+        "programming-software/1_1/tmattoneill_Create_a_hero_graphic_for_a_A_COMPUTER_MONITOR_WI_1b024e59-10a5-42f4-a0c8-6b43fc875ad7_0.webp",
+        "programming-software/1_1/tmattoneill_Create_a_hero_graphic_for_a_A_COMPUTER_MONITOR_WI_1b024e59-10a5-42f4-a0c8-6b43fc875ad7_1.webp",
+        "programming-software/1_1/tmattoneill_Create_a_hero_graphic_for_a_A_COMPUTER_MONITOR_WI_1b024e59-10a5-42f4-a0c8-6b43fc875ad7_2.webp",
+        "programming-software/1_1/tmattoneill_Create_a_hero_graphic_for_a_PERSON_WRITING_CODE_O_1ba56e59-2627-4a1d-8025-46e0f8ff11c9_0.webp",
+        "programming-software/1_1/tmattoneill_Create_a_hero_graphic_for_a_Programming_and_Softw_472b5425-bce7-497d-be85-b9caf19369d2_0.webp"
+      ]
     },
     "retail-commerce": {
-      "16_9": [],
-      "3_4": [],
-      "1_1": []
+      "16_9": [
+        "retail-commerce/16_9/tmattoneill_Create_a_hero_graphic_for_a_COMMERCE_AND_RETAIL_n_4118e74f-b8e8-4638-b40f-60de3697f18d_3.webp",
+        "retail-commerce/16_9/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_a465e8c6-1b11-48e4-9c3a-f11ebe7e6ede_0.webp",
+        "retail-commerce/16_9/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_a465e8c6-1b11-48e4-9c3a-f11ebe7e6ede_3.webp",
+        "retail-commerce/16_9/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_f8f6bf8d-1bcc-4b43-8333-edd6588313b8_0.webp",
+        "retail-commerce/16_9/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_f8f6bf8d-1bcc-4b43-8333-edd6588313b8_1.webp"
+      ],
+      "3_4": [
+        "retail-commerce/3_4/tmattoneill_Create_a_hero_graphic_for_a_COMMERCE_AND_RETAIL_n_3a966f56-4eb6-429f-b528-34ca4da03852_2.webp",
+        "retail-commerce/3_4/tmattoneill_Create_a_hero_graphic_for_a_COMMERCE_AND_RETAIL_n_d2604b9f-d371-42f7-941f-f9bb9aa104aa_0.webp",
+        "retail-commerce/3_4/tmattoneill_Create_a_hero_graphic_for_a_COMMERCE_AND_RETAIL_n_d2604b9f-d371-42f7-941f-f9bb9aa104aa_2.webp",
+        "retail-commerce/3_4/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_02848a0c-81a7-4613-a5e8-ca60b49ad4a5_0.webp",
+        "retail-commerce/3_4/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_02848a0c-81a7-4613-a5e8-ca60b49ad4a5_2.webp"
+      ],
+      "1_1": [
+        "retail-commerce/1_1/tmattoneill_Create_a_hero_graphic_for_a_COMMERCE_AND_RETAIL_n_4741569d-cb6c-44cc-817d-5caa6f5cc0bc_0.webp",
+        "retail-commerce/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_1221e2a3-23e9-406f-9d1a-1781677ce514_0.webp",
+        "retail-commerce/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_8ba44499-1b52-463c-854e-9acb9ec8c48f_0.webp",
+        "retail-commerce/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_8ba44499-1b52-463c-854e-9acb9ec8c48f_1.webp",
+        "retail-commerce/1_1/tmattoneill_Create_a_hero_graphic_for_a_newsletter_for_the_ca_8ba44499-1b52-463c-854e-9acb9ec8c48f_3.webp"
+      ]
     },
     "science-technology": {
-      "16_9": [],
-      "3_4": [],
-      "1_1": []
+      "16_9": [
+        "science-technology/16_9/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._282e3769-8d95-4e8b-b13a-cd4c4760f00b_1.webp",
+        "science-technology/16_9/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._304bf2f6-9635-4381-bc83-2163d029f835_0.webp",
+        "science-technology/16_9/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._304bf2f6-9635-4381-bc83-2163d029f835_1.webp",
+        "science-technology/16_9/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._304bf2f6-9635-4381-bc83-2163d029f835_2.webp",
+        "science-technology/16_9/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._304bf2f6-9635-4381-bc83-2163d029f835_3.webp"
+      ],
+      "3_4": [
+        "science-technology/3_4/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._a3509a84-db36-47c5-90a1-efd61c2f5796_0.webp",
+        "science-technology/3_4/tmattoneill_Create_a_hero_graphic_for_a_SCIENCE_AND_TECHOLOGY_99f52809-97f9-4bd1-93ce-220094d91739_2.webp",
+        "science-technology/3_4/tmattoneill_Create_a_hero_graphic_for_a_SCIENCE_AND_TECHOLOGY_bdee23e7-de67-4a08-8bec-b8832d18d7c8_0.webp",
+        "science-technology/3_4/tmattoneill_Create_a_hero_graphic_for_a_SCIENCE_AND_TECHOLOGY_bdee23e7-de67-4a08-8bec-b8832d18d7c8_2.webp",
+        "science-technology/3_4/tmattoneill_Create_a_hero_graphic_for_a_SCIENCE_AND_TECHOLOGY_bdee23e7-de67-4a08-8bec-b8832d18d7c8_3.webp"
+      ],
+      "1_1": [
+        "science-technology/1_1/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._701d277e-aadd-48c4-ad55-36aa4e48d6d2_2.webp",
+        "science-technology/1_1/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._701d277e-aadd-48c4-ad55-36aa4e48d6d2_3.webp",
+        "science-technology/1_1/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._85513074-b8b3-473d-8ed7-76a22eeef719_1.webp",
+        "science-technology/1_1/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._c7f85307-270f-4848-a06c-82d92c9a45ef_1.webp",
+        "science-technology/1_1/tmattoneill_An_illustration_depicting_SCIENCE_AND_TECHNOLOGY._c7f85307-270f-4848-a06c-82d92c9a45ef_2.webp"
+      ]
     },
     "travel": {
-      "16_9": [],
-      "3_4": [],
-      "1_1": []
+      "16_9": [
+        "travel/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_552fdd27-b1a5-416e-82d9-9c4b15911ac6_1.webp",
+        "travel/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_5b924a7c-c065-44f6-8aad-0bbd0eb12dae_0.webp",
+        "travel/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_6c73ae09-8901-4f90-ae88-01f44e86fb1f_0.webp",
+        "travel/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_d487d347-5510-4e31-8cc9-d587fa9e422c_3.webp",
+        "travel/16_9/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_d4ef0e7f-f6a5-4134-a577-06d3b3d1ca7e_2.webp"
+      ],
+      "3_4": [
+        "travel/3_4/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_2fead5bc-32e1-46cf-b9ac-80dd8fde3372_0.webp",
+        "travel/3_4/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_2fead5bc-32e1-46cf-b9ac-80dd8fde3372_3.webp",
+        "travel/3_4/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_6a752598-d1f9-4046-a31b-603ac34a4338_0.webp",
+        "travel/3_4/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_6a752598-d1f9-4046-a31b-603ac34a4338_2.webp",
+        "travel/3_4/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_b7c1090d-0332-4d1a-8641-73a6158a8745_0.webp"
+      ],
+      "1_1": [
+        "travel/1_1/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_0c43c848-958a-4ea4-b92c-fe0c1ff18ac4_2.webp",
+        "travel/1_1/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_3ac2a236-2da8-42e0-9fe1-357f680855f9_0.webp",
+        "travel/1_1/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_3ac2a236-2da8-42e0-9fe1-357f680855f9_3.webp",
+        "travel/1_1/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_3d2cedaa-6d93-4c79-96b9-30cdd7366ee2_2.webp",
+        "travel/1_1/tmattoneill_httpss.mj.runNLVKRL9Bndg_httpss.mj.runAB7JiX_UJls_b8085b69-eb38-4f29-9ab0-4b13c6e168d8_2.webp"
+      ]
     }
   }
 }

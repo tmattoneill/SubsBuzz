@@ -63,6 +63,16 @@ info "Pre-flight checks..."
 [[ -f "$LOCAL_ENV_FILE" ]]     || error "$LOCAL_ENV_FILE not found in $(pwd). Cannot deploy without secrets."
 [[ -f "$LOCAL_COMPOSE_FILE" ]] || error "$LOCAL_COMPOSE_FILE not found in $(pwd)."
 
+# Hero image preflight: PNG/JPG sources are local-only (.gitignore excludes
+# them). Convert any sitting in article-heroes/ to WebP + regenerate the
+# manifest BEFORE the clean-tree check, so a freshly-dropped source doesn't
+# slip past and ship as a 5 MB raster.
+HERO_DIR="services/frontend/public/article-heroes"
+if [[ -d "$HERO_DIR" ]] && find "$HERO_DIR" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \) -print -quit | grep -q .; then
+    info "Found raw hero sources — running prep (WebP + manifest regen)..."
+    (cd services/frontend && npm run generate:hero-manifest) || error "Hero prep failed."
+fi
+
 if [[ -n $(git status --porcelain) ]]; then
     error "Uncommitted changes detected. Commit (or stash) first, then re-run."
 fi

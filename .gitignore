@@ -568,3 +568,12 @@ brand/*.ai
 brand/*.sketch
 # Unversioned/intermediate logo exports
 services/frontend/public/logo-banner.png
+
+# Hero image sources (local only). Large PNGs/JPGs dropped into
+# article-heroes/ are the source-of-truth artwork but must never get pushed
+# — `npm run generate:hero-manifest` (invoked by deploy.sh pre-flight) turns
+# them into WebP + regenerates manifest.json. Only the .webp + manifest get
+# committed/deployed.
+services/frontend/public/article-heroes/**/*.png
+services/frontend/public/article-heroes/**/*.jpg
+services/frontend/public/article-heroes/**/*.jpeg
