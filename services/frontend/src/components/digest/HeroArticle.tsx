@@ -23,9 +23,7 @@ interface HeroArticleProps {
 export function HeroArticle({ article, onRead }: HeroArticleProps) {
   return (
     <motion.article
-      className="relative overflow-hidden rounded-2xl bg-card border border-border group cursor-pointer"
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="relative overflow-hidden rounded-2xl bg-card border border-border group cursor-pointer hover:ring-2 hover:ring-primary/30 transition-shadow"
     >
       <div className="grid md:grid-cols-2 gap-0">
         <div className="relative h-[400px] md:h-[500px] overflow-hidden">
@@ -43,14 +41,14 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0" />
 
           <div className="absolute top-6 left-6">
-            <span className="px-4 py-2 rounded-full bg-white/95 backdrop-blur-sm text-sm font-medium text-primary">
+            <span className="px-4 py-2 rounded-full bg-white/95 backdrop-blur-sm text-sm font-medium text-[#191919]">
               {article.topic}
             </span>
           </div>
 
           <div className="absolute bottom-6 left-6 flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 backdrop-blur-sm">
             <Mail className="size-4 text-accent" />
-            <span className="text-sm font-medium text-primary">
+            <span className="text-sm font-medium text-[#191919]">
               {article.emailCount} sources analysed
             </span>
           </div>

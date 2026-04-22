@@ -92,7 +92,7 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
         <div className="absolute top-4 left-4">
-          <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-xs font-medium text-primary">
+          <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-xs font-medium text-[#191919]">
             {article.topic}
           </span>
         </div>

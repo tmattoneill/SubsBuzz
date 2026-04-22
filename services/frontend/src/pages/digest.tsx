@@ -425,13 +425,6 @@ export default function DigestView() {
                           : "border-border text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {chip.color ? (
-                        <span
-                          aria-hidden
-                          className="inline-block h-1.5 w-1.5 rounded-full"
-                          style={{ backgroundColor: chip.color }}
-                        />
-                      ) : null}
                       {chip.name} · {chip.count}
                     </button>
                   );
