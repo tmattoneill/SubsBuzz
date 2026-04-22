@@ -110,13 +110,15 @@ ALTER TABLE user_settings
 -- chose that deliberately and are paying for those tokens — silently moving
 -- them to DeepSeek would change their digest output between deploy and their
 -- next login. New users land on 'deepseek' from the column default above.
--- The idempotency guard (llm_provider = 'deepseek') ensures this UPDATE is
--- safe to re-run on every deploy.
+-- Guard: only touches users who haven't dismissed the modal yet
+-- (llm_migration_notice_seen = FALSE). Once they've made a choice, their
+-- provider setting is theirs to own — this UPDATE must never override it.
 UPDATE user_settings
    SET llm_provider = 'openai'
  WHERE openai_api_key IS NOT NULL
    AND length(openai_api_key) > 0
-   AND llm_provider = 'deepseek';
+   AND llm_provider = 'deepseek'
+   AND llm_migration_notice_seen = FALSE;
 
 -- ── 2026-Q2: smart sender parsing (subscriptions) ────────────────────────────
 -- A single sender address (monitored_emails row) can fan out into multiple
