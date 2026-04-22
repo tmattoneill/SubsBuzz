@@ -88,6 +88,10 @@ export default function CategoryCollection() {
     if (!authLoading && !user) navigate("/login");
   }, [authLoading, user, navigate]);
 
+  useEffect(() => {
+    setOpenArticle(null);
+  }, [slug]);
+
   const { data: categories = [] } = useCategories();
   const liveCategory = useMemo(
     () => categories.find((c) => c.slug === slug) ?? null,

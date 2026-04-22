@@ -75,7 +75,7 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
       onClick={onRead}
       className={`relative overflow-hidden rounded-xl bg-card border border-border group cursor-pointer flex flex-col hover:ring-2 hover:ring-primary/30 transition-shadow ${heightClass}`}
     >
-      <div className="relative flex-shrink-0 h-[60%] overflow-hidden">
+      <div className="relative flex-shrink-0 h-[55%] overflow-hidden">
         {displaySrc ? (
           <motion.img
             src={displaySrc}
@@ -136,10 +136,6 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
         <h3 className="font-display text-lg font-bold mb-2 leading-snug line-clamp-2 group-hover:text-accent transition-colors">
           {article.title}
         </h3>
-
-        <p className="font-body text-sm text-foreground/70 mb-3 line-clamp-2 flex-1 min-h-0">
-          {article.excerpt}
-        </p>
 
         <div className="flex flex-wrap gap-1.5 mt-auto">
           {article.tags.slice(0, 2).map((tag) => (
