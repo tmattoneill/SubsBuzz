@@ -806,11 +806,9 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] [TEEPER-86] Remove Firebase from api-gateway — dead code (firebase_admin init, /auth/firebase endpoint, requirements.txt entry). Refactor not a delete. https://linear.app/teemo-personal-projects/issue/TEEPER-86 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
 - [ ] [medium] [TEEPER-49] Debug CSS specificity + next-themes integration timing issues (ui-overhaul branch — FOUC, theme flicker, Tailwind overrides). https://linear.app/teemo-personal-projects/issue/TEEPER-49 (`main`)
-- [ ] [medium] [TEEPER-106] UI cleanup pass — audit services/frontend for dead elements (no handler/route), placeholder elements (TODO/coming soon/lorem), and redundant elements (duplicated functionality). Delete, don't comment out. https://linear.app/teemo-personal-projects/issue/TEEPER-106 (`main`)
 - [ ] [medium] [TEEPER-114] Digest generation progress feedback — click Generate, poll /api/digest/latest every 5s, show spinner "Processing N emails", auto-nav when row lands. Optional stretch: /api/digest/task/:taskId exposing Celery AsyncResult. https://linear.app/teemo-personal-projects/issue/TEEPER-114 (`main`)
 - [ ] [medium] Monitor production performance after HTTP timeout increase to validate the 300s setting (`main`)
 - [ ] [medium] Test hero image extraction improvements with real publisher content to verify banner filtering (`main`)
-- [ ] [low] Commit and push the CLAUDE.md documentation updates (`main`)
 - [ ] [low] Wire up "Reconnect Gmail Account" button in settings.tsx:516 — currently shows a toast but has no implementation. Should re-trigger OAuth flow via signIn() or a dedicated reconnect endpoint. (`main`)
 
 <!-- DEVCTX:END -->
