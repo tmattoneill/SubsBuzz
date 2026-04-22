@@ -797,8 +797,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `feature/sender-parse`
-**Last Updated:** 22/04/2026, 11:04:47
+**Branch:** `main`
+**Last Updated:** 22/04/2026, 18:06:31
 
 ### Active Todos
 - [ ] [high] New Conversation starts every time the main screen is viewed. (`main`)
@@ -807,6 +807,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
 - [ ] [high] Real-mail smoke test on dev.subsbuzz.com — trigger a digest with actual Gmail, confirm Tier 1 fires on real NYT / Substack / Beehiiv messages and that the right publications registry display names land on the subscriptions. (`feature/sender-parse`)
 - [ ] [high] Promote smart sender parsing to prod via ./promote.sh after 1-2 days of stable dev traffic. Requires: branch merged to main, env hashes match, prod backfill todo queued right after. (`feature/sender-parse`)
+- [ ] [high] Run the subscriptions backfill on production after ./promote.sh deployment to populate subscription_key mappings for existing digest_emails (`main`)
+- [ ] [high] Execute real-mail smoke test on dev.subsbuzz.com with actual Gmail integration to verify Tier 1 List-Id parsing works with NYT/Substack/Beehiiv messages (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
@@ -837,6 +839,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Add unit tests for OpenAI reasoning_effort parameter handling (`feature/sender-parse`)
 - [ ] [medium] Support Gmail labels in addition to sender addresses for email monitoring (`feature/sender-parse`)
 - [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`feature/sender-parse`)
+- [ ] [medium] Monitor thematic processor performance in production after the fix to ensure all emails are properly assigned to themes without performance degradation (`main`)
+- [ ] [medium] Test the improved email HTML extraction logic with various publisher content to validate tracker-portal filtering effectiveness (`main`)
 - [ ] [low] Wire up "Reconnect Gmail Account" button in settings.tsx:516 — currently shows a toast but has no implementation. Should re-trigger OAuth flow via signIn() or a dedicated reconnect endpoint. (`main`)
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
