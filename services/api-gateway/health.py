@@ -91,17 +91,9 @@ class DependencyHealth:
         # Check Redis / Celery broker
         dependencies["redis-broker"] = await self.check_redis()
 
-        # Check Firebase credentials are present (env vars, not SDK init state)
-        dependencies["firebase"] = self._check_firebase_config()
-
         return dependencies
 
-    def _check_firebase_config(self) -> str:
-        """Check if Firebase credentials are configured (env vars present)"""
-        if settings.FIREBASE_PROJECT_ID and settings.FIREBASE_CLIENT_EMAIL:
-            return "configured"
-        return "not-configured"
-    
+
     def get_uptime(self) -> float:
         """Get service uptime in seconds"""
         return (datetime.utcnow() - self.start_time).total_seconds()

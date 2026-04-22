@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse
 import httpx
 from pydantic import BaseModel
 
-from auth import verify_firebase_token, create_jwt_token, verify_jwt_token
+from auth import create_jwt_token, verify_jwt_token
 from middleware import LoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware, RequestIDMiddleware
 from config import settings
 from health import health_check, HealthResponse

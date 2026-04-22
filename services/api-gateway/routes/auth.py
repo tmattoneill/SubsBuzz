@@ -16,7 +16,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from auth import verify_firebase_token, create_jwt_token, verify_jwt_token
+from auth import create_jwt_token, verify_jwt_token
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -32,11 +32,6 @@ GMAIL_OAUTH_SCOPES = "https://www.googleapis.com/auth/gmail.modify openid email 
 
 
 # Pydantic models
-class FirebaseAuthRequest(BaseModel):
-    """Request model for Firebase authentication"""
-    firebase_token: str
-
-
 class AuthResponse(BaseModel):
     """Response model for authentication"""
     success: bool
@@ -92,51 +87,6 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-@router.post("/firebase", response_model=AuthResponse)
-async def firebase_auth(request: FirebaseAuthRequest):
-    """
-    Authenticate with Firebase token and return JWT
-    
-    This endpoint:
-    1. Verifies the Firebase ID token
-    2. Creates a JWT token for API access
-    3. Returns user information and JWT
-    """
-    try:
-        # Verify Firebase token
-        user_data = await verify_firebase_token(request.firebase_token)
-        
-        # Create JWT token
-        jwt_token = create_jwt_token({
-            "uid": user_data["uid"],
-            "email": user_data["email"],
-            "email_verified": user_data.get("email_verified", False)
-        })
-        
-        return AuthResponse(
-            success=True,
-            token=jwt_token,
-            user={
-                "uid": user_data["uid"],
-                "email": user_data["email"],
-                "name": user_data.get("name"),
-                "picture": user_data.get("picture"),
-                "email_verified": user_data.get("email_verified", False),
-                "provider": user_data.get("provider")
-            },
-            message="Authentication successful"
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Firebase authentication failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Firebase token"
         )
 
 

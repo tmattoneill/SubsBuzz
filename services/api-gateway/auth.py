@@ -1,5 +1,5 @@
 """
-Authentication utilities for JWT and Firebase integration
+Authentication utilities for JWT token management
 """
 
 import json
@@ -8,77 +8,12 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
 import jwt
-import firebase_admin
-from firebase_admin import auth as firebase_auth, credentials
 from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer
 
 from config import settings
 
 logger = logging.getLogger(__name__)
-
-# Initialize Firebase Admin SDK
-try:
-    if not firebase_admin._apps:
-        # Try to load from file first, fallback to environment variables
-        import os
-        credentials_path = os.path.join(os.path.dirname(__file__), "firebase-credentials.json")
-
-        if os.path.exists(credentials_path):
-            cred = credentials.Certificate(credentials_path)
-            logger.info(f"✅ Loading Firebase credentials from file: {credentials_path}")
-        else:
-            # Fallback to environment variables
-            firebase_creds = settings.firebase_credentials
-            cred = credentials.Certificate(firebase_creds)
-            logger.info("✅ Loading Firebase credentials from environment variables")
-
-        firebase_admin.initialize_app(cred)
-        logger.info("✅ Firebase Admin SDK initialized successfully")
-except Exception as e:
-    logger.warning(f"⚠️ Firebase initialization failed: {e}")
-    logger.warning("Firebase authentication will not be available")
-
-
-async def verify_firebase_token(token: str) -> Dict[str, Any]:
-    """
-    Verify Firebase ID token and return user data
-    """
-    try:
-        # Verify the token with Firebase Admin SDK
-        decoded_token = firebase_auth.verify_id_token(token)
-        
-        # Extract user information
-        user_data = {
-            "uid": decoded_token["uid"],
-            "email": decoded_token.get("email"),
-            "email_verified": decoded_token.get("email_verified", False),
-            "name": decoded_token.get("name"),
-            "picture": decoded_token.get("picture"),
-            "provider": decoded_token.get("firebase", {}).get("sign_in_provider")
-        }
-        
-        logger.info(f"Firebase token verified for user: {user_data['email']}")
-        return user_data
-        
-    except firebase_auth.InvalidIdTokenError:
-        logger.warning("Invalid Firebase ID token")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Firebase token"
-        )
-    except firebase_auth.ExpiredIdTokenError:
-        logger.warning("Expired Firebase ID token")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Expired Firebase token"
-        )
-    except Exception as e:
-        logger.error(f"Firebase token verification failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Firebase authentication failed"
-        )
 
 
 def create_jwt_token(user_data: Dict[str, Any]) -> str:
