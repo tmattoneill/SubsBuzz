@@ -9,6 +9,7 @@ import { asyncHandler } from '../middleware/error';
 import { generateDigest, getLatestDigest, getLatestThematicDigest, checkOpenAIHealth } from '../services/openai';
 import { storage } from '../services/storage';
 import { queueDigestGeneration } from '../services/celery-client';
+import { resolveSubscription, deriveSubscriptionKey } from '../services/subscriptions';
 
 const router = Router();
 
@@ -38,17 +39,79 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
   console.log(`📧 Creating digest for user ${user_id} with ${emails.length} emails`);
   
   try {
-    // Transform incoming email data to EmailInput format
-    const transformedEmails = emails.map((email: any) => ({
-      sender: email.sender,
-      subject: email.subject,
-      content: email.content,
-      receivedAt: new Date(email.received_at || email.receivedAt), // Handle both snake_case and camelCase
-      originalLink: email.original_link || email.originalLink,
-      gmailMessageId: email.gmail_message_id || email.gmailMessageId,  // Source Gmail ID for post-digest cleanup
-      heroImageUrl: email.hero_image_url ?? email.heroImageUrl ?? null,  // Extracted by email-worker before text extraction
-      categoryId: email.category_id ?? email.categoryId ?? null  // User-assigned category per sender (TEEPER-105)
-    }));
+    // Smart sender parsing: for each inbound email, resolve the subscription
+    // (derived from List-Id or from address). subscription.categoryId wins
+    // over the legacy monitored_emails.categoryId. senders without sender_id
+    // (edge case: monitored_emails row deleted between worker fetch + server
+    // persist) skip subscription resolution and fall back to the legacy
+    // category_id the worker passed in.
+    const transformedEmails: Array<{
+      sender: string;
+      subject: string;
+      content: string;
+      receivedAt: Date;
+      originalLink?: string;
+      gmailMessageId?: string;
+      heroImageUrl?: string | null;
+      categoryId?: number | null;
+      subscriptionId?: number | null;
+      signalsJson?: Record<string, unknown> | null;
+    }> = [];
+
+    for (const email of emails) {
+      const senderAddress: string = email.sender;
+      const listId: string | null = email.list_id ?? email.listId ?? null;
+      const fromDisplayName: string | null = email.from_display_name ?? email.fromDisplayName ?? null;
+      const senderId: number | null | undefined = email.sender_id ?? email.senderId;
+      const workerCategoryId: number | null = email.category_id ?? email.categoryId ?? null;
+
+      let subscriptionId: number | null = null;
+      let categoryId: number | null = workerCategoryId;
+
+      if (typeof senderId === 'number') {
+        try {
+          const result = await resolveSubscription(user_id, senderId, {
+            listId,
+            fromAddress: senderAddress,
+            fromDisplayName,
+            subject: email.subject,
+          });
+          subscriptionId = result.subscriptionId;
+          categoryId = result.categoryId;
+        } catch (subErr: any) {
+          // Non-fatal — fall back to worker-provided category, no subscription link.
+          console.error(`[subscriptions] resolveSubscription failed sender_id=${senderId}: ${subErr?.message || subErr}`);
+        }
+      }
+
+      // Build the signals blob even when subscription resolution fails so we
+      // can re-derive later once the bug is fixed.
+      const { key: subscriptionKey, tier: subscriptionKeyTier } = deriveSubscriptionKey({
+        listId,
+        fromAddress: senderAddress,
+      });
+      const signalsJson: Record<string, unknown> = {
+        list_id: listId,
+        from_address: senderAddress,
+        from_display_name: fromDisplayName,
+        subject: email.subject,
+        subscription_key: subscriptionKey,
+        subscription_key_tier: subscriptionKeyTier,
+      };
+
+      transformedEmails.push({
+        sender: senderAddress,
+        subject: email.subject,
+        content: email.content,
+        receivedAt: new Date(email.received_at || email.receivedAt),
+        originalLink: email.original_link || email.originalLink,
+        gmailMessageId: email.gmail_message_id || email.gmailMessageId,
+        heroImageUrl: email.hero_image_url ?? email.heroImageUrl ?? null,
+        categoryId,
+        subscriptionId,
+        signalsJson,
+      });
+    }
 
     // Resolve the user's LLM provider selection (DeepSeek default, OpenAI
     // override — see services/llm/provider.ts). TEEPER-139.

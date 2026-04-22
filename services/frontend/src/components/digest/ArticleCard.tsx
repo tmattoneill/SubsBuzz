@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ArrowUpRight } from 'lucide-react';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
+import { RecategoriseMenu } from '@/components/digest/RecategoriseMenu';
 
 export interface ArticleCardData {
   id: string;
@@ -105,6 +106,19 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
         >
           <ArrowUpRight className="size-5 text-primary" />
         </motion.div>
+
+        {/* Recategorise menu — shown on hover next to the arrow icon. Stops
+            click propagation so opening the menu doesn't also trigger onRead. */}
+        <div
+          className="absolute top-4 right-16 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <RecategoriseMenu
+            digestEmailId={Number(article.id)}
+            currentCategorySlug={article.categorySlug}
+            variant="card-overlay"
+          />
+        </div>
       </div>
 
       <div className="p-6 flex-1 flex flex-col overflow-hidden">

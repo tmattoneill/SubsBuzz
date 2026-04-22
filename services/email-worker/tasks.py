@@ -217,17 +217,21 @@ async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[s
         monitored_response = await data_server.get(f'/api/storage/monitored-emails/{user_id}')
         monitored_emails = monitored_response.get('data', [])
 
-        # Build sender→category map keyed on normalized bare address (lowercased,
-        # stripped). gmail_client.py already extracts the bare email from the
-        # "Name <addr>" From header, so matching on sender directly is safe.
-        sender_to_category: Dict[str, Optional[int]] = {
-            e['email'].strip().lower(): e.get('categoryId')
+        # Build sender→(id, fallback categoryId) map keyed on normalized bare
+        # address (lowercased, stripped). gmail_client.py already extracts the
+        # bare email from the "Name <addr>" From header, so matching on sender
+        # directly is safe. Category is resolved server-side from the derived
+        # subscription (smart sender parsing) with this sender-level
+        # categoryId used only as a fallback — worker passes sender_id
+        # through and lets the data-server decide.
+        sender_to_monitored: Dict[str, Dict[str, Any]] = {
+            e['email'].strip().lower(): {'id': e.get('id'), 'categoryId': e.get('categoryId')}
             for e in monitored_emails
             if e.get('active', True)
         }
 
         # Filter for active emails only
-        active_emails = list(sender_to_category.keys())
+        active_emails = list(sender_to_monitored.keys())
 
         if not active_emails:
             logger.info("No active monitored emails user=%s", user_id)
@@ -273,6 +277,8 @@ async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[s
                 # Convert ParsedEmail dataclass to dict for processing.
                 # gmail_message_id is persisted to digest_emails so post-digest cleanup
                 # tasks can act on the source Gmail message.
+                sender_key = (email.sender or '').strip().lower()
+                monitored_info = sender_to_monitored.get(sender_key, {})
                 email_dict = {
                     'id': email.id,
                     'gmail_message_id': email.id,
@@ -281,10 +287,17 @@ async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[s
                     'received_at': email.received_at,
                     'content': email.content,
                     'original_link': email.original_link,
-                    # User-assigned sender category (TEEPER-105); None for
-                    # pre-feature senders and unmatched addresses. Data-server
-                    # resolves this to name/slug snapshots at persist time.
-                    'category_id': sender_to_category.get((email.sender or '').strip().lower()),
+                    # Smart sender parsing (v1): worker forwards header signals
+                    # (List-Id + from display name) plus the monitored_emails
+                    # row id. Data-server's resolveSubscription derives a
+                    # subscription, assigns a category, and persists signals
+                    # to digest_emails.signals_json. sender_id may be None if
+                    # the sender is somehow no longer in monitored_emails —
+                    # data-server treats that as a reason to skip subscription
+                    # resolution and fall back to category_id only.
+                    'sender_id': monitored_info.get('id'),
+                    'list_id': email.list_id,
+                    'from_display_name': email.from_display_name,
                 }
 
                 # Extract hero image BEFORE replacing content with plain text

@@ -28,6 +28,12 @@ class ParsedEmail:
     received_at: str
     content: str
     original_link: Optional[str] = None
+    # Smart sender parsing (v1): List-Id is the Tier-1 subscription signal;
+    # from display name is used by the data-server to derive a human-readable
+    # subscription display name. Both nullable — messages without List-Id
+    # fall back to Tier 5 (from address) on the server side.
+    list_id: Optional[str] = None
+    from_display_name: Optional[str] = None
 
 @dataclass
 class NewsletterSender:
@@ -401,32 +407,45 @@ class GmailClient:
         subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
         from_header = next((h['value'] for h in headers if h['name'].lower() == 'from'), '')
         date_header = next((h['value'] for h in headers if h['name'].lower() == 'date'), '')
-        
-        # Extract sender email
-        if '<' in from_header and '>' in from_header:
-            sender = from_header.split('<')[1].split('>')[0]
-        else:
-            sender = from_header.split()[-1] if from_header else ''
-        
+        # Smart sender parsing: List-Id is the Tier-1 subscription signal.
+        list_id = next((h['value'] for h in headers if h['name'].lower() == 'list-id'), None)
+
+        # Extract sender email + display name. Supports both
+        #   "Publisher Name" <sender@example.com>
+        # and the bare sender@example.com form. Display name is stripped of
+        # quotes and whitespace; empty strings become None.
+        sender = ''
+        from_display_name: Optional[str] = None
+        if from_header:
+            if '<' in from_header and '>' in from_header:
+                sender = from_header.split('<')[1].split('>')[0].strip()
+                prefix = from_header.split('<')[0].strip()
+                if prefix:
+                    from_display_name = prefix.strip('"').strip("'").strip() or None
+            else:
+                sender = from_header.split()[-1].strip()
+
         # Extract email content
         content = await self._extract_message_content(message_data['payload'])
-        
+
         # Parse received date
         try:
             received_at = datetime.strptime(date_header, '%a, %d %b %Y %H:%M:%S %z').isoformat()
         except:
             received_at = datetime.utcnow().isoformat()
-        
+
         # Create Gmail link
         original_link = f"https://mail.google.com/mail/u/0/#inbox/{message_data['id']}"
-        
+
         return ParsedEmail(
             id=message_data['id'],
             sender=sender,
             subject=subject,
             received_at=received_at,
             content=content,
-            original_link=original_link
+            original_link=original_link,
+            list_id=list_id.strip() if isinstance(list_id, str) and list_id.strip() else None,
+            from_display_name=from_display_name,
         )
     
     async def _extract_message_content(self, payload: Dict[str, Any]) -> str:

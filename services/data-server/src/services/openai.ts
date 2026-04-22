@@ -28,7 +28,9 @@ export interface EmailInput {
   originalLink?: string;
   gmailMessageId?: string;  // Source Gmail message ID — used by the worker for post-digest cleanup
   heroImageUrl?: string | null;  // Hero image URL extracted from raw email HTML (worker-side)
-  categoryId?: number | null;  // User-assigned category (TEEPER-105); resolved to name/slug snapshots at persist time
+  categoryId?: number | null;  // Resolved by resolveSubscription upstream; snapshotted at persist time
+  subscriptionId?: number | null;  // Smart sender parsing: derived subscription id (nullable for pre-feature / unknown senders)
+  signalsJson?: Record<string, unknown> | null;  // Raw parsed header signals (List-Id, from display name, subscription key/tier)
 }
 
 export interface ProcessedEmail {
@@ -46,6 +48,8 @@ export interface ProcessedEmail {
   gmailMessageId?: string;  // Persisted on digest_emails so cleanup tasks can target the source
   heroImageUrl?: string | null;  // Passthrough from EmailInput — AI does not touch this field
   categoryId?: number | null;  // Passthrough from EmailInput; snapshotted at persist time
+  subscriptionId?: number | null;  // Passthrough from EmailInput
+  signalsJson?: Record<string, unknown> | null;  // Passthrough from EmailInput
 }
 
 export interface DigestResult {
@@ -143,7 +147,9 @@ Content: ${truncatedContent}`
       originalLink: email.originalLink,
       gmailMessageId: email.gmailMessageId,
       heroImageUrl: email.heroImageUrl ?? null,
-      categoryId: email.categoryId ?? null
+      categoryId: email.categoryId ?? null,
+      subscriptionId: email.subscriptionId ?? null,
+      signalsJson: email.signalsJson ?? null,
     };
 
   } catch (error: any) {
@@ -169,7 +175,9 @@ Content: ${truncatedContent}`
       originalLink: email.originalLink,
       gmailMessageId: email.gmailMessageId,
       heroImageUrl: email.heroImageUrl ?? null,
-      categoryId: email.categoryId ?? null
+      categoryId: email.categoryId ?? null,
+      subscriptionId: email.subscriptionId ?? null,
+      signalsJson: email.signalsJson ?? null,
     };
   }
 }
@@ -229,6 +237,8 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
         categoryId: email.categoryId ?? null,
         categoryNameSnapshot: snap?.name ?? null,
         categorySlugSnapshot: snap?.slug ?? null,
+        subscriptionId: email.subscriptionId ?? null,
+        signalsJson: email.signalsJson ?? null,
       };
 
       await storage.addDigestEmail(digestEmailData);

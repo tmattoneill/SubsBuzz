@@ -32,14 +32,20 @@ export function AddSenderModal({ open, onOpenChange }: AddSenderModalProps) {
   const createCategory = useCreateCategory();
 
   const addSender = useMutation({
-    mutationFn: (input: { email: string; categoryId: number }) =>
+    mutationFn: (input: { email: string; categoryId: number | null }) =>
       api.post<MonitoredEmail>("/api/monitored-emails", {
         email: input.email,
         active: true,
+        // categoryId is optional — smart sender parsing auto-categorises the
+        // resulting subscription on first message via the registry +
+        // heuristic layers. Users who want an immediate category can still
+        // pick one here; it becomes the fallback for any subscription under
+        // this sender that doesn't match the registry.
         categoryId: input.categoryId,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/monitored-emails"] });
+      qc.invalidateQueries({ queryKey: ["/api/subscriptions"] });
       toast({ title: "Sender added" });
       setEmail("");
       setCategoryId(null);
@@ -55,8 +61,8 @@ export function AddSenderModal({ open, onOpenChange }: AddSenderModalProps) {
   });
 
   const handleSubmit = () => {
-    if (!email || categoryId == null) {
-      toast({ title: "Missing fields", description: "Email and category are required." });
+    if (!email) {
+      toast({ title: "Email required", description: "Enter a sender email address." });
       return;
     }
     addSender.mutate({ email, categoryId });
@@ -102,7 +108,9 @@ export function AddSenderModal({ open, onOpenChange }: AddSenderModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label>
+              Category <span className="text-xs font-normal text-muted-foreground">(optional — we'll categorise automatically)</span>
+            </Label>
             <CategorySelect value={categoryId} onChange={setCategoryId} />
             {!showCreate ? (
               <button

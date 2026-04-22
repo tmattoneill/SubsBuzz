@@ -14,8 +14,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "health": "curl -f http://localhost:3001/health || exit 1",
-    "test:unit": "tsx src/services/llm/provider.test.ts",
-    "test": "npm run test:unit"
+    "test:unit": "tsx src/services/llm/provider.test.ts && tsx src/services/subscriptions.test.ts",
+    "test": "npm run test:unit",
+    "backfill:subscriptions": "tsx src/scripts/backfill-subscriptions.ts"
   },
   "dependencies": {
     "celery-node": "^0.5.9",

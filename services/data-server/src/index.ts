@@ -18,6 +18,7 @@ import { storageRoutes } from './routes/storage';
 import { digestRoutes } from './routes/digest';
 import { thematicRoutes } from './routes/thematic';
 import { emailCategoriesRoutes } from './routes/email-categories';
+import { subscriptionsRoutes } from './routes/subscriptions';
 import { healthCheck } from './middleware/health';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
@@ -68,6 +69,7 @@ app.use('/api/storage', storageRoutes);
 app.use('/api/storage/email-categories', emailCategoriesRoutes);
 app.use('/api/digest', digestRoutes);
 app.use('/api/thematic', thematicRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

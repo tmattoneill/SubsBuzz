@@ -117,3 +117,49 @@ UPDATE user_settings
  WHERE openai_api_key IS NOT NULL
    AND length(openai_api_key) > 0
    AND llm_provider = 'deepseek';
+
+-- ── 2026-Q2: smart sender parsing (subscriptions) ────────────────────────────
+-- A single sender address (monitored_emails row) can fan out into multiple
+-- newsletters — NYT Cooking, Wirecutter and DealBook all ship from
+-- nytdirect@nytimes.com. Subscriptions carry the subscription_key derived from
+-- List-Id (Tier 1) or falling back to from_address (Tier 5) and own the
+-- category, so siblings under one sender can sit in different categories.
+-- Category on monitored_emails becomes a fallback when a subscription has no
+-- category of its own.
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id                     SERIAL PRIMARY KEY,
+  user_id                TEXT NOT NULL,
+  sender_id              INTEGER NOT NULL REFERENCES monitored_emails(id) ON DELETE CASCADE,
+  subscription_key       TEXT NOT NULL,
+  subscription_key_tier  SMALLINT NOT NULL,            -- 1 = list_id, 5 = from_address
+  display_name           TEXT NOT NULL,
+  display_name_source    TEXT NOT NULL,                -- 'list_id' | 'from_name' | 'registry' | 'user_override' | 'from_address'
+  category_id            INTEGER REFERENCES email_categories(id) ON DELETE SET NULL,
+  category_source        TEXT NOT NULL,                -- 'registry' | 'heuristic' | 'inherited_from_sender' | 'user' | 'none'
+  category_confidence    REAL,
+  first_seen_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  message_count          INTEGER NOT NULL DEFAULT 0,
+  user_confirmed         BOOLEAN NOT NULL DEFAULT FALSE,
+  CONSTRAINT subscriptions_user_key_unique UNIQUE (user_id, subscription_key)
+);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_sender
+  ON subscriptions (sender_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_category
+  ON subscriptions (user_id, category_id);
+
+-- digest_emails: link each row back to its subscription + preserve the raw
+-- parsed header signals (List-Id etc.) for future re-derivation, v2 ESP
+-- parsers, and debugging. Nullable — pre-feature rows and the backfill script
+-- populate subscription_id as a best-effort Tier-5 derivation.
+ALTER TABLE digest_emails
+  ADD COLUMN IF NOT EXISTS subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS signals_json    JSONB;
+CREATE INDEX IF NOT EXISTS idx_digest_emails_subscription
+  ON digest_emails (subscription_id);
+
+-- monitored_emails: track when the user dismissed the split-detection banner
+-- for this sender (either via "Looks good" / "Adjust" buttons, explicit close,
+-- or the 48h auto-dismiss). NULL = banner eligible to show.
+ALTER TABLE monitored_emails
+  ADD COLUMN IF NOT EXISTS split_banner_dismissed_at TIMESTAMPTZ;

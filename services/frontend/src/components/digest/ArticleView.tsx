@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Mail, ChevronDown, ChevronUp, ExternalLink } from 'lu
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { getSenderFaviconUrl, getSenderInitials } from '@/lib/utils';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
+import { RecategoriseMenu } from '@/components/digest/RecategoriseMenu';
 
 export interface ArticleSource {
   name: string;
@@ -159,15 +160,22 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
         </motion.button>
 
         <article>
-          {article.categoryName ? (
-            <div className="mb-3">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            {article.categoryName ? (
               <CategoryBadge
                 name={article.categoryName}
                 slug={article.categorySlug ?? null}
                 color={article.categoryColor ?? null}
               />
-            </div>
-          ) : null}
+            ) : (
+              <span />
+            )}
+            <RecategoriseMenu
+              digestEmailId={Number(article.id)}
+              currentCategorySlug={article.categorySlug}
+              variant="inline"
+            />
+          </div>
 
           <span className="font-body inline-block text-xs font-semibold uppercase tracking-widest text-accent mb-4">
             {article.topic}

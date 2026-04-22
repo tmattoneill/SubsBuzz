@@ -5,6 +5,30 @@ export interface MonitoredEmail {
   categoryId?: number | null;
 }
 
+// Smart sender parsing (v1). One row per derived newsletter under a
+// monitored_emails parent — e.g. nytdirect@nytimes.com fans into NYT Cooking,
+// Wirecutter, and DealBook. Returned by GET /api/subscriptions joined with
+// parent sender info so the UI can render a flat or grouped tree.
+export interface Subscription {
+  id: number;
+  senderId: number;
+  senderEmail: string;
+  senderActive: boolean;
+  senderCategoryId: number | null;
+  senderSplitBannerDismissedAt: string | null;
+  subscriptionKey: string;
+  subscriptionKeyTier: 1 | 5;
+  displayName: string;
+  displayNameSource: string;
+  categoryId: number | null;
+  categorySource: 'registry' | 'heuristic' | 'inherited_from_sender' | 'user' | 'none';
+  categoryConfidence: number | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  messageCount: number;
+  userConfirmed: boolean;
+}
+
 export interface EmailCategory {
   id: number;
   userId: string;

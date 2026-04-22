@@ -3,7 +3,7 @@
  * PostgreSQL schema definitions using Drizzle ORM
  */
 
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, smallint, real, boolean, timestamp, jsonb, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -57,7 +57,12 @@ export const monitoredEmails = pgTable("monitored_emails", {
   email: text("email").notNull(),
   active: boolean("active").notNull().default(true),
   // Nullable for pre-feature rows; new senders set via the add-sender modal.
+  // Subscription-level category takes precedence; this is the fallback default.
   categoryId: integer("category_id").references(() => emailCategories.id, { onDelete: "set null" }),
+  // Split-detection banner dismissal timestamp (smart sender parsing). NULL =
+  // banner eligible when sender has ≥2 subscriptions. Set by "Looks good" /
+  // "Adjust" / explicit close / 48h auto-dismiss.
+  splitBannerDismissedAt: timestamp("split_banner_dismissed_at", { withTimezone: true }),
 }, (t) => [unique("monitored_emails_user_email_unique").on(t.userId, t.email)]);
 
 export const insertMonitoredEmailSchema = createInsertSchema(monitoredEmails).pick({
@@ -69,6 +74,35 @@ export const insertMonitoredEmailSchema = createInsertSchema(monitoredEmails).pi
 
 export type InsertMonitoredEmail = z.infer<typeof insertMonitoredEmailSchema>;
 export type MonitoredEmail = typeof monitoredEmails.$inferSelect;
+
+// Subscriptions: derived newsletter identities under a monitored_emails parent.
+// subscription_key is List-Id (Tier 1) when present, else the raw from address
+// (Tier 5). One sender can own many subscriptions, each with its own category.
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  senderId: integer("sender_id").notNull().references(() => monitoredEmails.id, { onDelete: "cascade" }),
+  subscriptionKey: text("subscription_key").notNull(),
+  subscriptionKeyTier: smallint("subscription_key_tier").notNull(),
+  displayName: text("display_name").notNull(),
+  displayNameSource: text("display_name_source").notNull(),
+  categoryId: integer("category_id").references(() => emailCategories.id, { onDelete: "set null" }),
+  categorySource: text("category_source").notNull(),
+  categoryConfidence: real("category_confidence"),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  messageCount: integer("message_count").notNull().default(0),
+  userConfirmed: boolean("user_confirmed").notNull().default(false),
+}, (t) => [unique("subscriptions_user_key_unique").on(t.userId, t.subscriptionKey)]);
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  firstSeenAt: true,
+  lastSeenAt: true,
+});
+
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
 
 // Schema for email digests
 export const emailDigests = pgTable("email_digests", {
@@ -112,6 +146,12 @@ export const digestEmails = pgTable("digest_emails", {
   categoryId: integer("category_id").references(() => emailCategories.id, { onDelete: "set null" }),
   categoryNameSnapshot: text("category_name_snapshot"),
   categorySlugSnapshot: text("category_slug_snapshot"),
+  // Smart sender parsing: link to the derived subscription (NYT Cooking vs
+  // Wirecutter vs DealBook under nytdirect@nytimes.com) and persist the raw
+  // parsed signals (List-Id, from display name, etc.) for re-derivation and
+  // future v2 ESP parsers. Nullable for pre-feature rows.
+  subscriptionId: integer("subscription_id").references(() => subscriptions.id, { onDelete: "set null" }),
+  signalsJson: jsonb("signals_json"),
 });
 
 export const insertDigestEmailSchema = createInsertSchema(digestEmails).omit({
