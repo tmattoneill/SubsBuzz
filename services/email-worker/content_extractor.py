@@ -29,24 +29,35 @@ class ContentExtractor:
         """
         if not raw_content:
             return ''
-        
+
         # If it's already plain text, return with basic cleanup
         if not self._contains_html(raw_content):
             return self._clean_text_content(raw_content)
-        
+
         try:
             # Load HTML content with BeautifulSoup
             soup = BeautifulSoup(raw_content, 'html.parser')
-            
-            # First, try to find and use "view online" link for better content
+
+            # Try the "view online" link first — only reads the soup, does not mutate it.
+            # (Must come before _extract_from_email_html, which decomposes cruft links
+            # including "View in browser" anchors, making them unfindable afterwards.)
             online_content = await self._try_extract_from_online_version(soup)
-            if online_content:
-                print("✅ Successfully extracted content from online version")
+
+            # Always extract from the email HTML as the baseline.
+            email_html_content = await self._extract_from_email_html(soup, raw_content)
+
+            # Accept the online version only when it's meaningfully richer.
+            # Many ESPs serve browser-view portals that return only footer boilerplate
+            # (e.g. omeclk.com for AdExchanger) — in those cases the email HTML wins.
+            if online_content and len(online_content) > max(len(email_html_content) * 1.2, 300):
+                print(f"✅ Using online version ({len(online_content)} chars vs email HTML {len(email_html_content)} chars)")
                 return online_content
-            
-            # Fall back to aggressive email HTML cleaning
-            return await self._extract_from_email_html(soup, raw_content)
-            
+
+            if online_content:
+                print(f"⚠️  Online version ({len(online_content)} chars) not richer than email HTML ({len(email_html_content)} chars) — using email HTML")
+
+            return email_html_content
+
         except Exception as e:
             print(f"⚠️  Error parsing HTML content, falling back to raw content: {e}")
             # Fallback to basic text cleanup if HTML parsing fails
@@ -56,6 +67,17 @@ class ContentExtractor:
         """Check if content contains HTML tags"""
         return '<html' in content.lower() or '<HTML' in content or bool(re.search(r'<[^>]+>', content))
     
+    # ESP browser-view and click-tracking URL patterns.
+    # These portal/redirect URLs serve minimal wrapper pages, never the newsletter's
+    # editorial content. Matched before fetching so we skip the HTTP round-trip.
+    _ONLINE_VERSION_URL_BLACKLIST = re.compile(
+        r'(omeclk\.com|mailchimp\.com.*/track|list-manage\.com'
+        r'|exacttarget\.com|mktdns\.com'
+        r'|constantcontact\.com|myemma\.com|campaignmonitor\.com'
+        r'|ViewCommInBrowser|InBrowser\.jsp)',
+        re.I,
+    )
+
     async def _try_extract_from_online_version(self, soup: BeautifulSoup) -> Optional[str]:
         """
         Try to find "view online" links and scrape better content
@@ -92,7 +114,12 @@ class ContentExtractor:
             
             if not online_url:
                 return None
-            
+
+            # Skip known ESP tracking/browser-view portals — they return footer-only pages.
+            if self._ONLINE_VERSION_URL_BLACKLIST.search(online_url):
+                print(f"⚠️  Skipping online version (tracking/redirect portal): {online_url[:80]}")
+                return None
+
             # Fetch and extract content from online version with timeout
             try:
                 timeout = aiohttp.ClientTimeout(total=10)  # 10 second timeout
