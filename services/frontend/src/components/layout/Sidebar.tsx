@@ -132,11 +132,6 @@ export function Sidebar() {
                       )}
                     >
                       <span className="flex items-center gap-2 min-w-0">
-                        <span
-                          aria-hidden
-                          className="inline-block h-2 w-2 shrink-0 rounded-full border border-border"
-                          style={cat.color ? { backgroundColor: cat.color } : undefined}
-                        />
                         <span className="truncate">{cat.name}</span>
                       </span>
                     </Link>

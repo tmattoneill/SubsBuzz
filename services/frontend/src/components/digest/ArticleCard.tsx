@@ -145,13 +145,13 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
           {article.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-[#191919]"
+              className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-secondary-foreground"
             >
               {tag}
             </span>
           ))}
           {article.tags.length > 2 && (
-            <span className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-[#191919]">
+            <span className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-secondary-foreground">
               +{article.tags.length - 2}
             </span>
           )}
