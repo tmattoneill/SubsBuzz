@@ -28,7 +28,7 @@ export function PageHeader({
         {onRefresh && (
           <div className="mt-4 md:mt-0">
             <Button 
-              className="bg-primary text-white hover:bg-blue-600 transition flex items-center"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 transition flex items-center"
               onClick={onRefresh}
               disabled={isRefreshing}
             >

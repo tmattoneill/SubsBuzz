@@ -203,7 +203,7 @@ export function ThematicDigest({ digest }: ThematicDigestProps) {
   return (
     <div className="space-y-6">
       {/* Digest overview */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-blue-200 dark:border-gray-600">
+      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/5 border-primary/20">
         <CardContent className="p-6">
           <div className="flex items-start justify-between mb-3">
             <div>
@@ -216,14 +216,14 @@ export function ThematicDigest({ digest }: ThematicDigestProps) {
             </div>
             <div className="text-right">
               <div className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Method</div>
-              <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 capitalize">
+              <div className="text-sm font-semibold text-primary capitalize">
                 {digest.processingMethod?.replace('-', ' ')}
               </div>
             </div>
           </div>
           {digest.dailySummary && (
             <div
-              className="prose prose-sm dark:prose-invert max-w-none border-t border-blue-200 dark:border-gray-600 pt-3 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-1 [&_p]:leading-relaxed [&_ul]:mt-1 [&_li]:text-sm"
+              className="prose prose-sm dark:prose-invert max-w-none border-t border-primary/20 pt-3 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-1 [&_p]:leading-relaxed [&_ul]:mt-1 [&_li]:text-sm"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(digest.dailySummary) }}
             />
           )}

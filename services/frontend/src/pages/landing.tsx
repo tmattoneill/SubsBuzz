@@ -88,7 +88,7 @@ export default function Landing() {
           </p>
           <Button 
             size="lg" 
-            className="text-lg px-8 py-4 bg-primary hover:bg-blue-600"
+            className="text-lg px-8 py-4 bg-primary hover:bg-primary/90"
             onClick={handleGetStarted}
             disabled={isLoading}
           >
@@ -180,7 +180,7 @@ export default function Landing() {
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
             Ready to Transform Your Email Experience?
           </h2>
-          <p className="text-xl mb-8 text-blue-100">
+          <p className="text-xl mb-8 text-primary-foreground/80">
             Create a daily customised summary of your subscriptions with one click.
           </p>
           <Button 

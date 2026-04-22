@@ -281,7 +281,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
                   <p className="text-gray-600 mb-4">
                     To scan for newsletters and create your digest, we need access to your Gmail account.
                   </p>
-                  <div className="bg-blue-50 p-4 rounded-lg text-sm text-left max-w-md mx-auto">
+                  <div className="bg-primary/10 p-4 rounded-lg text-sm text-left max-w-md mx-auto">
                     <h4 className="font-medium mb-2">What we'll do:</h4>
                     <ul className="space-y-1 text-gray-600">
                       <li>• Scan your recent emails for newsletters</li>
@@ -293,7 +293,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
                 </div>
               </div>
 
-              <Button size="lg" onClick={handleGmailAuth} className="bg-primary hover:bg-blue-600">
+              <Button size="lg" onClick={handleGmailAuth} className="bg-primary hover:bg-primary/90">
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
                   viewBox="0 0 24 24" 
@@ -502,7 +502,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
 
                 <Separator />
 
-                <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="bg-primary/10 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Summary</h4>
                   <p className="text-sm text-gray-600">
                     You've selected <strong>{selectedNewsletters.size + customEmails.length}</strong> newsletters to monitor.
@@ -646,7 +646,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
                   <p className="text-gray-600 mb-4">
                     Your account is set up and your first digest is being generated.
                   </p>
-                  <div className="bg-blue-50 p-4 rounded-lg text-sm">
+                  <div className="bg-primary/10 p-4 rounded-lg text-sm">
                     <p>
                       <strong>Monitoring:</strong> {selectedNewsletters.size + customEmails.length} newsletters
                     </p>

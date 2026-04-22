@@ -109,7 +109,7 @@ export default function Settings() {
     topicClusteringEnabled: true,
     emailNotificationsEnabled: false,
     themeMode: "system",
-    themeColor: "blue",
+    themeColor: "gold",
     llmProvider: "deepseek",
   };
 
@@ -391,7 +391,7 @@ export default function Settings() {
             </CardContent>
             <CardFooter>
               <Button
-                className="w-full bg-primary text-white hover:bg-blue-600"
+                className="w-full bg-primary text-white hover:bg-primary/90"
                 onClick={() => setIsAddSenderOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" /> Add new email source
@@ -475,7 +475,7 @@ export default function Settings() {
                     </Button>
                     <Button
                       type="submit"
-                      className="flex-1 bg-primary text-white hover:bg-blue-600"
+                      className="flex-1 bg-primary text-white hover:bg-primary/90"
                       disabled={!useOwnOpenAiKey || updateApiKeyMutation.isPending || isTestingApiKey}
                     >
                       {updateApiKeyMutation.isPending ? (

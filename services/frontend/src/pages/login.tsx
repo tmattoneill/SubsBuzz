@@ -44,7 +44,7 @@ export default function Login() {
                 {error}
               </div>
             )}
-            <div className="bg-blue-50 p-4 rounded-md text-blue-600 text-sm">
+            <div className="bg-primary/10 p-4 rounded-md text-foreground text-sm">
               <p>
                 <strong>Note:</strong> This app will request read-only access to your Gmail inbox to monitor specified email senders and generate digests.
               </p>
@@ -53,7 +53,7 @@ export default function Login() {
         </CardContent>
         <CardFooter>
           <Button 
-            className="w-full bg-primary text-white hover:bg-blue-600 flex items-center justify-center gap-2"
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2"
             onClick={handleSignIn}
             disabled={isLoading}
           >
