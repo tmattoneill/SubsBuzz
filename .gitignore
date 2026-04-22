@@ -561,3 +561,10 @@ tests/tests.out
 
 # Allow Vite public/ dirs (overrides Gatsby ignore above)
 !services/frontend/public/
+
+# Brand source files (large binaries, local only)
+brand/*.psd
+brand/*.ai
+brand/*.sketch
+# Unversioned/intermediate logo exports
+services/frontend/public/logo-banner.png
