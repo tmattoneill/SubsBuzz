@@ -4,15 +4,21 @@ import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, Lock } from 'lucide-react';
+import { resolvePostLoginRoute } from '@/lib/post-login-route';
 
 export default function Login() {
   const { user, isLoading, error, signIn } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect to dashboard if already logged in
+  // Already-authenticated revisit — route to the right place per post-login
+  // rules (first login / no digests / has digest). Same logic as auth-callback.
   useEffect(() => {
     if (user && !isLoading) {
-      setLocation('/dashboard');
+      let cancelled = false;
+      resolvePostLoginRoute().then((path) => {
+        if (!cancelled) setLocation(path);
+      });
+      return () => { cancelled = true; };
     }
   }, [user, isLoading, setLocation]);
 

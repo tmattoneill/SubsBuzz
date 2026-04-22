@@ -797,13 +797,16 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `main`
-**Last Updated:** 22/04/2026, 11:03:09
+**Branch:** `feature/sender-parse`
+**Last Updated:** 22/04/2026, 11:04:47
 
 ### Active Todos
 - [ ] [high] New Conversation starts every time the main screen is viewed. (`main`)
 - [ ] [high] Not connecting on remote box to Ollama (`main`)
 - [ ] [high] Implement search bar functionality as outlined in the new todos - start with debounced search queries against the digest API (`main`)
+- [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
+- [ ] [high] Real-mail smoke test on dev.subsbuzz.com — trigger a digest with actual Gmail, confirm Tier 1 fires on real NYT / Substack / Beehiiv messages and that the right publications registry display names land on the subscriptions. (`feature/sender-parse`)
+- [ ] [high] Promote smart sender parsing to prod via ./promote.sh after 1-2 days of stable dev traffic. Requires: branch merged to main, env hashes match, prod backfill todo queued right after. (`feature/sender-parse`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
@@ -819,6 +822,15 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Review and commit the modified CLAUDE.md file to capture any project context updates (`main`)
 - [ ] [medium] Review and improve the AI prompt for keyword extraction in data-server to reduce noisy/generic tags (`main`)
 - [ ] [medium] Add clickable tag filtering functionality to article cards and ArticleView components (`main`)
+- [ ] [medium] Smart sender parsing v2: LLM Layer-3 classification — DeepSeek fallback when publications registry + keyword heuristics both miss. One API call per new subscription_key, cached forever on subscriptions.categorySource='llm' + categoryConfidence. Reuse services/data-server/src/services/llm/provider.ts. (`feature/sender-parse`)
+- [ ] [medium] Smart sender parsing v2: ESP-specific header parsers — Feedback-ID (SparkPost/Amazon SES), X-Mailgun-Variables (Mailgun/Substack), X-SG-EID + X-Campaign (SendGrid), BIMI-Selector, DKIM d=. Extends resolveSubscription to Tiers 2-4 alongside existing List-Id (Tier 1) + from address (Tier 5). (`feature/sender-parse`)
+- [ ] [medium] Smart sender parsing v2: subject-prefix learning (Tier 4) — detect stable subject prefixes (e.g. "DealBook:", "[Stratechery]", "NYT Cooking — ") after ≥3 messages from the same sender and elevate (from_address + prefix) to a subscription key. (`feature/sender-parse`)
+- [ ] [medium] Smart sender parsing v2: per-subscription digest mute toggle. Add subscriptions.muted BOOLEAN, filter muted subs out of digest generation, add toggle control on the child row in Email Handling. (`feature/sender-parse`)
+- [ ] [medium] Update CLAUDE.md with a short "Smart sender parsing" section — describe the subscriptions table, subscription_key tier precedence (Tier 1 List-Id, Tier 5 from address), publications registry + heuristics, split_locked flag, and the backfill script. Stops next-session-Claude re-deriving it. (`feature/sender-parse`)
+- [ ] [medium] Ship backfill script in the production data-server Docker image. Currently Dockerfile strips src/ + devDeps (tsx), so `npm run backfill:subscriptions` fails in-container. Options: compile the script to dist/scripts/ and expose via `node dist/scripts/backfill-subscriptions.js`, OR keep tsx + src/scripts/ in the image. Without this, any future backfill has to run via raw SQL in the postgres container. (`feature/sender-parse`)
 - [ ] [low] Wire up "Reconnect Gmail Account" button in settings.tsx:516 — currently shows a toast but has no implementation. Should re-trigger OAuth flow via signIn() or a dedicated reconnect endpoint. (`main`)
+- [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
+- [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
+- [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
 
 <!-- DEVCTX:END -->

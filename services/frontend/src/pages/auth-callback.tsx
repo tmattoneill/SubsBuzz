@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { api, tokenManager, clearUserSession } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/AuthContext';
+import { resolvePostLoginRoute } from '@/lib/post-login-route';
 
 const AuthCallback: React.FC = () => {
   const [, setLocation] = useLocation();
@@ -40,18 +41,7 @@ const AuthCallback: React.FC = () => {
             description: "Your Gmail account has been connected successfully.",
           });
 
-          // Redirect to latest digest, fall back to dashboard
-          try {
-            const latest = await api.get('/api/digest/latest');
-            const date = latest?.data?.date;
-            if (date) {
-              window.location.href = `/digest/${date.split('T')[0]}`;
-              return;
-            }
-          } catch {
-            // fall through
-          }
-          window.location.href = '/dashboard';
+          window.location.href = await resolvePostLoginRoute();
         } else {
           throw new Error('Authentication failed');
         }
