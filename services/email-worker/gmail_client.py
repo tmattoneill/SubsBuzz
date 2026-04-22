@@ -124,7 +124,7 @@ class GmailClient:
             if credentials.expired and credentials.refresh_token:
                 credentials.refresh(Request())
 
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
             service.users().messages().modify(
                 userId='me',
                 id=message_id,
@@ -156,7 +156,7 @@ class GmailClient:
             if credentials.expired and credentials.refresh_token:
                 credentials.refresh(Request())
 
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
             service.users().messages().modify(
                 userId='me',
                 id=message_id,
@@ -187,7 +187,7 @@ class GmailClient:
             if credentials.expired and credentials.refresh_token:
                 credentials.refresh(Request())
 
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
             service.users().messages().modify(
                 userId='me',
                 id=message_id,
@@ -215,7 +215,7 @@ class GmailClient:
             if credentials.expired and credentials.refresh_token:
                 credentials.refresh(Request())
 
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
             service.users().messages().modify(
                 userId='me',
                 id=message_id,
@@ -246,7 +246,7 @@ class GmailClient:
             if credentials.expired and credentials.refresh_token:
                 credentials.refresh(Request())
 
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
             service.users().messages().trash(userId='me', id=message_id).execute()
             return True
 
@@ -274,7 +274,7 @@ class GmailClient:
             if credentials.expired and credentials.refresh_token:
                 credentials.refresh(Request())
 
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
 
             existing = service.users().labels().list(userId='me').execute()
             for label in existing.get('labels', []):
@@ -336,7 +336,7 @@ class GmailClient:
                     print(f"✅ Saved refreshed token for {oauth_data.get('email', 'unknown')}")
             
             # Build Gmail service
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
             
             # Create search query - look back 3 days to avoid missing emails
             three_days_ago = datetime.utcnow() - timedelta(days=3)
@@ -502,7 +502,7 @@ class GmailClient:
                 credentials.refresh(request)
             
             # Build Gmail service
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
             
             # Look back 3 days for emails with unsubscribe mentions
             three_days_ago = datetime.utcnow() - timedelta(days=3)
