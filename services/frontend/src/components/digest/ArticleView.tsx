@@ -46,6 +46,12 @@ function splitContentAtFirstHeading(html: string): { deck: string; rest: string 
   return { deck: html.slice(0, match.index), rest: html.slice(match.index) };
 }
 
+const SHORT_ARTICLE_WORD_THRESHOLD = 80;
+
+function countWords(html: string): number {
+  return html.replace(/<[^>]+>/g, '').trim().split(/\s+/).filter(Boolean).length;
+}
+
 export function ArticleView({ article, onBack }: ArticleViewProps) {
   const { deck, rest } = splitContentAtFirstHeading(article.content);
   const proseClasses =
@@ -78,6 +84,9 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
       if (displaySrc) bumpError(displaySrc);
     }
   };
+
+  const isShort = countWords(article.content) < SHORT_ARTICLE_WORD_THRESHOLD;
+  const useFloatLayout = isShort && !!displaySrc;
 
   return (
     <motion.div
@@ -146,37 +155,70 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
             ) : null}
           </div>
 
-          {deck && (
+          {useFloatLayout ? (
             <motion.div
-              className={`${proseClasses} mb-8`}
+              className="mb-8 overflow-hidden"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(deck) }}
-            />
-          )}
+            >
+              <img
+                src={displaySrc!}
+                alt={article.title}
+                className="float-right ml-6 mb-2 w-44 rounded-xl object-cover"
+                style={{ aspectRatio: '3/4' }}
+                onError={handleError}
+                onLoad={handleLoad}
+              />
+              {deck && (
+                <div
+                  className={proseClasses}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(deck) }}
+                />
+              )}
+              {rest && (
+                <div
+                  className={`${proseClasses} mt-3`}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(rest) }}
+                />
+              )}
+              <div className="clear-both" />
+            </motion.div>
+          ) : (
+            <>
+              {deck && (
+                <motion.div
+                  className={`${proseClasses} mb-8`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(deck) }}
+                />
+              )}
 
-          {displaySrc && (
-            <motion.img
-              src={displaySrc}
-              alt={article.title}
-              className="w-full rounded-xl mb-8 max-h-[480px] object-cover"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.15 }}
-              onError={handleError}
-              onLoad={handleLoad}
-            />
-          )}
+              {displaySrc && (
+                <motion.img
+                  src={displaySrc}
+                  alt={article.title}
+                  className="w-full rounded-xl mb-8 max-h-[480px] object-cover"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.15 }}
+                  onError={handleError}
+                  onLoad={handleLoad}
+                />
+              )}
 
-          {rest && (
-            <motion.div
-              className={`${proseClasses} mb-8`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(rest) }}
-            />
+              {rest && (
+                <motion.div
+                  className={`${proseClasses} mb-8`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(rest) }}
+                />
+              )}
+            </>
           )}
 
           {article.tags.length > 0 && (
