@@ -319,6 +319,82 @@ class ContentExtractor:
         re.I,
     )
 
+    # Publisher logos / mastheads / wordmarks — catches NYer's TNY_Logo_*,
+    # Economist's TheEconomist_Logo_Red, WaPo's WaPo_Logo_*, AdExchanger's
+    # 43690_AdExchanger_Logo_Redesign_*, etc. The existing _HERO_URL_BLACKLIST
+    # only matched `/logo` as a path segment — this catches the word as a
+    # filename segment too. Boundaries are non-letter chars (so underscores,
+    # hyphens, dots, slashes, end-of-string all work). Deliberately doesn't
+    # match camelCase boundaries (StratecheryLogo) — acceptable miss.
+    _HERO_LOGO_URL_RE = re.compile(
+        r'(?:^|[^A-Za-z])'
+        r'(?:logo|masthead|wordmark|nameplate|'
+        r'brand[_-]?mark|publisher[_-]?logo|newsletter[_-]?logo)'
+        r'(?:[^A-Za-z]|$)',
+        re.I,
+    )
+
+    # IAB standard banner-ad dimensions (w, h). Images declared at these exact
+    # sizes are almost never editorial heroes — they're display-ad creative
+    # slotted into the newsletter (T-Mobile 728x90, Paramount 728x90, etc.).
+    # Filter BEFORE the generic "too small" check — a 728x90 ad is wide enough
+    # to pass the width>=600 hero gate otherwise.
+    _IAB_BANNER_SIZES = frozenset({
+        (728, 90),    # leaderboard (most common newsletter banner)
+        (970, 90),    # pushdown / large leaderboard
+        (970, 250),   # billboard
+        (700, 90),    # AdExchanger-style custom leaderboard
+        (300, 250),   # medium rectangle (MPU)
+        (336, 280),   # large rectangle
+        (300, 600),   # half page
+        (160, 600),   # wide skyscraper
+        (320, 50),    # mobile banner
+    })
+    _IAB_SIZE_TOLERANCE = 2  # px — absorb rounding on declared dims
+
+    # Ad-creative filenames almost always embed the dimensions as NxM
+    # (TMobile_April2026_728x90.jpg, IntentIQ_728x90_Where_Identity.jpg,
+    # Paramount_Tracker-728x90.png). Catches banners even when the <img>
+    # declares width but leaves height empty — a common newsletter pattern.
+    # Require literal `x` as separator (not `_`/`-`) so year-prefixed names
+    # like `April2026_728x90` aren't misread as (2026, 728).
+    _FILENAME_DIMS_RE = re.compile(r'(?<!\d)(\d{2,4})x(\d{2,4})(?!\d)', re.I)
+
+    def _is_iab_banner_size(self, width: int, height: int) -> bool:
+        """True if (width, height) matches a known IAB banner-ad slot within tolerance."""
+        tol = self._IAB_SIZE_TOLERANCE
+        for bw, bh in self._IAB_BANNER_SIZES:
+            if abs(width - bw) <= tol and abs(height - bh) <= tol:
+                return True
+        return False
+
+    def _url_declares_iab_banner(self, src: str) -> bool:
+        """True if the URL filename encodes an IAB banner size (e.g. _728x90.jpg)."""
+        for m in self._FILENAME_DIMS_RE.finditer(src):
+            try:
+                w, h = int(m.group(1)), int(m.group(2))
+            except ValueError:
+                continue
+            if self._is_iab_banner_size(w, h):
+                return True
+        return False
+
+    @staticmethod
+    def _is_masthead_strip(width: int, height: int) -> bool:
+        """Short-wide ratio indicating a masthead/wordmark band.
+
+        Publisher mastheads are almost always <=150px tall and >=4x wider than
+        tall (NYer black wordmark band, Economist red strip, WaPo nameplate).
+        Editorial photos and charts cluster near 3:2 / 16:9 / 4:3 — none
+        satisfy both conditions. Only fires when both dims are declared; if
+        either is missing, defer to the other filters rather than guessing.
+        """
+        if not (width and height):
+            return False
+        if height > 150:
+            return False
+        return (width / height) >= 4.0
+
     def extract_hero_image(self, raw_content: str) -> Optional[str]:
         """
         Pick a likely hero image URL from an email's raw HTML. Returns None when
@@ -370,6 +446,25 @@ class ContentExtractor:
 
             width = _dim(img.get('width', 0))
             height = _dim(img.get('height', 0))
+
+            # Reject declared IAB banner-ad sizes (728x90, 300x250, etc.) —
+            # these are ad creative, not editorial heroes. Two paths:
+            #  1. Both dims declared on the <img> → check the pair.
+            #  2. Dims only in the filename (banner.jpg often names itself
+            #     like foo_728x90.jpg; <img> declares width but empty height).
+            if width and height and self._is_iab_banner_size(width, height):
+                continue
+            if self._url_declares_iab_banner(src):
+                continue
+
+            # Reject publisher logos / mastheads / wordmarks. Two paths:
+            #  1. Filename says so (TNY_Logo, TheEconomist_Logo_Red, WaPo_Logo).
+            #  2. Short-wide aspect ratio typical of masthead strips, even
+            #     when the filename is generic (e.g. <publisher>/header.png).
+            if self._HERO_LOGO_URL_RE.search(src):
+                continue
+            if self._is_masthead_strip(width, height):
+                continue
 
             # Too small to be a hero
             if (0 < width <= 50) or (0 < height <= 50):
@@ -445,10 +540,11 @@ class ContentExtractor:
         
         # Remove empty lines at start/end
         text = re.sub(r'^\n+|\n+$', '', text)
-        
-        # Remove common email artifacts
-        text = re.sub(r'\[.*?\]', '', text)  # Remove [brackets] content
-        text = re.sub(r'\|.*?\|', '', text)  # Remove |pipe| content
+
+        # Remove common email artifacts. Do NOT strip [brackets] or |pipes| —
+        # newsletters routinely use [Forbes], [Reuters], [WSJ] for source
+        # attribution (see AdExchanger's "But Wait! There's More!" section),
+        # and the naive pattern deletes the attribution along with the prose.
         text = re.sub(r'^>.*$', '', text, flags=re.MULTILINE)  # Remove quoted text lines
         text = re.sub(r'Click here to view.*$', '', text, flags=re.MULTILINE)
         text = re.sub(r'This email was sent to.*$', '', text, flags=re.MULTILINE)

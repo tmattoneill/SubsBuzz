@@ -12,3 +12,6 @@ aiohttp==3.9.1
 pydantic==2.5.0
 python-dotenv==1.0.0
 lxml==4.9.3
+
+# Dev / test — harmless in prod but only exercised by pytest
+pytest==8.3.3
