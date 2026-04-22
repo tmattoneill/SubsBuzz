@@ -3,27 +3,19 @@
 @tailwind utilities;
 
 :root {
-  /* Theme knobs retained for dynamic palette support */
-  --color-primary-hue: 0;
-  --color-primary-saturation: 0%;
-  --color-primary-lightness: 10%;
-  --color-accent-hue: 139;
-  --color-accent-saturation: 53%;
-  --color-accent-lightness: 76%;
-
   /* Nexus design tokens */
   --background: 67 36% 95%;
   --foreground: 0 0% 10%;
 
   --card: 0 0% 94%;
   --card-foreground: 0 0% 10%;
-  --card-hover: 139 53% 76%;
+  --card-hover: 48 77% 56%;
 
   --popover: 0 0% 94%;
   --popover-foreground: 0 0% 10%;
 
-  --primary: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --primary-foreground: 0 0% 94%;
+  --primary: 48 77% 56%;           /* #e5c338 brand gold */
+  --primary-foreground: 0 0% 10%;  /* #191919 */
 
   --secondary: 212 80% 60%;
   --secondary-foreground: 0 0% 94%;
@@ -31,8 +23,8 @@
   --muted: 67 36% 95%;
   --muted-foreground: 0 0% 45%;
 
-  --accent: var(--color-accent-hue) var(--color-accent-saturation) var(--color-accent-lightness);
-  --accent-foreground: 0 0% 10%;
+  --accent: 48 77% 56%;            /* #e5c338 brand gold */
+  --accent-foreground: 0 0% 10%;   /* #191919 */
 
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 94%;
@@ -40,23 +32,23 @@
   --border: 0 0% 85%;
   --input: 0 0% 85%;
   --input-background: 0 0% 94%;
-  --ring: var(--color-accent-hue) var(--color-accent-saturation) var(--color-accent-lightness);
+  --ring: 48 77% 56%;
 
   --radius: 0.75rem;
 
   /* Sidebar palette */
   --sidebar-background: 0 0% 94%;
   --sidebar-foreground: 0 0% 10%;
-  --sidebar-primary: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --sidebar-primary-foreground: 0 0% 94%;
-  --sidebar-accent: 139 53% 76%;
+  --sidebar-primary: 48 77% 56%;
+  --sidebar-primary-foreground: 0 0% 10%;
+  --sidebar-accent: 48 77% 56%;
   --sidebar-accent-foreground: 0 0% 10%;
   --sidebar-border: 0 0% 88%;
-  --sidebar-ring: 139 53% 76%;
+  --sidebar-ring: 48 77% 56%;
 
   /* Charts & shadows */
-  --chart-1: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --chart-2: 139 53% 76%;
+  --chart-1: 48 77% 56%;
+  --chart-2: 212 80% 60%;
   --chart-3: 212 80% 60%;
   --chart-4: 39 84% 57%;
   --chart-5: 340 82% 52%;
@@ -77,9 +69,7 @@
   --popover: 0 0% 14%;
   --popover-foreground: 0 0% 94%;
 
-  --color-primary-lightness: 94%;
-
-  --primary: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
+  --primary: 48 77% 56%;
   --primary-foreground: 0 0% 10%;
 
   --secondary: 212 80% 60%;
@@ -88,7 +78,7 @@
   --muted: 0 0% 18%;
   --muted-foreground: 0 0% 65%;
 
-  --accent: 139 53% 76%;
+  --accent: 48 77% 56%;
   --accent-foreground: 0 0% 10%;
 
   --destructive: 0 63% 31%;
@@ -97,19 +87,19 @@
   --border: 0 0% 22%;
   --input: 0 0% 22%;
   --input-background: 0 0% 22%;
-  --ring: 139 53% 76%;
+  --ring: 48 77% 56%;
 
   --sidebar-background: 0 0% 14%;
   --sidebar-foreground: 0 0% 94%;
-  --sidebar-primary: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
+  --sidebar-primary: 48 77% 56%;
   --sidebar-primary-foreground: 0 0% 10%;
-  --sidebar-accent: 139 53% 76%;
+  --sidebar-accent: 48 77% 56%;
   --sidebar-accent-foreground: 0 0% 10%;
   --sidebar-border: 0 0% 22%;
-  --sidebar-ring: 139 53% 76%;
+  --sidebar-ring: 48 77% 56%;
 
-  --chart-1: var(--color-primary-hue) var(--color-primary-saturation) var(--color-primary-lightness);
-  --chart-2: 139 53% 76%;
+  --chart-1: 48 77% 56%;
+  --chart-2: 212 80% 60%;
   --chart-3: 212 80% 60%;
   --chart-4: 39 84% 57%;
   --chart-5: 340 82% 52%;

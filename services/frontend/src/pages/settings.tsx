@@ -45,7 +45,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Mail, Key, RefreshCw, Plus, Palette, Trash2 } from "lucide-react";
-import { ThemeColorSelector } from "@/components/ui/theme-toggle";
 import { useTheme } from "next-themes";
 import { DashboardLayout } from "@/components/layout";
 
@@ -323,15 +322,6 @@ export default function Settings() {
     }
   }, [userSettings.themeMode, setTheme, theme]);
   
-  // Sync theme colors on load
-  useEffect(() => {
-    if (userSettings.themeColor) {
-      console.log('Syncing theme color from database:', userSettings.themeColor);
-      // Trigger theme color change to update CSS variables
-      const event = new CustomEvent('themeColorChange', { detail: userSettings.themeColor });
-      window.dispatchEvent(event);
-    }
-  }, [userSettings.themeColor]);
 
   if (isMonitoredEmailsLoading || isUserSettingsLoading) {
     return (
@@ -650,15 +640,6 @@ export default function Settings() {
                 </Select>
               </div>
               
-              <div className="space-y-3">
-                <label className="text-sm font-medium">Theme Color</label>
-                <div className="flex space-x-3">
-                  <ThemeColorSelector 
-                    value={userSettings.themeColor || "blue"}
-                    onChange={(color) => handleUpdateSettings({ themeColor: color })}
-                  />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
