@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, Mail, ChevronRight, ExternalLink } from 'lucide-react';
 import { sanitizeHtml } from '@/lib/sanitize-html';
@@ -13,15 +14,17 @@ export interface ArticleViewData {
   id: string;
   title: string;
   content: string;
-  /** Optional hero image URL. Rendered inline below the header when present. */
+  /** Primary hero image URL. Falls back to fallbackImage on load error or bad dimensions. */
   image?: string | null;
+  /** Manifest fallback image — used when image is absent, fails, or is banner-shaped. */
+  fallbackImage?: string | null;
   topic: string;
   date: string;
   readTime: string;
   tags: string[];
   emailCount?: number;
   sources?: ArticleSource[];
-  /** Link back to the source newsletter. Rendered as "View original" below the body. */
+  /** Link back to the source newsletter. */
   originalLink?: string | null;
   categoryName?: string | null;
   categorySlug?: string | null;
@@ -33,8 +36,8 @@ interface ArticleViewProps {
   onBack: () => void;
 }
 
-// Split the body HTML at the first heading (h2/h3) so we can render the
-// lead/deck before the hero image and the sectioned body after it.
+const BANNER_RATIO_THRESHOLD = 3.5;
+
 function splitContentAtFirstHeading(html: string): { deck: string; rest: string } {
   const match = html.match(/<h[23]\b/i);
   if (!match || match.index === undefined || match.index === 0) {
@@ -47,6 +50,34 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
   const { deck, rest } = splitContentAtFirstHeading(article.content);
   const proseClasses =
     'font-display text-lg text-foreground/80 leading-relaxed [&>*+*]:mt-3 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mt-4 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mt-1';
+
+  const rejectedRef = useRef(new Set<string>());
+  const [, setErrorCount] = useState(0);
+
+  const bumpError = (url: string) => {
+    rejectedRef.current.add(url);
+    setErrorCount((n) => n + 1);
+  };
+
+  const candidates = [article.image, article.fallbackImage].filter(
+    (u): u is string => Boolean(u) && !rejectedRef.current.has(u),
+  );
+  const displaySrc = candidates[0] ?? null;
+
+  const handleError = () => {
+    if (displaySrc) bumpError(displaySrc);
+  };
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (
+      img.naturalWidth > 0 &&
+      img.naturalHeight > 0 &&
+      img.naturalWidth / img.naturalHeight > BANNER_RATIO_THRESHOLD
+    ) {
+      if (displaySrc) bumpError(displaySrc);
+    }
+  };
 
   return (
     <motion.div
@@ -125,14 +156,16 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
             />
           )}
 
-          {article.image && (
+          {displaySrc && (
             <motion.img
-              src={article.image}
+              src={displaySrc}
               alt={article.title}
               className="w-full rounded-xl mb-8 max-h-[480px] object-cover"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.15 }}
+              onError={handleError}
+              onLoad={handleLoad}
             />
           )}
 

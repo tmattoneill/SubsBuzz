@@ -124,11 +124,8 @@ export function Sidebar() {
   const sidebarSurface = (
     <aside className="flex h-full w-72 flex-col border-r border-sidebar-border bg-sidebar p-6">
       <div className="mb-6">
-        <img
-          src="/logo.png"
-          alt="SubsBuzz"
-          className="h-auto w-40 object-contain"
-        />
+        <img src="/logo-banner-bk.png" alt="SubsBuzz" className="h-auto w-44 object-contain dark:hidden" />
+        <img src="/logo-banner-wt.png" alt="SubsBuzz" className="h-auto w-44 object-contain hidden dark:block" />
       </div>
 
       <ScrollArea className="flex-1">
