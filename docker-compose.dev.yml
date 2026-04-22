@@ -47,6 +47,8 @@ services:
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
       - REDIS_URL=redis://redis:6379/0
       - ENABLE_CORS=true
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - UI_URL=${UI_URL}
       - LOG_LEVEL=debug
     depends_on:
       data-server:

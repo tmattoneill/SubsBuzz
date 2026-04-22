@@ -1,7 +1,7 @@
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, TrendingUp, Clock, Zap, Shield } from 'lucide-react';
+import { TrendingUp, Clock, Zap, Shield } from 'lucide-react';
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
@@ -64,11 +64,8 @@ export default function Landing() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
       <header className="px-4 lg:px-6 h-16 flex items-center justify-between border-b bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-            <Mail className="h-5 w-5" />
-          </div>
-          <span className="text-xl font-bold text-gray-900">SubsBuzz</span>
+        <div className="flex items-center">
+          <img src="/logo-banner-bk.png" alt="SubsBuzz" className="h-8 w-auto object-contain" />
         </div>
         <Button variant="outline" onClick={handleGetStarted} disabled={isLoading}>
           Sign In
@@ -221,11 +218,8 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="px-4 py-8 bg-gray-900 text-white text-center">
-        <div className="flex items-center justify-center space-x-2 mb-4">
-          <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-            <Mail className="h-4 w-4" />
-          </div>
-          <span className="text-lg font-semibold">SubsBuzz</span>
+        <div className="flex items-center justify-center mb-4">
+          <img src="/logo-banner-wt.png" alt="SubsBuzz" className="h-7 w-auto object-contain" />
         </div>
         <p className="text-gray-400">
           Transform your email subscriptions into actionable insights

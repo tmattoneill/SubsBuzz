@@ -7,6 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Newspaper,
   CalendarDays,
   Menu,
@@ -65,6 +75,7 @@ export function Sidebar() {
   const [location, navigate] = useLocation();
   const { user, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { data: categories = [] } = useCategories();
 
   const { data: settingsData } = useQuery<any>({
@@ -158,11 +169,26 @@ export function Sidebar() {
               <p className="text-xs text-muted-foreground truncate">{user?.email ?? "hello@subsbuzz.com"}</p>
             </div>
           </Link>
-          <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={handleSignOut}>
+          <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={() => setShowLogoutDialog(true)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll need to sign in again with Google to access your digests.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut}>Log out</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </aside>
   );
 

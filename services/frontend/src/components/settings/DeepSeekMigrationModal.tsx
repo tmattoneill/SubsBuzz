@@ -66,7 +66,8 @@ export function DeepSeekMigrationModal() {
     !!user &&
     !localDismissed &&
     settings?.openaiApiKeyConfigured === true &&
-    settings?.llmMigrationNoticeSeen === false;
+    settings?.llmMigrationNoticeSeen === false &&
+    settings?.llmProvider === 'openai';
 
   const handleChoice = (nextProvider: LlmProvider) => {
     setLocalDismissed(true);
