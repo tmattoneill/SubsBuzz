@@ -40,7 +40,17 @@ const AuthCallback: React.FC = () => {
             description: "Your Gmail account has been connected successfully.",
           });
 
-          // Trigger auth state refresh and redirect to dashboard
+          // Redirect to latest digest, fall back to dashboard
+          try {
+            const latest = await api.get('/api/digest/latest');
+            const date = latest?.data?.date;
+            if (date) {
+              window.location.href = `/digest/${date.split('T')[0]}`;
+              return;
+            }
+          } catch {
+            // fall through
+          }
           window.location.href = '/dashboard';
         } else {
           throw new Error('Authentication failed');

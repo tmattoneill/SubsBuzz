@@ -6,15 +6,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/lib/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import Dashboard from "@/pages/dashboard";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
 import EmailHandling from "@/pages/email-handling";
 import CategoryCollection from "@/pages/category-collection";
 import DigestView from "@/pages/digest";
-import DigestPreview from "@/pages/digest-preview";
-import DigestPreviewSummary from "@/pages/digest-preview-summary";
-import DigestPreviewArticle from "@/pages/digest-preview-article";
+import DigestLatestRedirect from "@/pages/digest-latest-redirect";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
@@ -25,11 +22,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/dashboard" component={History} />
+      <Route path="/digest" component={DigestLatestRedirect} />
       <Route path="/digest/:date" component={DigestView} />
-      <Route path="/digest-preview" component={DigestPreview} />
-      <Route path="/digest-preview/summary" component={DigestPreviewSummary} />
-      <Route path="/digest-preview/article/:id" component={DigestPreviewArticle} />
       <Route path="/history" component={History} />
       <Route path="/settings" component={Settings} />
       <Route path="/email-handling" component={EmailHandling} />

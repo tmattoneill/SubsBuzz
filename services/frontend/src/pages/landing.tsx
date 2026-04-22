@@ -1,20 +1,33 @@
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, TrendingUp, Clock, Zap, Shield, Star } from 'lucide-react';
+import { Mail, TrendingUp, Clock, Zap, Shield } from 'lucide-react';
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Landing() {
   const { user, isLoading, signIn } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect authenticated users to dashboard
+  const { data: latestDigest, status: digestStatus } = useQuery<any>({
+    queryKey: ['/api/digest/latest'],
+    enabled: !!user && !isLoading,
+    select: (d: any) => d?.data ?? d,
+    retry: false,
+  });
+
+  // Redirect authenticated users to latest digest, fall back to dashboard
   useEffect(() => {
-    if (user && !isLoading) {
+    if (!user || isLoading) return;
+    if (digestStatus === 'pending') return; // query in-flight
+    const date = latestDigest?.date;
+    if (date) {
+      setLocation(`/digest/${date.split('T')[0]}`);
+    } else {
       setLocation('/dashboard');
     }
-  }, [user, isLoading, setLocation]);
+  }, [user, isLoading, latestDigest, digestStatus, setLocation]);
 
   const handleGetStarted = async () => {
     try {
@@ -161,22 +174,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Social Proof */}
-      <section className="px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="flex items-center justify-center space-x-1 mb-4">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-            ))}
-          </div>
-          <blockquote className="text-xl text-gray-700 mb-4">
-            "SubsBuzz transformed how I consume my newsletter subscriptions. Instead of drowning in emails, 
-            I get perfectly curated daily summaries that actually help me stay informed."
-          </blockquote>
-          <cite className="text-gray-500">— Early Beta User</cite>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="px-4 py-20 bg-primary text-white text-center">
         <div className="max-w-3xl mx-auto">
@@ -184,7 +181,7 @@ export default function Landing() {
             Ready to Transform Your Email Experience?
           </h2>
           <p className="text-xl mb-8 text-blue-100">
-            Join thousands of users who've already simplified their newsletter management with SubsBuzz.
+            Create a daily customised summary of your subscriptions with one click.
           </p>
           <Button 
             size="lg" 

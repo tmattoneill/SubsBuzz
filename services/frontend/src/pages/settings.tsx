@@ -139,7 +139,7 @@ export default function Settings() {
   const gmailForm = useForm<z.infer<typeof gmailSchema>>({
     resolver: zodResolver(gmailSchema),
     defaultValues: {
-      email: "tmattoneill@gmail.com",
+      email: "support@subsbuzz.com",
     },
   });
 

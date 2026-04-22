@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Mail, Key, MapPin, User, Plus } from "lucide-react";
+import { Loader2, Mail, Key, MapPin, User, Plus, Settings } from "lucide-react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api-client";
@@ -83,6 +84,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: settingsData, isLoading: isSettingsLoading } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
@@ -352,21 +354,33 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border flex-shrink-0 bg-background">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
+              <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border flex-shrink-0 bg-background">
                 <Button
-                  type="submit"
-                  disabled={saveProfileMutation.isPending}
-                  className="min-w-[80px]"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-muted-foreground"
+                  onClick={() => { onClose(); setLocation("/settings"); }}
                 >
-                  {saveProfileMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Save"
-                  )}
+                  <Settings className="h-4 w-4" />
+                  Settings
                 </Button>
+                <div className="flex items-center gap-3">
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={saveProfileMutation.isPending}
+                    className="min-w-[80px]"
+                  >
+                    {saveProfileMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Save"
+                    )}
+                  </Button>
+                </div>
               </div>
             </form>
           </Form>
