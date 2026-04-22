@@ -23,13 +23,6 @@ export function CategoryBadge({ name, slug, color, className, linkable = true }:
       )}
       style={color ? { color } : undefined}
     >
-      {color ? (
-        <span
-          aria-hidden
-          className="inline-block h-1.5 w-1.5 rounded-full"
-          style={{ backgroundColor: color }}
-        />
-      ) : null}
       {name}
     </span>
   );

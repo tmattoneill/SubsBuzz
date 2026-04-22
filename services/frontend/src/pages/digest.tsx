@@ -154,6 +154,9 @@ function thematicToView(
     name: topicFor(e),
     date: e.receivedAt,
     excerpt: e.snippet || e.summary,
+    senderEmail: e.sender,
+    subject: e.subject,
+    originalLink: e.originalLink,
   }));
 
   const heroImage =

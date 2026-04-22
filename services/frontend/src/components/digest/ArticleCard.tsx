@@ -73,11 +73,9 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
   return (
     <motion.article
       onClick={onRead}
-      className={`relative overflow-hidden rounded-xl bg-card border border-border group cursor-pointer ${heightClass}`}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className={`relative overflow-hidden rounded-xl bg-card border border-border group cursor-pointer flex flex-col hover:ring-2 hover:ring-primary/30 transition-shadow ${heightClass}`}
     >
-      <div className="relative h-[60%] overflow-hidden">
+      <div className="relative flex-shrink-0 h-[60%] overflow-hidden">
         {displaySrc ? (
           <motion.img
             src={displaySrc}
@@ -109,7 +107,7 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
         </motion.div>
       </div>
 
-      <div className="p-6 h-[40%] flex flex-col overflow-hidden">
+      <div className="p-6 flex-1 flex flex-col overflow-hidden">
         {article.categoryName ? (
           <div className="mb-2">
             <CategoryBadge
@@ -147,13 +145,13 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
           {article.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-secondary-foreground"
+              className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-[#191919]"
             >
               {tag}
             </span>
           ))}
           {article.tags.length > 2 && (
-            <span className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-secondary-foreground">
+            <span className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-[#191919]">
               +{article.tags.length - 2}
             </span>
           )}

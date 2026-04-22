@@ -1,13 +1,17 @@
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, Mail, ChevronRight, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Clock, Mail, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { sanitizeHtml } from '@/lib/sanitize-html';
+import { getSenderFaviconUrl, getSenderInitials } from '@/lib/utils';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 
 export interface ArticleSource {
   name: string;
   date: string;
   excerpt: string;
+  senderEmail?: string;
+  subject?: string;
+  originalLink?: string;
 }
 
 export interface ArticleViewData {
@@ -46,6 +50,52 @@ function splitContentAtFirstHeading(html: string): { deck: string; rest: string 
   return { deck: html.slice(0, match.index), rest: html.slice(match.index) };
 }
 
+function SourceRow({ source }: { source: ArticleSource }) {
+  const [faviconError, setFaviconError] = useState(false);
+  const faviconUrl = source.senderEmail ? getSenderFaviconUrl(source.senderEmail) : '';
+  const initials = source.senderEmail ? getSenderInitials(source.senderEmail) : source.name.slice(0, 2).toUpperCase();
+
+  return (
+    <div className="bg-secondary/50 rounded-xl p-4 text-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {faviconUrl && !faviconError ? (
+            <img
+              src={faviconUrl}
+              alt=""
+              className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+              onError={() => setFaviconError(true)}
+            />
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary flex-shrink-0">
+              {initials}
+            </div>
+          )}
+          <span className="font-body font-medium text-foreground truncate">{source.name}</span>
+          <span className="font-body text-xs text-muted-foreground flex-shrink-0">
+            {new Date(source.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+          </span>
+        </div>
+        {source.originalLink && (
+          <a
+            href={source.originalLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-accent transition-colors flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="size-4" />
+          </a>
+        )}
+      </div>
+      {source.subject && (
+        <p className="font-body font-medium text-foreground mb-1 break-words">{source.subject}</p>
+      )}
+      <p className="font-body text-foreground/70 leading-relaxed break-words line-clamp-2">{source.excerpt}</p>
+    </div>
+  );
+}
+
 const SHORT_ARTICLE_WORD_THRESHOLD = 80;
 
 function countWords(html: string): number {
@@ -59,6 +109,7 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
 
   const rejectedRef = useRef(new Set<string>());
   const [, setErrorCount] = useState(0);
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
 
   const bumpError = (url: string) => {
     rejectedRef.current.add(url);
@@ -248,37 +299,33 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
 
           {article.sources && article.sources.length > 0 && (
             <div className="mt-12 pt-8 border-t border-border">
-              <h3 className="font-display text-xl font-bold mb-4">
-                Sources Analysed ({article.sources.length})
-              </h3>
-              <div className="space-y-3">
-                {article.sources.map((source, index) => (
-                  <div
-                    key={`${source.name}-${index}`}
-                    className="p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer group"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Mail className="size-4 text-accent" />
-                          <span className="font-body font-medium text-foreground">
-                            {source.name}
-                          </span>
-                          <span className="font-body text-sm text-muted-foreground">
-                            {new Date(source.date).toLocaleDateString('en-GB', {
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </span>
-                        </div>
-                        <p className="font-body text-sm text-foreground/70 line-clamp-2">
-                          {source.excerpt}
-                        </p>
-                      </div>
-                      <ChevronRight className="size-5 text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all" />
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-display text-xl font-bold flex items-center gap-2">
+                  <Mail className="size-5 text-accent" />
+                  Source Emails ({article.sources.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSourcesExpanded((v) => !v)}
+                  className="font-body inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {sourcesExpanded ? (
+                    <>Hide Sources <ChevronUp className="size-4" /></>
+                  ) : (
+                    <>Show Sources <ChevronDown className="size-4" /></>
+                  )}
+                </button>
+              </div>
+              <div
+                className={`transition-all duration-300 overflow-hidden ${
+                  sourcesExpanded ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="space-y-3">
+                  {article.sources.map((source, index) => (
+                    <SourceRow key={`${source.name}-${index}`} source={source} />
+                  ))}
+                </div>
               </div>
             </div>
           )}
