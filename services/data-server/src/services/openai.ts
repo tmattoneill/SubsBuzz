@@ -193,9 +193,18 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
   }
 
   try {
-    // Process all emails with AI
+    // Process all emails with AI (parallel; counter gives progress visibility in logs)
+    let completed = 0;
+    const total = emails.length;
     const processedEmails = await Promise.all(
-      emails.map(email => processEmailWithAI(email, settings))
+      emails.map(async email => {
+        const result = await processEmailWithAI(email, settings);
+        completed++;
+        if (completed % 5 === 0 || completed === total) {
+          console.log(`📧 LLM processing: ${completed}/${total} emails`);
+        }
+        return result;
+      })
     );
 
     // Create digest record
