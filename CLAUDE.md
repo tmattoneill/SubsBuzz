@@ -798,9 +798,12 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 21/04/2026, 22:18:20
+**Last Updated:** 22/04/2026, 11:03:09
 
 ### Active Todos
+- [ ] [high] New Conversation starts every time the main screen is viewed. (`main`)
+- [ ] [high] Not connecting on remote box to Ollama (`main`)
+- [ ] [high] Implement search bar functionality as outlined in the new todos - start with debounced search queries against the digest API (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
@@ -808,6 +811,14 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] [TEEPER-114] Digest generation progress feedback — click Generate, poll /api/digest/latest every 5s, show spinner "Processing N emails", auto-nav when row lands. Optional stretch: /api/digest/task/:taskId exposing Celery AsyncResult. https://linear.app/teemo-personal-projects/issue/TEEPER-114 (`main`)
 - [ ] [medium] Monitor production performance after HTTP timeout increase to validate the 300s setting (`main`)
 - [ ] [medium] Test hero image extraction improvements with real publisher content to verify banner filtering (`main`)
+- [ ] [medium] Wire up search bar — make Header search functional with results UI. Currently onSearch prop exists in Header.tsx but is never wired to a backend query. Needs: debounced search query against /api/digest or similar endpoint, results dropdown or page, navigation to matching article/digest. (`main`)
+- [ ] [medium] Improve keyword + tagging in articles — current topics/keywords are noisy or generic. Review AI prompt for keyword extraction in data-server, improve quality/relevance of tags shown on article cards and in ArticleView. (`main`)
+- [ ] [medium] Tag filtering — allow clicking a tag on an article card or in ArticleView to filter/search by that tag. Show all articles across history that share the tag. Related to search bar todo and keyword improvement todo. (`main`)
+- [ ] [medium] Add integration tests for MCP tool handlers and server startup (`main`)
+- [ ] [medium] Admin Management Clean Up (`main`)
+- [ ] [medium] Review and commit the modified CLAUDE.md file to capture any project context updates (`main`)
+- [ ] [medium] Review and improve the AI prompt for keyword extraction in data-server to reduce noisy/generic tags (`main`)
+- [ ] [medium] Add clickable tag filtering functionality to article cards and ArticleView components (`main`)
 - [ ] [low] Wire up "Reconnect Gmail Account" button in settings.tsx:516 — currently shows a toast but has no implementation. Should re-trigger OAuth flow via signIn() or a dedicated reconnect endpoint. (`main`)
 
 <!-- DEVCTX:END -->
