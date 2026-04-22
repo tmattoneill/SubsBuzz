@@ -342,10 +342,11 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], settings: 
   try {
     const cfg = resolveProvider(settings);
     const client = getClient(cfg);
-    // Combine all email content for analysis
-    const emailSummaries = emails.map(email =>
-      `From: ${email.sender}\nSubject: ${email.subject}\nSummary: ${email.summary}\nTopics: ${email.topics.join(', ')}`
-    ).join('\n\n---\n\n');
+    // Compact format: one line per email keeps input tokens low so the model
+    // has budget to return full index arrays for all emails.
+    const emailSummaries = emails.map((email, i) =>
+      `[${i}] ${email.subject} | ${email.sender} | Topics: ${email.topics.join(', ')} | ${email.summary?.slice(0, 120) ?? ''}`
+    ).join('\n');
 
     const completion = await client.chat.completions.create(mergeCompletionParams({
       model: cfg.model,
@@ -353,32 +354,28 @@ export async function analyzeEmailForThemes(emails: ProcessedEmail[], settings: 
       messages: [
         {
           role: 'system',
-          content: `You are an expert content analyst. Analyze the email summaries and identify 3-7 major themes that group these emails together. For each theme, provide:
-          1. A clear, descriptive theme name (e.g. "Political and Social Issues", not just "politics")
-          2. A narrative summary (2-4 sentences) that tells the story of that theme — mention specific sources, figures, or events referenced in the emails
-          3. A confidence score (0-100) based on how strongly the emails cluster
-          4. 3-6 specific keywords (not just the theme name repeated)
-          5. Which emails belong to this theme (by their 0-based index in the list)
+          content: `You are an expert content analyst. Analyze these email summaries and identify 3-7 major themes.
 
-          Return JSON: {
-            "themes": [
-              {
-                "name": "Theme Name",
-                "summary": "Narrative summary of this theme...",
-                "confidence": 85,
-                "keywords": ["keyword1", "keyword2", "keyword3"],
-                "emailIndexes": [0, 2, 4]
-              }
-            ]
-          }`
+CRITICAL RULES:
+- Every email index (0 to ${emails.length - 1}) must appear in exactly one theme's emailIndexes. Do not omit any.
+- emailIndexes must list ALL emails for that theme, not just representative ones.
+
+For each theme provide:
+1. name: clear, descriptive (e.g. "US Politics and Elections", not just "politics")
+2. summary: 2-4 sentences naming specific sources, figures, or events from the emails
+3. confidence: 0-100 based on how strongly the emails cluster
+4. keywords: 3-6 specific keywords
+5. emailIndexes: array of ALL 0-based indexes belonging to this theme
+
+Return JSON: {"themes": [{"name": "...", "summary": "...", "confidence": 85, "keywords": [...], "emailIndexes": [...]}]}`
         },
         {
           role: 'user',
-          content: `Analyze these ${emails.length} email summaries:\n\n${emailSummaries}`
+          content: `Assign all ${emails.length} emails (indexes 0-${emails.length - 1}) to themes:\n\n${emailSummaries}`
         }
       ],
-      temperature: 0.7,
-      max_completion_tokens: 2000,
+      temperature: 0.3,
+      max_completion_tokens: 4000,
     }, cfg) as any);
 
     const response = completion.choices[0]?.message?.content;
