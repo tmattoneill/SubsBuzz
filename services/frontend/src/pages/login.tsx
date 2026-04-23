@@ -2,8 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Lock } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { resolvePostLoginRoute } from '@/lib/post-login-route';
 
 export default function Login() {
@@ -35,10 +34,10 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 rounded-lg bg-primary flex items-center justify-center text-white">
-            <Mail className="h-6 w-6" />
+          <div className="mx-auto mb-6">
+            <img src="/logo-banner-bk.png" alt="SubsBuzz" className="h-10 w-auto object-contain dark:hidden" />
+            <img src="/logo-banner-wt.png" alt="SubsBuzz" className="h-10 w-auto object-contain hidden dark:block" />
           </div>
-          <CardTitle className="text-2xl font-bold">MailDigest</CardTitle>
           <CardDescription>
             Sign in to monitor your email and create AI-powered digests
           </CardDescription>
