@@ -11,6 +11,7 @@ import aiohttp
 from typing import Optional
 from bs4 import BeautifulSoup, Comment
 import html2text
+import trafilatura
 
 class ContentExtractor:
     """Email content extraction and cleaning"""
@@ -43,8 +44,21 @@ class ContentExtractor:
             # including "View in browser" anchors, making them unfindable afterwards.)
             online_content = await self._try_extract_from_online_version(soup)
 
-            # Always extract from the email HTML as the baseline.
-            email_html_content = await self._extract_from_email_html(soup, raw_content)
+            # PRIMARY: trafilatura. Handles nested-table layouts, boilerplate
+            # detection, and section preservation that the selector-lottery
+            # below can't touch. Returns clean markdown with links intact.
+            email_html_content = self._extract_with_trafilatura(raw_content)
+
+            # FALLBACK: legacy selector-based extraction. Kept as a safety net
+            # for emails where trafilatura returns nothing (plain-text-only
+            # payloads, highly irregular HTML). Expected to fire rarely.
+            if not email_html_content or len(email_html_content) < 500:
+                print(
+                    f"⚠️  trafilatura output too short "
+                    f"({len(email_html_content) if email_html_content else 0} chars), "
+                    f"falling back to legacy selector extraction"
+                )
+                email_html_content = await self._extract_from_email_html(soup, raw_content)
 
             # Accept the online version only when it's meaningfully richer.
             # Many ESPs serve browser-view portals that return only footer boilerplate
@@ -147,6 +161,87 @@ class ContentExtractor:
             print(f"⚠️  Error in _try_extract_from_online_version: {e}")
             return None
     
+    # Known-boilerplate signals that mark the start of the footer region in
+    # trafilatura-extracted markdown. Everything after the first match is
+    # legal/footer/tracking noise, not editorial content. Order doesn't matter
+    # — we cut at the earliest match.
+    _MARKDOWN_FOOTER_CUTOFF = re.compile(
+        r'\n\s*(?:'
+        r'\[?View (?:this\s+email\s+)?in\s+(?:your\s+)?(?:web\s+)?browser\]?'
+        r'|This (?:message|email)\s+was\s+sent\s+to'
+        r'|You\s+received\s+this'
+        r'|To\s+(?:ensure\s+delivery|unsubscribe)'
+        r')',
+        re.IGNORECASE,
+    )
+
+    def _extract_with_trafilatura(self, raw_content: str) -> Optional[str]:
+        """Run trafilatura against the raw email HTML. Returns None on
+        failure or when the extracted body is too short to trust — callers
+        should fall back to the legacy selector-based extractor in that case.
+
+        Config rationale:
+          - output_format='markdown' preserves headings, bylines, link text
+            + URLs so the downstream LLM can see section boundaries.
+          - favor_recall=True biases toward keeping borderline content. For
+            newsletters, losing signal is worse than including a bit of noise.
+          - include_tables=False kills the nested layout-table prefix that
+            dominates the top of table-based newsletters (AdExchanger-style).
+          - include_images=False — hero extraction is handled separately by
+            extract_hero_image(), which has its own filter pipeline.
+          - include_comments=False — blog-style comment sections aren't
+            present in emails but would leak through on online-version pages.
+        """
+        try:
+            extracted = trafilatura.extract(
+                raw_content,
+                output_format='markdown',
+                favor_recall=True,
+                include_links=True,
+                include_tables=False,
+                include_comments=False,
+                include_images=False,
+            )
+        except Exception as e:
+            print(f"⚠️  trafilatura extraction failed: {e}")
+            return None
+
+        if not extracted or len(extracted) < 200:
+            return None
+
+        return self._clean_markdown_content(extracted)
+
+    def _clean_markdown_content(self, text: str) -> str:
+        """Post-process trafilatura markdown output.
+
+        Distinct from _clean_text_content, which collapses all whitespace
+        (incl. newlines) — that would destroy paragraph structure in
+        markdown. Here we preserve blank-line separators.
+        """
+        if not text:
+            return ''
+
+        # Strip CSS blocks that occasionally survive HTML parsing (seen on
+        # Substack online-view pages where <style> leaks as text).
+        text = re.sub(
+            r'@(media|font-face|keyframes|supports|import|charset)[^{]*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}',
+            '',
+            text,
+            flags=re.DOTALL,
+        )
+
+        # Truncate at the first footer-boilerplate signal. Everything after
+        # is "view in browser / sent to / unsubscribe / privacy policy" noise.
+        m = self._MARKDOWN_FOOTER_CUTOFF.search(text)
+        if m:
+            text = text[:m.start()]
+
+        # Normalise: strip per-line trailing whitespace, collapse 3+ blank
+        # lines to 2, trim overall.
+        text = '\n'.join(line.rstrip() for line in text.split('\n'))
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        return text.strip()
+
     async def _extract_from_email_html(self, soup: BeautifulSoup, raw_content: str) -> str:
         """
         Advanced email HTML content extraction

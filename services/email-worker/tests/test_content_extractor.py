@@ -181,30 +181,14 @@ def test_iab_filename_heuristic_catches_banners_with_missing_height(extractor):
 
 # --- content extraction ---------------------------------------------------
 #
-# The three tests below are CURRENTLY xfail. They're not broken tests —
-# they're the regression dashboard for the stage-2/stage-3 overhaul
-# (layout-table unwrapping + trafilatura). Today's extractor picks a
-# 218-char table cell and returns the footer; these assertions will
-# flip to green once we swap the selector-lottery for trafilatura and
-# drop xfail here.
-#
-# xfail strict=False so that when they start passing during development
-# they show as XPASS (visible, not a failure) rather than breaking CI.
-
-
-# `strict=False` → XPASS shows as green, so local-dev flips are visible
-_CONTENT_XFAIL = pytest.mark.xfail(
-    strict=False,
-    reason="selector-lottery extractor picks footer on nested-table newsletters; "
-           "fixed by trafilatura swap (stage 2/3).",
-)
+# Trafilatura (primary path) restores these — the AdExchanger fixture is
+# now our regression guard for nested-table newsletter extraction.
 
 
 def _extract(extractor: ContentExtractor, html: str) -> str:
     return asyncio.run(extractor.extract_newsletter_content(html))
 
 
-@_CONTENT_XFAIL
 def test_adexchanger_preserves_bracketed_source_attributions(
     extractor, adexchanger_html
 ):
@@ -221,7 +205,6 @@ def test_adexchanger_preserves_bracketed_source_attributions(
     )
 
 
-@_CONTENT_XFAIL
 def test_adexchanger_extracts_editorial_content(extractor, adexchanger_html):
     """Confidence that the main body survives — these are distinctive phrases
     from the 2026-04-20 issue. If any go missing we've regressed."""
@@ -242,7 +225,6 @@ def test_adexchanger_extracts_editorial_content(extractor, adexchanger_html):
     )
 
 
-@_CONTENT_XFAIL
 def test_adexchanger_output_length_is_substantial(extractor, adexchanger_html):
     """Sanity: the AdExchanger issue has ~3-5 meaty paragraphs of editorial
     in 'But Wait! There's More!' plus 3 section blurbs. Anything under 1500
@@ -257,7 +239,6 @@ def test_adexchanger_output_length_is_substantial(extractor, adexchanger_html):
 # --- snapshot (informational regression alarm) ----------------------------
 
 
-@_CONTENT_XFAIL
 def test_adexchanger_snapshot(extractor, adexchanger_html):
     """Full-output snapshot. Fails on any diff — use UPDATE_SNAPSHOTS=1
     to re-baseline when the change is intentional."""

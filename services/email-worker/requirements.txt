@@ -7,11 +7,12 @@ google-auth-oauthlib==1.1.0
 google-auth==2.23.4
 beautifulsoup4==4.12.2
 html2text==2020.1.16
+trafilatura==2.0.0
 httpx==0.25.2
 aiohttp==3.9.1
 pydantic==2.5.0
 python-dotenv==1.0.0
-lxml==4.9.3
+lxml==5.3.0
 
 # Dev / test — harmless in prod but only exercised by pytest
 pytest==8.3.3
