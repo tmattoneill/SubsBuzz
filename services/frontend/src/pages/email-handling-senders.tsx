@@ -187,8 +187,22 @@ export default function EmailHandlingSenders() {
               </TableRow>
             ) : senders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-sm text-muted-foreground">
-                  No senders yet. Click "Add sender" to start.
+                <TableCell colSpan={3} className="py-0">
+                  <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                      <Plus className="h-7 w-7 text-primary" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-foreground">Add your first email source</p>
+                      <p className="max-w-sm text-sm text-muted-foreground">
+                        SubsBuzz monitors newsletters and senders you choose, then uses AI to summarise them into a daily digest. Add a sender address to get started.
+                      </p>
+                    </div>
+                    <Button onClick={() => setIsAddOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add sender
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

@@ -31,6 +31,7 @@ export default function History() {
   const { toast } = useToast();
   const [isAddSenderOpen, setIsAddSenderOpen] = useState(false);
   const [isRerunConfirmOpen, setIsRerunConfirmOpen] = useState(false);
+  const [isNoSendersOpen, setIsNoSendersOpen] = useState(false);
   const [pendingDigestId, setPendingDigestId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -38,6 +39,11 @@ export default function History() {
       setLocation("/login");
     }
   }, [user, authLoading, setLocation]);
+
+  const { data: monitoredEmails = [] } = useQuery<unknown[]>({
+    queryKey: ["/api/monitored-emails"],
+    refetchOnWindowFocus: false,
+  });
 
   const { data: digestHistoryRaw = [], isLoading: isHistoryLoading } = useQuery({
     queryKey: ["/api/digest/history"],
@@ -114,6 +120,10 @@ export default function History() {
   }, [pendingDigestId, toast]);
 
   const handleGenerateDigestClick = () => {
+    if (!Array.isArray(monitoredEmails) || monitoredEmails.length === 0) {
+      setIsNoSendersOpen(true);
+      return;
+    }
     if (todaysDigest) {
       setIsRerunConfirmOpen(true);
     } else {
@@ -338,6 +348,23 @@ export default function History() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmRerun}>Yes, re-run</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isNoSendersOpen} onOpenChange={setIsNoSendersOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>No email sources configured</AlertDialogTitle>
+            <AlertDialogDescription>
+              You need to add at least one newsletter or sender to monitor before generating a digest. Head to Email Handling to add your first source.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setIsNoSendersOpen(false); setLocation("/email-handling"); }}>
+              Go to Email Handling
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
