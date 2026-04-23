@@ -7,16 +7,27 @@ Extracted from server/gmail.ts with Python implementation using BeautifulSoup.
 
 import re
 import asyncio
+import hashlib
 import aiohttp
-from typing import Optional
+from typing import Dict, FrozenSet, List, Optional
 from bs4 import BeautifulSoup, Comment
 import html2text
 import trafilatura
 
 class ContentExtractor:
     """Email content extraction and cleaning"""
-    
-    def __init__(self):
+
+    def __init__(self, redis_client=None):
+        """
+        Args:
+            redis_client: optional async redis client (redis.asyncio.Redis).
+                When provided, enables Phase 3 auto-learning — every hero
+                candidate's (sender_domain, sha256) pair increments a counter,
+                and candidates seen `_HERO_COUNTER_THRESHOLD`+ times get
+                auto-denied. When None, Phase 3 is off (used by tests + any
+                caller that can't reach Redis).
+        """
+        self._redis = redis_client
         self.html2text_converter = html2text.HTML2Text()
         self.html2text_converter.ignore_links = True
         self.html2text_converter.ignore_images = True
@@ -400,17 +411,55 @@ class ContentExtractor:
         # LiveIntent impression beacons (any subdomain)
         r'|liveintent\.'
         # LiveIntent-style tracking beacon fingerprint: /imp? with li= param
-        r'|/imp\?[^"\s]*li=)',
+        r'|/imp\?[^"\s]*li='
+        # Sailthru newsletter-chrome paths: /fss/ = header brand assets,
+        # /composer/ = newsletter promo/house-ad banner units. Editorial
+        # images are always hosted on the publisher's own CDN, never these.
+        r'|sailthru\.com/(?:fss|composer)/'
+        # ESP-hosted newsletter chrome on NPR + Economist transactional domains.
+        # Editorial images live on brightspotcdn.com (NPR) or economist.com/cdn-cgi
+        # (Economist). Anything on image.<mail-subdomain>.<publisher>/lib/ is
+        # the ESP-hosted header/nameplate/section-divider art we don't want.
+        r'|image\.(?:nl|e)\.(?:npr|economist)\.(?:org|com)/lib/'
+        # Economist ad-server + pixel-tracking subdomain
+        r'|pas\.economist\.com'
+        # Movable Ink dynamic-content beacons (movable-ink-1505.com, -1234.com, …)
+        r'|movable-ink-\d+\.'
+        # Stock email-tracking pixel domains
+        r'|emltrk\.com'
+        r'|bounceexchange\.com/tag/'
+        r'|pippio\.com/api/sync'
+        r'|rs-stripe\.npr\.org/stripe/image'
+        # Condé Nast CDN square crops (1:1 ratio path segment) = author
+        # headshots / column bylines, not editorial heroes. The same CDN
+        # serves legit editorial at 3:2, 16:9, 4:3, master — those pass.
+        r'|media\.(?:newyorker|cntraveler|wired|vogue|vanityfair|gq|bonappetit|architecturaldigest|self|glamour|epicurious|teenvogue|allure|pitchfork|them|arstechnica)\.com/photos/[^/]+/1:1/)',
         re.I,
     )
-    # Alt-text hints the image is NOT a hero
+    # Alt-text hints the image is NOT a hero. Word-bounded so compound
+    # editorial alt text ("app icons in a row", "cherry lemon slot machine")
+    # doesn't trigger on the substring `icon`; likewise `headers`, `footers`,
+    # `spacers` are legitimate editorial language that shouldn't match.
     _HERO_ALT_BLACKLIST = re.compile(
-        r'(logo|icon|avatar|unsubscribe|masthead|footer|header|spacer)',
+        r'\b(logo|icon|avatar|unsubscribe|masthead|footer|header|spacer)\b',
         re.I,
     )
-    # Ancestor class/id/tag names that indicate non-content regions
+    # Ancestor class/id patterns that unambiguously indicate chrome regions.
+    # Plain `header`/`footer` used to live here but caused false positives
+    # in table-based newsletters that use `<td class="header">` as a layout
+    # slot wrapping lead editorial (seen on NPR Up First). Require a
+    # compound-qualifier word (site/email/page) OR a chrome-specific suffix
+    # (-links, -nav, -icons, -share). Tag-name check for <header>/<footer>/
+    # <nav> still fires separately in the ancestor walk.
     _HERO_ANCESTOR_BLACKLIST = re.compile(
-        r'(header|footer|masthead|nav|navigation|social|unsubscribe|footer-links)',
+        r'(?:^|[\s_\-])(?:'
+        r'masthead'
+        r'|(?:site|email|page)[-_]?(?:header|footer)'
+        r'|footer[-_]?(?:links|nav)'
+        r'|social[-_]?(?:links|share|icons|nav)'
+        r'|unsubscribe'
+        r'|(?:main[-_]?)?nav(?:igation)?'
+        r')(?:[\s_\-]|$)',
         re.I,
     )
 
@@ -428,6 +477,95 @@ class ContentExtractor:
         r'(?:[^A-Za-z]|$)',
         re.I,
     )
+
+    # Publisher "placeholder hero" URL patterns — specific illustrations/brand
+    # marks that get recycled as the only image in many emails but don't trip
+    # the generic logo/masthead filters because their filenames are editorial-
+    # sounding (NYer's "tilley", Economist's "kal" cartoon, etc.).
+    #
+    # Prefer this over the hash denylist when the URL is stable and
+    # characteristic — it's a pure string check, zero network cost.
+    _HERO_PLACEHOLDER_URL_RE = re.compile(
+        r'('
+        # The New Yorker — Eustace Tilley character, the recurring brand
+        # illustration that fronts many NYer newsletters. Matches filenames
+        # and path segments like `tilley`, `eustace`, `monocle-man`.
+        r'tilley|eustace'
+        # NYer additional chrome: flagship daily header banner,
+        # cropped footer nameplate, and Sailthru "NL_Unit" promo slots.
+        r'|flagship[-_]?daily[-_]?header'
+        r'|footer[-_]?tny'
+        r'|TNY[_-]?NL[_-]?Unit'
+        # AdExchanger newsletter chrome: `ADX-Newsletter-Header-*.gif`
+        # banners, section-icon filenames (NewsRoundup, TheBigStory,
+        # TalksIcon, Big-Story-podcast-square), and `hdst_<author>_crop.png`
+        # column-byline headshots. `ADX-Optimizing_the_News_logo` is caught
+        # by the generic logo regex already — kept here for clarity when
+        # ADX reuses the prefix on other section assets.
+        r'|Newsletter[-_]?Header'
+        r'|NewsRoundup'
+        r'|TheBigStory'
+        r'|Big[-_]?Story[-_]?podcast'
+        r'|TalksIcon'
+        r'|(?:^|/)hdst_'
+        r')',
+        re.I,
+    )
+
+    # Photo/illustration credit signatures, matched against text NEAR each
+    # candidate <img>. The presence of a credit line is a strong positive
+    # signal that the image is editorial — mastheads, house-ad banners,
+    # section icons, and tracking pixels never carry credits.
+    #
+    # Patterns (all case-insensitive):
+    #   - "Photo/Illustration/Photograph by X"
+    #   - "Photo: X" / "Credit: X"
+    #   - "Photo courtesy of X"
+    #   - "(Firstname Lastname/Getty Images)" — the parenthesised slash-form
+    #     common to Axios, NYer sidebar photos, Condé Nast.
+    #   - Bare "Name/Getty Images" / "Name/Reuters" / "Name/AP" /
+    #     "Name/AFP/Getty Images" — the New Yorker + Economist style.
+    _PHOTO_CREDIT_RE = re.compile(
+        r'(?:'
+        r'(?:photo|photograph|illustration|image)\s+(?:by|courtesy\s+of)\s+'
+        r'|(?:photo|photograph|illustration|image|credit)\s*[:\-]\s*'
+        # Credit agencies: capture the "Someone/Agency" form anywhere in text
+        r'|\b[A-Z][\w.\-]+(?:\s+[A-Z][\w.\-]+){0,4}\s*/\s*'
+        r'(?:Getty(?:\s+Images)?|Reuters|AP|AFP|Bloomberg|EPA|'
+        r'Shutterstock|Magnum|Redux|The\s+New\s+York\s+Times)\b'
+        r')',
+        re.I,
+    )
+
+    # Per-sender SHA256 content-hash denylist. Keyed by sender domain suffix
+    # (e.g. 'newyorker.com' matches both newsletter@newyorker.com and
+    # newsletter@e.newyorker.com). Seeded by hand from images observed
+    # being recycled as placeholder heroes across many emails from the
+    # same publisher — the last line of defence when the URL pattern
+    # isn't stable enough to regex.
+    #
+    # To add an entry: inspect the offending <img src>, fetch the bytes,
+    # run sha256. See the Phase 3 todo for auto-population.
+    _PUBLISHER_PLACEHOLDER_HASHES: Dict[str, FrozenSet[str]] = {
+        # Seed placeholder — real hashes populated once we capture a NYer
+        # .eml fixture and hash the actual Tilley asset.
+        # 'newyorker.com': frozenset({'<sha256-of-tilley.png>'}),
+    }
+
+    # Cap on bytes fetched for hashing. Placeholder assets are small (<100KB
+    # typical), and a runaway fetch would block the worker. Anything larger
+    # than this is almost certainly not a recurring placeholder.
+    _HASH_FETCH_MAX_BYTES = 512 * 1024
+    _HASH_FETCH_TIMEOUT_SECONDS = 5
+
+    # Phase 3 auto-learning parameters. When the same (sender_domain, sha256)
+    # pair has been seen `_HERO_COUNTER_THRESHOLD` times across all users,
+    # further sightings are denied — the image is demonstrably recurring and
+    # therefore not a per-email editorial hero. TTL expires counters for
+    # publishers that stop sending (or rotate their placeholder art).
+    _HERO_COUNTER_KEY = 'subsbuzz:hero:count:{domain}:{digest}'
+    _HERO_COUNTER_THRESHOLD = 3
+    _HERO_COUNTER_TTL_SECONDS = 90 * 24 * 3600
 
     # IAB standard banner-ad dimensions (w, h). Images declared at these exact
     # sizes are almost never editorial heroes — they're display-ad creative
@@ -473,6 +611,68 @@ class ContentExtractor:
             if self._is_iab_banner_size(w, h):
                 return True
         return False
+
+    # How far (in rendered text chars) after an <img> we'll look for a credit
+    # line. Photo credits always sit immediately under the photo — anything
+    # further than ~300 chars is probably body prose, not the credit.
+    _CREDIT_LOOKAHEAD_CHARS = 300
+
+    def _image_has_nearby_credit(self, img) -> bool:
+        """True if the <img> has a photo-credit line in its immediate DOM
+        neighbourhood. Looks at the nearest ancestor block (figure/table row/
+        paragraph) and the first text content of the following siblings,
+        capped at _CREDIT_LOOKAHEAD_CHARS chars.
+
+        Strong positive signal for editorial content — chrome/mastheads/
+        house-ads are never credited. We use this to PROMOTE a candidate to
+        the top of selection, not to reject uncredited images (plenty of
+        editorial uses uncredited stock or publisher-owned art).
+        """
+        try:
+            # Walk ancestors up to the nearest block-like container so we can
+            # scan its trailing text. <figure> is the canonical wrapper;
+            # table-based newsletters use <td> / <tr>; plain HTML uses <p>/<div>.
+            container = None
+            for ancestor in img.parents:
+                name = getattr(ancestor, 'name', None)
+                if name in ('figure', 'figcaption', 'td', 'tr', 'p', 'div', 'li'):
+                    container = ancestor
+                    break
+            if container is None:
+                return False
+
+            # Gather the text that follows the <img> within its container,
+            # plus the text of the immediately-next sibling block. Credits
+            # commonly sit either inside the same <figure> as a <figcaption>
+            # OR in the row immediately below the image row.
+            buf = []
+            seen_img = False
+            for el in container.descendants:
+                if el is img:
+                    seen_img = True
+                    continue
+                if not seen_img:
+                    continue
+                if hasattr(el, 'get_text'):
+                    buf.append(el.get_text(' ', strip=True))
+                elif isinstance(el, str):
+                    buf.append(el.strip())
+                if sum(len(s) for s in buf) > self._CREDIT_LOOKAHEAD_CHARS:
+                    break
+
+            # Also peek at the very next sibling block — caption rows in
+            # table-based newsletters are *after* the image's <td>, not
+            # inside it.
+            nxt = container.find_next_sibling()
+            if nxt is not None and hasattr(nxt, 'get_text'):
+                buf.append(nxt.get_text(' ', strip=True)[: self._CREDIT_LOOKAHEAD_CHARS])
+
+            text = ' '.join(b for b in buf if b)[: self._CREDIT_LOOKAHEAD_CHARS * 2]
+            if not text:
+                return False
+            return bool(self._PHOTO_CREDIT_RE.search(text))
+        except Exception:
+            return False
 
     @staticmethod
     def _is_masthead_strip(width: int, height: int) -> bool:
@@ -558,6 +758,8 @@ class ContentExtractor:
             #     when the filename is generic (e.g. <publisher>/header.png).
             if self._HERO_LOGO_URL_RE.search(src):
                 continue
+            if self._HERO_PLACEHOLDER_URL_RE.search(src):
+                continue
             if self._is_masthead_strip(width, height):
                 continue
 
@@ -588,21 +790,173 @@ class ContentExtractor:
             elif not src.startswith(('http://', 'https://')):
                 continue
 
-            candidates.append({'src': src, 'width': width, 'height': height})
+            candidates.append({
+                'src': src,
+                'width': width,
+                'height': height,
+                'credited': self._image_has_nearby_credit(img),
+            })
 
         if not candidates:
             return None
 
+        # Tier 0 — credited editorial: any image with a photo-credit line
+        # nearby beats everything else. Credits mean human-authored editorial
+        # content (AP/Getty/Reuters/photographer byline), which is exactly
+        # the signal we want for a hero. Reject the smallest credited images
+        # though — tiny "Photograph by" illustrations exist (e.g. 80px
+        # author-author byline thumbnails on some newsletters).
+        credited = [c for c in candidates if c['credited'] and (c['width'] == 0 or c['width'] >= 150)]
+        if credited:
+            # Prefer the LARGEST credited image (by declared width when
+            # available, doc-order otherwise) — picks the main hero when
+            # a newsletter has multiple credited photos in section thumbs.
+            credited.sort(key=lambda c: c['width'] or 0, reverse=True)
+            return credited[0]['src']
+
+        # Tier 1 — first reasonably-wide image in doc order (hero is
+        # usually near the top of newsletter content).
         for c in candidates:
             if c['width'] >= 600:
                 return c['src']
 
+        # Tier 2 — first medium-width image in doc order. Catches editorial
+        # photos hosted via CMS crops (w_560, w_800) that don't cross the
+        # 600 threshold but are clearly too big to be brand chrome.
+        for c in candidates:
+            if c['width'] >= 300:
+                return c['src']
+
+        # Tier 3 — largest by declared area (when both dims exist).
         with_area = [c for c in candidates if c['width'] and c['height']]
         if with_area:
             with_area.sort(key=lambda c: c['width'] * c['height'], reverse=True)
             return with_area[0]['src']
 
+        # Tier 4 — first survivor (last-resort for responsive layouts
+        # with no declared dims on any <img>).
         return candidates[0]['src']
+
+    async def extract_hero_image_verified(
+        self,
+        raw_content: str,
+        sender_domain: Optional[str] = None,
+    ) -> Optional[str]:
+        """Full hero pipeline: static filters + content-hash verification.
+
+        Layered denials (first match wins):
+          A. Static URL + dimension filters (in extract_hero_image).
+          B. Static SHA256 denylist (_PUBLISHER_PLACEHOLDER_HASHES) — cheap
+             when seeded, requires a manual entry per publisher.
+          C. Phase 3 Redis counter — auto-learns recurring heroes. Any
+             (sender_domain, sha256) pair seen >= _HERO_COUNTER_THRESHOLD
+             times gets denied. Runs only when a Redis client is injected.
+
+        Short-circuits without fetching when no sender_domain, no Phase 3
+        client, and no static entries exist for the domain — the hot path
+        stays cheap for senders we don't track.
+
+        Failure policy: fetch errors and Redis errors KEEP the candidate.
+        Better to ship a weak hero than blank the card on a transient
+        infrastructure problem. Fallback art is reserved for "we know this
+        is garbage", not "we don't know."
+        """
+        url = self.extract_hero_image(raw_content)
+        if not url or not sender_domain:
+            return url
+
+        static_denylist = self._placeholder_hashes_for_domain(sender_domain)
+        phase3_enabled = self._redis is not None
+
+        # Short-circuit when nothing would use the hash — saves the HTTP fetch
+        # on senders we have no data for.
+        if not static_denylist and not phase3_enabled:
+            return url
+
+        digest = await self._fetch_and_hash_image(url)
+        if digest is None:
+            return url  # fetch failed — prefer candidate
+
+        if digest in static_denylist:
+            print(f"⚠️  Hero rejected (static placeholder hash): {url}")
+            return None
+
+        if phase3_enabled and await self._counter_says_deny(sender_domain, digest):
+            print(f"⚠️  Hero rejected (recurring across publisher): {url}")
+            return None
+
+        return url
+
+    async def _counter_says_deny(self, sender_domain: str, digest: str) -> bool:
+        """Atomic INCR+EXPIRE for (sender_domain, sha256); returns True once
+        the count crosses _HERO_COUNTER_THRESHOLD. Any Redis error returns
+        False (fail-open: keep the candidate).
+        """
+        key = self._HERO_COUNTER_KEY.format(domain=sender_domain, digest=digest)
+        try:
+            pipe = self._redis.pipeline()
+            pipe.incr(key)
+            pipe.expire(key, self._HERO_COUNTER_TTL_SECONDS)
+            count, _ = await pipe.execute()
+            return int(count) >= self._HERO_COUNTER_THRESHOLD
+        except Exception as e:
+            print(f"⚠️  Hero counter check failed ({sender_domain}): {e}")
+            return False
+
+    def _placeholder_hashes_for_domain(self, sender_domain: str) -> FrozenSet[str]:
+        """Collect placeholder hashes registered for any suffix of sender_domain.
+        'e.newyorker.com' → union of entries for 'e.newyorker.com', 'newyorker.com'.
+        Empty domain or no matches → empty set.
+        """
+        if not sender_domain:
+            return frozenset()
+        sender_domain = sender_domain.lower().strip()
+        hashes: set = set()
+        for key, vals in self._PUBLISHER_PLACEHOLDER_HASHES.items():
+            if sender_domain == key or sender_domain.endswith('.' + key):
+                hashes.update(vals)
+        return frozenset(hashes)
+
+    @staticmethod
+    def _sha256_bytes(data: bytes) -> str:
+        return hashlib.sha256(data).hexdigest()
+
+    async def _fetch_and_hash_image(self, url: str) -> Optional[str]:
+        """Fetch `url` and return sha256 hex of the response body.
+
+        Bounded by _HASH_FETCH_MAX_BYTES and _HASH_FETCH_TIMEOUT_SECONDS to
+        avoid the worker blocking on a slow/malicious response. Returns None
+        on any failure — callers treat None as "couldn't verify" and keep the
+        candidate.
+        """
+        try:
+            timeout = aiohttp.ClientTimeout(total=self._HASH_FETCH_TIMEOUT_SECONDS)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (compatible; SubsBuzz/2.0; +https://subsbuzz.com)',
+                'Accept': 'image/*,*/*;q=0.5',
+            }
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status != 200:
+                        return None
+                    body = await resp.content.read(self._HASH_FETCH_MAX_BYTES + 1)
+                    if len(body) > self._HASH_FETCH_MAX_BYTES:
+                        return None  # too large — almost certainly not a recurring placeholder
+                    return self._sha256_bytes(body)
+        except Exception as e:
+            print(f"⚠️  Hero hash fetch failed for {url}: {e}")
+            return None
+
+    @staticmethod
+    def domain_from_sender(sender: str) -> Optional[str]:
+        """Pull the domain from a raw From header or bare email address.
+        'The New Yorker <newsletter@e.newyorker.com>' → 'e.newyorker.com'
+        Returns None if no @-local-part found.
+        """
+        if not sender:
+            return None
+        m = re.search(r'@([A-Za-z0-9.\-]+)', sender)
+        return m.group(1).lower() if m else None
 
     def _strip_html_tags(self, content: str) -> str:
         """Remove HTML tags from content"""

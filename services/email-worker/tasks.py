@@ -37,9 +37,24 @@ app.config_from_object({
 DATA_SERVER_URL = os.getenv('DATA_SERVER_URL', 'http://localhost:5000')
 INTERNAL_API_SECRET = os.getenv('INTERNAL_API_SECRET', '')
 
-# Initialize clients
+# Initialize clients.
+# Hero auto-learning (Phase 3) is backed by the same Redis instance Celery
+# uses as broker. Using the async redis-py client so the hero pipeline can
+# INCR/EXPIRE without blocking the event loop. Client is lazy — failure to
+# reach Redis only manifests at the first command, at which point the hero
+# path fails open (keeps the candidate) and logs a warning.
+try:
+    import redis.asyncio as _aioredis
+    _hero_redis = _aioredis.from_url(
+        os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
+        decode_responses=True,
+    )
+except Exception as _e:
+    logger.warning("hero auto-learning disabled (redis client init failed): %s", _e)
+    _hero_redis = None
+
 gmail_client = GmailClient()
-content_extractor = ContentExtractor()
+content_extractor = ContentExtractor(redis_client=_hero_redis)
 
 class DataServerClient:
     """Client for communicating with the data server"""
@@ -301,8 +316,13 @@ async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[s
                 }
 
                 # Extract hero image BEFORE replacing content with plain text
-                # (hero extraction needs the original HTML; content extraction strips it)
-                hero_image_url = content_extractor.extract_hero_image(email_dict['content'])
+                # (hero extraction needs the original HTML; content extraction strips it).
+                # Pass sender_domain so known publisher placeholders (Tilley et al.)
+                # get rejected by the content-hash denylist.
+                sender_domain = content_extractor.domain_from_sender(email.sender or '')
+                hero_image_url = await content_extractor.extract_hero_image_verified(
+                    email_dict['content'], sender_domain=sender_domain
+                )
                 if hero_image_url:
                     logger.info("hero_image extracted for %s: %s", email.id, hero_image_url)
 
