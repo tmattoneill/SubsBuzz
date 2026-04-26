@@ -352,6 +352,11 @@ async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[s
         except Exception as e:
             logger.warning("Could not load cleanup settings user=%s (defaulting to 'none'): %s", user_id, e)
 
+        logger.info(
+            "Cleanup resolved user=%s action=%s label_name=%s processed_emails=%d",
+            user_id, cleanup_action, cleanup_label_name, len(processed_emails)
+        )
+
         # Send processed emails to data server for digest generation
         digest_payload = {
             'user_id': user_id,

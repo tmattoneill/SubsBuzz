@@ -218,6 +218,10 @@ class ContentExtractor:
             return None
 
         if not extracted or len(extracted) < 200:
+            print(
+                f"⚠️  trafilatura returned too little content "
+                f"({len(extracted) if extracted else 0} chars, threshold 200) — yielding to fallback"
+            )
             return None
 
         return self._clean_markdown_content(extracted)
@@ -392,7 +396,10 @@ class ContentExtractor:
         
         # If extracted content is too short, fall back to basic text extraction
         if len(final_content) < 200:
-            print("⚠️  Extracted content too short, falling back to basic HTML stripping")
+            print(
+                f"⚠️  Legacy selector extraction too short "
+                f"({len(final_content)} chars, threshold 200) — falling back to raw HTML strip"
+            )
             basic_text = self._clean_text_content(self._strip_html_tags(raw_content))
             # Only use basic text if it's significantly longer
             return basic_text if len(basic_text) > (len(final_content) * 1.5) else final_content

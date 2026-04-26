@@ -117,7 +117,7 @@ function thematicToHero(
   if (!d.dailySummary) return null;
   const heroImage =
     emails.find((e) => isGoodHeroUrl(e.heroImageUrl))?.heroImageUrl ??
-    getArticleHeroFallbackSync(manifest, null, "16_9");
+    getArticleHeroFallbackSync(manifest, "digest-cover", "16_9");
   return {
     id: `thematic-${d.id}`,
     title: "Your Daily Intelligence Brief",
@@ -161,7 +161,7 @@ function thematicToView(
 
   const heroImage =
     emails.find((e) => isGoodHeroUrl(e.heroImageUrl))?.heroImageUrl ??
-    getArticleHeroFallbackSync(manifest, null, "16_9");
+    getArticleHeroFallbackSync(manifest, "digest-cover", "16_9");
 
   return {
     id: `thematic-${d.id}`,
