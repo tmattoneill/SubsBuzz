@@ -798,10 +798,11 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 26/04/2026, 08:18:46
+**Last Updated:** 26/04/2026, 11:01:59
 
 ### Active Todos
 - [ ] [critical] [TEEPER-204] OAuth refresh-token revocation silent failure — add invalid_grant detection, in-app reconnect banner, skip cron for revoked users (URGENT — bad UX, drove the 2026-04-26 prod incident) https://linear.app/teemo-personal-projects/issue/TEEPER-204 (`main`)
+- [ ] [critical] Execute the production database backfill to clear SLI tracker URLs from hero_image_url column as outlined in TEEPER-207 (`main`)
 - [ ] [high] New Conversation starts every time the main screen is viewed. (`main`)
 - [ ] [high] Not connecting on remote box to Ollama (`main`)
 - [ ] [high] Implement search bar functionality as outlined in the new todos - start with debounced search queries against the digest API (`main`)
@@ -814,6 +815,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] [TEEPER-206] Proxy + cache hero/article images locally instead of hot-linking publisher CDNs (architectural follow-up to 2026-04-26 SLI tracker incident) https://linear.app/teemo-personal-projects/issue/TEEPER-206 (`main`)
 - [ ] [high] [TEEPER-207] Backfill UPDATE digest_emails SET hero_image_url = NULL WHERE matches sli.* or /imp? on prod + dev. Then audit other narrow regex patterns. https://linear.app/teemo-personal-projects/issue/TEEPER-207 (`main`)
 - [ ] [high] [TEEPER-208] Onboarding 72h scan → suggested newsletters with categories → approve/reject → "run digest now?" with progress. Existing scan_for_newsletters scaffolding in worker; needs tighter detection (substack, List-Unsubscribe, publications registry), category suggestions, richer UI, progress display, immediate first-digest CTA. https://linear.app/teemo-personal-projects/issue/TEEPER-208 (`main`)
+- [ ] [high] Verify the HeroArticle onError fallback is working correctly in production for broken hero images (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
@@ -852,6 +854,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] [TEEPER-201] Outbound delivery of daily digest as email (per-user opt-in, suppression, unsubscribe). Blocked by TEEPER-200 https://linear.app/teemo-personal-projects/issue/TEEPER-201 (`main`)
 - [ ] [medium] [TEEPER-202] Anthropic key support in user-selectable LLM provider (extend provider.ts + settings UI + storage enum) https://linear.app/teemo-personal-projects/issue/TEEPER-202 (`main`)
 - [ ] [medium] [TEEPER-203] Local LLM support (Ollama / LM Studio) as user-selectable provider; diagnose remote-box → Ollama connection failure https://linear.app/teemo-personal-projects/issue/TEEPER-203 (`main`)
+- [ ] [medium] Monitor production digest generation for any remaining tracker pixel issues after the backfill (`main`)
 - [ ] [low] Wire up "Reconnect Gmail Account" button in settings.tsx:516 — currently shows a toast but has no implementation. Should re-trigger OAuth flow via signIn() or a dedicated reconnect endpoint. (`main`)
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
