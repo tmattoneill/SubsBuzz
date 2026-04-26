@@ -417,8 +417,13 @@ class ContentExtractor:
         r'|link\.(cntraveler|wired|newyorker|vogue|vanityfair|gq|bonappetit|architecturaldigest|self|glamour|epicurious|teenvogue|allure|pitchfork|them|arstechnica)\.com/img/'
         # LiveIntent impression beacons (any subdomain)
         r'|liveintent\.'
-        # LiveIntent-style tracking beacon fingerprint: /imp? with li= param
-        r'|/imp\?[^"\s]*li='
+        # "Subscriber link insertion" tracker subdomains — sli.<publisher>.com
+        # serves invisible 1x1 pixels with the recipient's email in the query
+        # string (e.g. sli.washingtonpost.com/imp?s=…&e=user@…). Not editorial.
+        r'|sli\.[a-z0-9-]+\.com'
+        # Generic /imp? tracker endpoint regardless of query params. Earlier
+        # version required li= which missed WaPo's s=…&e=… shape (TEEPER-206).
+        r'|/imp\?'
         # Sailthru newsletter-chrome paths: /fss/ = header brand assets,
         # /composer/ = newsletter promo/house-ad banner units. Editorial
         # images are always hosted on the publisher's own CDN, never these.

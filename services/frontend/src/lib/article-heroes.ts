@@ -14,8 +14,14 @@ const FALLBACK_CATEGORY = "general-news";
 // publisher banner assets, and known ad-network domains. Stored heroImageUrl
 // values pre-dating the backend filter may match these; treat them as null so
 // the manifest fallback is used instead.
+//
+// Notes on impression-tracker patterns:
+//   - sli\.<publisher>\.com — "subscriber link insertion" tracker subdomain
+//     (e.g. sli.washingtonpost.com); always serves invisible 1x1 pixels.
+//   - \/imp\? — generic /imp? tracker endpoint regardless of query params.
+//     Earlier version required li= which missed WaPo's s=...&e=... shape.
 const HERO_URL_REJECT =
-  /pixel|tracking|beacon|open\.gif|spacer|transparent|1x1|analytics|googletagmanager|doubleclick|\/logo|\/avatar|\/icon|\/unsub|\/footer|\/email-images\/[^?]*-(header|alert|banner|promo)-|link\.(cntraveler|wired|newyorker|vogue|vanityfair|gq|bonappetit|architecturaldigest|self|glamour|epicurious|teenvogue|allure|pitchfork|them|arstechnica)\.com\/img\/|liveintent\.|\/imp\?[^"\s]*li=/i;
+  /pixel|tracking|beacon|open\.gif|spacer|transparent|1x1|analytics|googletagmanager|doubleclick|\/logo|\/avatar|\/icon|\/unsub|\/footer|\/email-images\/[^?]*-(header|alert|banner|promo)-|link\.(cntraveler|wired|newyorker|vogue|vanityfair|gq|bonappetit|architecturaldigest|self|glamour|epicurious|teenvogue|allure|pitchfork|them|arstechnica)\.com\/img\/|liveintent\.|sli\.[a-z0-9-]+\.com|\/imp\?/i;
 
 export function isGoodHeroUrl(url: string | null | undefined): boolean {
   if (!url) return false;

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Clock, Mail, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 
 export interface HeroArticleData {
@@ -21,19 +22,25 @@ interface HeroArticleProps {
 }
 
 export function HeroArticle({ article, onRead }: HeroArticleProps) {
+  // Track image-load failures so a hero URL that passes our static filter
+  // but 404/403/serves-empty (e.g. tracker pixels we haven't catalogued yet)
+  // falls back to the gradient instead of showing a broken-image div.
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = !!article.image && !imageFailed;
   return (
     <motion.article
       className="relative overflow-hidden rounded-2xl bg-card border border-border group cursor-pointer hover:ring-2 hover:ring-primary/30 transition-shadow"
     >
       <div className="grid md:grid-cols-2 gap-0">
         <div className="relative h-[400px] md:h-[500px] overflow-hidden">
-          {article.image ? (
+          {showImage ? (
             <motion.img
-              src={article.image}
+              src={article.image!}
               alt={article.title}
               className="absolute inset-0 w-full h-full object-cover"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              onError={() => setImageFailed(true)}
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-secondary via-muted to-accent/20" />
