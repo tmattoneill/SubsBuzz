@@ -797,7 +797,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `backend/bughunt`
+**Branch:** `main`
 **Last Updated:** 26/04/2026, 08:18:46
 
 ### Active Todos
@@ -813,6 +813,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] [TEEPER-199] Hero image: keep killing logos / mastheads / banner chrome — curate _PUBLISHER_PLACEHOLDER_HASHES + HERO_URL_REJECT from real samples https://linear.app/teemo-personal-projects/issue/TEEPER-199 (`main`)
 - [ ] [high] [TEEPER-206] Proxy + cache hero/article images locally instead of hot-linking publisher CDNs (architectural follow-up to 2026-04-26 SLI tracker incident) https://linear.app/teemo-personal-projects/issue/TEEPER-206 (`main`)
 - [ ] [high] [TEEPER-207] Backfill UPDATE digest_emails SET hero_image_url = NULL WHERE matches sli.* or /imp? on prod + dev. Then audit other narrow regex patterns. https://linear.app/teemo-personal-projects/issue/TEEPER-207 (`main`)
+- [ ] [high] [TEEPER-208] Onboarding 72h scan → suggested newsletters with categories → approve/reject → "run digest now?" with progress. Existing scan_for_newsletters scaffolding in worker; needs tighter detection (substack, List-Unsubscribe, publications registry), category suggestions, richer UI, progress display, immediate first-digest CTA. https://linear.app/teemo-personal-projects/issue/TEEPER-208 (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
