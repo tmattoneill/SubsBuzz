@@ -13,6 +13,19 @@ export function formatDate(date: Date | string): string {
   return format(date, 'EEEE, MMMM d, yyyy');
 }
 
+// Digest `date` fields are UTC instants stamped at the cron run (03:00 UTC).
+// Always render them as their UTC calendar day so users west of UTC don't see
+// "yesterday" for a digest that fired in the early hours UTC time.
+export function formatDigestDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
 export function formatTime(date: Date | string): string {
   if (typeof date === 'string') {
     date = new Date(date);

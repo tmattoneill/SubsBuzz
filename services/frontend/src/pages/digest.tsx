@@ -12,7 +12,7 @@ import {
   isGoodHeroUrl,
   type HeroManifest,
 } from "@/lib/article-heroes";
-import { cn } from "@/lib/utils";
+import { cn, formatDigestDate } from "@/lib/utils";
 import { DashboardLayout } from "@/components/layout";
 import { HeroArticle, type HeroArticleData } from "@/components/digest/HeroArticle";
 import { ArticleCard, type ArticleCardData } from "@/components/digest/ArticleCard";
@@ -255,11 +255,6 @@ export default function DigestView() {
     };
   }, [digestData, heroManifest]);
 
-  const digestDate = useMemo(
-    () => (digestData?.date ? new Date(digestData.date) : null),
-    [digestData?.date],
-  );
-
   const categoryColorById = useMemo(() => {
     const map = new Map<number, string>();
     for (const c of userCategories) if (c.color) map.set(c.id, c.color);
@@ -334,14 +329,7 @@ export default function DigestView() {
     );
   }
 
-  const todayLabel = digestDate
-    ? digestDate.toLocaleDateString("en-GB", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : dateParam;
+  const todayLabel = digestData?.date ? formatDigestDate(digestData.date) : dateParam;
 
   return (
     <DashboardLayout>

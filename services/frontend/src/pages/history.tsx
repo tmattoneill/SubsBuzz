@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/lib/AuthContext";
 import { api } from "@/lib/api-client";
 import { useToast } from "@/hooks/use-toast";
-import { formatDate } from "@/lib/utils";
+import { formatDigestDate } from "@/lib/utils";
 import { EmailDigest, ChartDataPoint } from "@/lib/types";
 import { DashboardLayout } from "@/components/layout";
 import { AddSenderModal } from "@/components/settings/add-sender-modal";
@@ -174,7 +174,7 @@ export default function History() {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-6)
       .map((digest) => ({
-        name: new Date(digest.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        name: new Date(digest.date).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
         value: digest.emailsProcessed,
       }));
   }, [digestHistory]);
@@ -318,7 +318,7 @@ export default function History() {
                         className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-left transition hover:border-muted hover:bg-muted/60"
                       >
                         <span className="text-sm font-medium text-foreground">
-                          {formatDate(new Date(digest.date))}
+                          {formatDigestDate(digest.date)}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {digest.emailsProcessed} emails · {digest.topicsIdentified} topics
