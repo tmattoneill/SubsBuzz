@@ -617,6 +617,9 @@ export class DatabaseStorage implements IStorage {
     if (processedUpdates.createdAt && typeof processedUpdates.createdAt === 'string') {
       processedUpdates.createdAt = new Date(processedUpdates.createdAt);
     }
+    if (processedUpdates.revokedAt && typeof processedUpdates.revokedAt === 'string') {
+      processedUpdates.revokedAt = new Date(processedUpdates.revokedAt);
+    }
     
     const database = this.ensureDb();
     const results = await database
