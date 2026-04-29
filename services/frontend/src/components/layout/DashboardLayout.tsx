@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { UserProfileModal } from "@/components/ui/user-profile-modal";
 import { CategorizationBanner } from "@/components/categories/CategorizationBanner";
+import { GmailConnectionBanner } from "@/components/layout/GmailConnectionBanner";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
@@ -31,6 +32,7 @@ export function DashboardLayout({
           {...(headerProps ?? {})}
           onMeClick={() => setProfileOpen(true)}
         />
+        <GmailConnectionBanner />
         <CategorizationBanner />
         <main className={cn("flex-1 overflow-auto", contentClassName)}>{children}</main>
       </div>

@@ -332,7 +332,11 @@ router.post('/oauth-tokens', asyncHandler(async (req: Request, res: Response) =>
     accessToken,
     refreshToken,
     expiresAt: expiresAt ? new Date(expiresAt) : null,
-    scope
+    scope,
+    // Re-consent always clears any prior revocation — by definition we just
+    // received a working refresh token from Google. (TEEPER-204)
+    revokedAt: null,
+    revocationReason: null,
   });
 
   return res.status(201).json(apiResponse(token, 'OAuth token stored'));
@@ -356,6 +360,8 @@ router.get('/oauth-token/:uid', asyncHandler(async (req: Request, res: Response)
     refresh_token: token.refreshToken,
     expires_at: token.expiresAt instanceof Date ? token.expiresAt.toISOString() : token.expiresAt,
     scope: token.scope,
+    revoked_at: token.revokedAt instanceof Date ? token.revokedAt.toISOString() : token.revokedAt,
+    revocation_reason: token.revocationReason,
     created_at: token.createdAt instanceof Date ? token.createdAt.toISOString() : token.createdAt,
     updated_at: token.updatedAt instanceof Date ? token.updatedAt.toISOString() : token.updatedAt
   };
