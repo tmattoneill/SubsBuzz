@@ -12,6 +12,10 @@ interface User {
   // Populated by /auth/validate on mount. Used by the settings page to decide
   // whether inbox-cleanup actions need a re-consent prompt.
   scopes: string[];
+  // 'revoked' when the email worker observed Google's invalid_grant on the
+  // refresh token. Drives the in-app reconnect banner. (TEEPER-204)
+  connectionStatus: 'connected' | 'revoked';
+  revokedAt: string | null;
 }
 
 interface AuthContextType {
@@ -21,6 +25,7 @@ interface AuthContextType {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
+  reauthorize: () => Promise<void>;
   token: string | null;
 }
 
@@ -31,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => {},
   signOut: async () => {},
   refreshAuth: async () => {},
+  reauthorize: async () => {},
   token: null
 });
 
@@ -75,6 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         uid?: string;
         email?: string;
         scopes?: string[];
+        connectionStatus?: 'connected' | 'revoked';
+        revokedAt?: string | null;
       }>('/api/auth/validate');
 
       if (data.valid && data.uid) {
@@ -84,6 +92,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           displayName: null,
           photoURL: null,
           scopes: data.scopes || [],
+          connectionStatus: data.connectionStatus === 'revoked' ? 'revoked' : 'connected',
+          revokedAt: data.revokedAt ?? null,
         });
         setToken(existingToken);
       } else {
@@ -151,6 +161,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await checkAuthStatus();
   };
 
+  // Re-run the OAuth consent flow with the full gmail.modify scope set.
+  // Used by the in-app reconnect banner (TEEPER-204) and the settings-page
+  // "Reconnect Gmail Account" button. On success, the OAuth callback writes
+  // a fresh refresh token AND clears oauth_tokens.revoked_at — banner clears
+  // on the next /auth/validate call.
+  const reauthorize = async () => {
+    try {
+      setError(null);
+      const data = await api.post<{ auth_url: string }>('/api/auth/reauthorize', {});
+      window.location.href = data.auth_url;
+    } catch (err) {
+      console.error('Error starting reauthorize flow:', err);
+      const apiError = err as ApiError;
+      setError(apiError.message || 'Failed to start Gmail reconnect. Please try again.');
+      toast({
+        title: 'Reconnect Failed',
+        description: apiError.message || 'Failed to start Gmail reconnect. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const value = {
     user,
     isLoading,
@@ -158,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signOut,
     refreshAuth,
+    reauthorize,
     token
   };
 

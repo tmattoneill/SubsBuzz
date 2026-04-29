@@ -95,11 +95,10 @@ class RefreshRequest(BaseModel):
     sessionToken: str
 
 
-async def _get_granted_scopes(uid: str) -> list:
+async def _get_oauth_record(uid: str) -> dict:
     """
-    Fetch the user's stored OAuth scope and split it into a list.
-    Returns [] on any failure — the frontend should treat an empty list as
-    "no gmail.modify" and prompt for re-consent before allowing cleanup actions.
+    Fetch the user's stored OAuth token row (snake_case for worker compat).
+    Returns {} on any failure — callers should treat that as "no connection".
     """
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -108,14 +107,22 @@ async def _get_granted_scopes(uid: str) -> list:
                 headers={"x-internal-api-key": settings.INTERNAL_API_SECRET}
             )
         if not resp.is_success:
-            return []
-        token_data = resp.json().get("data", {}) or {}
-        # Data-server returns snake_case for worker compatibility; guard for both.
-        scope_str = token_data.get("scope") or token_data.get("scopes") or ""
-        return [s for s in scope_str.split() if s]
+            return {}
+        return resp.json().get("data", {}) or {}
     except Exception as e:
-        logger.warning(f"Could not fetch OAuth scopes for uid={uid}: {e}")
-        return []
+        logger.warning(f"Could not fetch OAuth record for uid={uid}: {e}")
+        return {}
+
+
+async def _get_granted_scopes(uid: str) -> list:
+    """
+    Fetch the user's stored OAuth scope and split it into a list.
+    Returns [] on any failure — the frontend should treat an empty list as
+    "no gmail.modify" and prompt for re-consent before allowing cleanup actions.
+    """
+    token_data = await _get_oauth_record(uid)
+    scope_str = token_data.get("scope") or token_data.get("scopes") or ""
+    return [s for s in scope_str.split() if s]
 
 
 @router.post("/refresh")
@@ -206,14 +213,23 @@ async def validate_token(
     Called on app load. Also returns currently-granted OAuth scopes so the
     frontend (settings page) can decide whether to prompt for re-consent
     before allowing cleanup actions, without a second round-trip.
+
+    connectionStatus drives the in-app reconnect banner (TEEPER-204): when the
+    email worker observes Google's `invalid_grant` it stamps oauth_tokens
+    .revoked_at, and we surface that to the frontend here.
     """
-    scopes = await _get_granted_scopes(current_user["uid"])
+    oauth_record = await _get_oauth_record(current_user["uid"])
+    scope_str = oauth_record.get("scope") or oauth_record.get("scopes") or ""
+    scopes = [s for s in scope_str.split() if s]
+    revoked_at = oauth_record.get("revoked_at")
     return {
         "success": True,
         "valid": True,
         "uid": current_user["uid"],
         "email": current_user["email"],
         "scopes": scopes,
+        "connectionStatus": "revoked" if revoked_at else "connected",
+        "revokedAt": revoked_at,
     }
 
 

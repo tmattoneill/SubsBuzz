@@ -58,7 +58,11 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
         logger.info(f"Verifying JWT token with secret: {settings.JWT_SECRET_KEY[:10]}...")
         logger.info(f"JWT algorithm: {settings.JWT_ALGORITHM}")
         
-        # Decode and verify token
+        # Decode and verify token. PyJWT validates the `exp` claim by default
+        # and raises ExpiredSignatureError (caught below) — no manual check
+        # needed. The previous manual check used datetime.fromtimestamp which
+        # is timezone-broken (interprets exp in local time vs utcnow), causing
+        # fresh JWTs to immediately fail when the host runs UTC-behind.
         payload = jwt.decode(
             token,
             settings.JWT_SECRET_KEY,
@@ -66,15 +70,6 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
             audience="subsbuzz-services",
             issuer="subsbuzz-api-gateway"
         )
-        
-        # Check expiration
-        exp = payload.get("exp")
-        if exp and datetime.utcnow() > datetime.fromtimestamp(exp):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has expired"
-            )
-        
         return payload
         
     except jwt.ExpiredSignatureError:

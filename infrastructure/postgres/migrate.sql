@@ -160,3 +160,16 @@ ALTER TABLE monitored_emails
 -- same newsletter (e.g. breakingnews@nytimes.com).
 ALTER TABLE monitored_emails
   ADD COLUMN IF NOT EXISTS split_locked BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ── 2026-Q2: oauth_tokens revocation tracking (TEEPER-204) ────────────────────
+-- Set when the email worker observes Google's `invalid_grant` (refresh token
+-- revoked, e.g. by Google's 7-day Testing-mode policy or user revocation at
+-- myaccount.google.com/permissions). Cleared back to NULL by the OAuth callback
+-- handler when the user successfully re-consents. The frontend reads this via
+-- /auth/validate to render an in-app reconnect banner; the daily-digest cron
+-- skips users whose row has revoked_at IS NOT NULL.
+ALTER TABLE oauth_tokens
+  ADD COLUMN IF NOT EXISTS revoked_at        TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS revocation_reason TEXT;
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_revoked_at
+  ON oauth_tokens (revoked_at) WHERE revoked_at IS NOT NULL;

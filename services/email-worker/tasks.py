@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-from gmail_client import GmailClient
+from gmail_client import GmailClient, OAuthRevokedError
 from content_extractor import ContentExtractor
 
 # Load environment variables
@@ -103,6 +103,22 @@ class DataServerClient:
 
 data_server = DataServerClient()
 
+
+async def _mark_oauth_revoked(uid: str, reason: str) -> None:
+    """
+    Persist oauth_tokens.revoked_at via the data-server. Idempotent — safe to
+    call from any path that catches OAuthRevokedError. Cleared back to NULL on
+    successful re-consent by storage.ts POST /oauth-tokens. (TEEPER-204)
+    """
+    try:
+        await data_server.patch(f'/api/storage/oauth-token/{uid}', {
+            'revokedAt': datetime.utcnow().isoformat(),
+            'revocationReason': reason[:500],  # cap absurdly long error strings
+        })
+    except Exception as e:
+        logger.error("Failed to mark oauth revoked uid=%s: %s", uid, e, exc_info=True)
+
+
 @app.task(bind=True, retry_kwargs={'max_retries': 3, 'countdown': 60})
 def generate_daily_digests(self):
     """
@@ -144,7 +160,17 @@ async def _generate_daily_digests_async():
                 if not settings.get('dailyDigestEnabled', True):
                     logger.info("Skipping user=%s: daily digest disabled", user_id)
                     continue
-                
+
+                # Skip users whose OAuth refresh token Google has revoked. They
+                # need to re-consent in the app — until they do, every fetch
+                # would just hit invalid_grant. The frontend banner prompts
+                # them. (TEEPER-204)
+                oauth_check = await data_server.get(f'/api/storage/oauth-token/{user_id}')
+                if (oauth_check.get('data') or {}).get('revoked_at'):
+                    logger.info("Skipping user=%s: oauth revoked", user_id)
+                    results.append({'user_id': user_id, 'status': 'oauth_revoked'})
+                    continue
+
                 # Process emails for this user
                 result = await process_user_emails_async(user_id)
                 results.append({
@@ -276,9 +302,17 @@ async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[s
             except Exception as e:
                 logger.error("Error saving refreshed token user=%s: %s", user_id, e, exc_info=True)
 
-        # Fetch emails from Gmail with token refresh callback
-        emails = await gmail_client.fetch_emails(active_emails, oauth_data, save_token_callback)
-        
+        # Fetch emails from Gmail with token refresh callback. If Google has
+        # revoked the refresh token, persist that state and bail — the caller
+        # (manual Generate Digest, or daily cron) will see the revoked status
+        # and the frontend banner prompts the user to reconnect. (TEEPER-204)
+        try:
+            emails = await gmail_client.fetch_emails(active_emails, oauth_data, save_token_callback)
+        except OAuthRevokedError as e:
+            logger.warning("OAuth revoked user=%s: %s", user_id, e.reason)
+            await _mark_oauth_revoked(user_id, e.reason)
+            return {'emails_processed': 0, 'digest_created': False, 'oauth_revoked': True}
+
         if not emails:
             logger.info("No new emails found user=%s", user_id)
             return {'emails_processed': 0, 'digest_created': False}
@@ -423,10 +457,21 @@ async def _refresh_oauth_tokens_async():
         
         results = []
         for token_data in tokens:
+            # Already-revoked tokens stay revoked until the user reconnects
+            # (which clears revoked_at via storage POST). Skip them so we
+            # don't relog invalid_grant every 6h. (TEEPER-204)
+            if token_data.get('revoked_at'):
+                results.append({
+                    'uid': token_data['uid'],
+                    'email': token_data['email'],
+                    'status': 'skipped_revoked'
+                })
+                continue
+
             try:
                 # Attempt to refresh the token
                 refreshed = await gmail_client.refresh_oauth_token(token_data)
-                
+
                 if refreshed:
                     # Update token in database using correct endpoint and field names
                     update_response = await data_server.patch(f'/api/storage/oauth-token/{token_data["uid"]}', {
@@ -434,10 +479,10 @@ async def _refresh_oauth_tokens_async():
                         'refreshToken': refreshed.get('refresh_token'),
                         'expiresAt': refreshed.get('expires_at')
                     })
-                    
+
                     if update_response.get('success'):
                         logger.info("Token refreshed and stored email=%s", token_data['email'])
-                    
+
                     results.append({
                         'uid': token_data['uid'],
                         'email': token_data['email'],
@@ -449,7 +494,16 @@ async def _refresh_oauth_tokens_async():
                         'email': token_data['email'],
                         'status': 'failed'
                     })
-                    
+
+            except OAuthRevokedError as e:
+                logger.warning("OAuth revoked email=%s: %s", token_data.get('email', 'unknown'), e.reason)
+                await _mark_oauth_revoked(token_data['uid'], e.reason)
+                results.append({
+                    'uid': token_data['uid'],
+                    'email': token_data['email'],
+                    'status': 'revoked'
+                })
+
             except Exception as e:
                 logger.error("Error refreshing token email=%s: %s", token_data.get('email', 'unknown'), e, exc_info=True)
                 results.append({

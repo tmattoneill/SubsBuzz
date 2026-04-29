@@ -15,9 +15,24 @@ import asyncio
 import aiohttp
 
 from google.auth.transport.requests import Request
+from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+
+class OAuthRevokedError(Exception):
+    """
+    Raised when Google's token endpoint returns `invalid_grant` — the refresh
+    token has been revoked (Google's 7-day Testing-mode policy, user revocation
+    at myaccount.google.com/permissions, password change, or security event).
+    Carries the uid + raw reason so callers (tasks.py) can persist
+    oauth_tokens.revoked_at and surface a reconnect banner. (TEEPER-204)
+    """
+    def __init__(self, uid: str, reason: str):
+        super().__init__(f"OAuth revoked uid={uid}: {reason}")
+        self.uid = uid
+        self.reason = reason
 
 @dataclass
 class ParsedEmail:
@@ -85,31 +100,40 @@ class GmailClient:
     async def refresh_oauth_token(self, oauth_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Refresh an OAuth token if it's expired or close to expiring
-        Returns updated token data or None if refresh failed
+        Returns updated token data or None if refresh failed.
+        Raises OAuthRevokedError if Google returns `invalid_grant` so the cron
+        can persist oauth_tokens.revoked_at and stop retrying. (TEEPER-204)
         """
         try:
             credentials = self._create_credentials(oauth_data)
-            
+
             # Check if token needs refresh
             if not credentials.expired:
                 print(f"🔑 Token for {oauth_data.get('email', 'unknown')} is still valid")
                 return None
-            
+
             # Refresh the token
             print(f"🔄 Refreshing token for {oauth_data.get('email', 'unknown')}")
             request = Request()
-            credentials.refresh(request)
-            
+            try:
+                credentials.refresh(request)
+            except RefreshError as e:
+                if 'invalid_grant' in str(e):
+                    raise OAuthRevokedError(uid=oauth_data.get('uid', ''), reason=str(e)) from e
+                raise
+
             # Return updated token data
             updated_data = {
                 'access_token': credentials.token,
                 'refresh_token': credentials.refresh_token,
                 'expires_at': credentials.expiry.isoformat() if credentials.expiry else None
             }
-            
+
             print(f"✅ Token refreshed successfully for {oauth_data.get('email', 'unknown')}")
             return updated_data
-            
+
+        except OAuthRevokedError:
+            raise
         except Exception as e:
             print(f"❌ Error refreshing token for {oauth_data.get('email', 'unknown')}: {e}")
             return None
@@ -323,8 +347,13 @@ class GmailClient:
             if credentials.expired and credentials.refresh_token:
                 print("🔄 Refreshing expired token...")
                 request = Request()
-                credentials.refresh(request)
-                
+                try:
+                    credentials.refresh(request)
+                except RefreshError as e:
+                    if 'invalid_grant' in str(e):
+                        raise OAuthRevokedError(uid=oauth_data.get('uid', ''), reason=str(e)) from e
+                    raise
+
                 # Save refreshed token back to database if callback provided
                 if save_refreshed_token_callback:
                     refreshed_token_data = {
@@ -391,11 +420,15 @@ class GmailClient:
             except HttpError as e:
                 print(f"❌ Gmail API error: {e}")
                 return []
-                
+
+        except OAuthRevokedError:
+            # Bubble up so tasks.py can persist revoked_at and skip this user
+            # for future cron runs. (TEEPER-204)
+            raise
         except Exception as e:
             print(f"❌ Error fetching emails: {e}")
             return []
-    
+
     async def _parse_gmail_message(self, message_data: Dict[str, Any]) -> ParsedEmail:
         """
         Parse Gmail API message into ParsedEmail format

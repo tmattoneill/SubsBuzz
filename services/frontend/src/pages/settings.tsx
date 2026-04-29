@@ -64,7 +64,7 @@ const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
 
 export default function Settings() {
   const { toast } = useToast();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, reauthorize } = useAuth();
   const [, setLocation] = useLocation();
   const [isAddSenderOpen, setIsAddSenderOpen] = useState(false);
   // Tracks the action the user has selected but not yet confirmed — used when
@@ -513,15 +513,11 @@ export default function Settings() {
                   <p className="text-green-700 text-sm mt-1">Successfully connected to your Gmail account</p>
                 </div>
                 
-                <Button 
+                <Button
                   variant="outline"
                   className="w-full"
                   onClick={() => {
-                    toast({
-                      title: "Reconnecting to Gmail",
-                      description: "You'll be redirected to Google to reauthorize access.",
-                    });
-                    // Add Gmail reconnection logic here
+                    void reauthorize();
                   }}
                 >
                   Reconnect Gmail Account
