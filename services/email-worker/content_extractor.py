@@ -424,6 +424,12 @@ class ContentExtractor:
         # Generic /imp? tracker endpoint regardless of query params. Earlier
         # version required li= which missed WaPo's s=…&e=… shape (TEEPER-206).
         r'|/imp\?'
+        # Publisher-hosted newsletter banner art — path-segmented so editorial
+        # under /newsletters/<slug>/<file>.jpg still passes. Caught The Drum
+        # (thedrum-static.imgix.net/newsletters/banners/newsletter_*.png) on
+        # the 2026-05-01 audit; pattern is generic enough for analogous
+        # publishers serving nameplate/promo chrome from the same path.
+        r'|/newsletters/banners/'
         # Sailthru newsletter-chrome paths: /fss/ = header brand assets,
         # /composer/ = newsletter promo/house-ad banner units. Editorial
         # images are always hosted on the publisher's own CDN, never these.
