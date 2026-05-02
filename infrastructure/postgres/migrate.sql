@@ -161,6 +161,14 @@ ALTER TABLE monitored_emails
 ALTER TABLE monitored_emails
   ADD COLUMN IF NOT EXISTS split_locked BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- ── 2026-Q2: onboarding wizard tracking (TEEPER-208) ──────────────────────────
+-- onboarding_completed_at: set when the user finishes the auto-scan wizard.
+-- onboarding_dismissed_at: set when the user explicitly skips. Either gate
+-- suppresses the modal on subsequent logins (NULL = wizard eligible).
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS onboarding_dismissed_at TIMESTAMP;
+
 -- ── 2026-Q2: oauth_tokens revocation tracking (TEEPER-204) ────────────────────
 -- Set when the email worker observes Google's `invalid_grant` (refresh token
 -- revoked, e.g. by Google's 7-day Testing-mode policy or user revocation at

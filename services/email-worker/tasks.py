@@ -8,6 +8,7 @@ import os
 import asyncio
 import logging
 import httpx
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from celery import Celery
@@ -673,24 +674,68 @@ def scan_for_newsletters(self, user_id: str):
         raise self.retry(exc=exc)
 
 async def _scan_for_newsletters_async(user_id: str) -> Dict[str, Any]:
-    """Async implementation of newsletter scanning"""
+    """Async implementation of newsletter scanning. After the Gmail client
+    returns raw senders with their RFC-2919 List-Id / RFC-2369 List-Unsubscribe
+    signals, we batch-call the data-server's publications registry to enrich
+    each row with a suggested display name + category slug. (TEEPER-208)"""
     try:
-        # Get user's OAuth token
         oauth_response = await data_server.get(f'/api/storage/oauth-token/{user_id}')
         oauth_data = oauth_response.get('data')
 
         if not oauth_data:
-            return {'newsletters': [], 'error': 'No OAuth token'}
+            return {'newsletters': [], 'count': 0, 'error': 'No OAuth token'}
 
-        # Scan for newsletters using Gmail client
         newsletters = await gmail_client.scan_for_newsletters(oauth_data)
+        logger.info("Found %d candidate newsletter senders user=%s", len(newsletters), user_id)
 
-        logger.info("Found %d potential newsletter sources user=%s", len(newsletters), user_id)
+        # Build the subscription-key list for the registry lookup. The 85-entry
+        # publications registry keys EVERY entry by domain (no `@` anywhere),
+        # so Tier-5 fallback must be the from-address domain, not the full
+        # address. Tier-1 unwraps List-Id bracketed identifier per RFC 2919
+        # (handles both `<list-id>` and `phrase <list-id>` shapes).
+        import re as _re
+        _bracket_re = _re.compile(r'<([^<>]+)>')
+
+        def _key_for(n) -> str:
+            lid = (n.list_id or '').strip().lower()
+            if lid:
+                m = _bracket_re.findall(lid)
+                if m:
+                    return m[-1].strip()
+                return lid
+            # Tier-5: from-address domain (everything after the @).
+            addr = (n.email or '').strip().lower()
+            if '@' in addr:
+                return addr.split('@', 1)[1]
+            return addr
+
+        keys = [_key_for(n) for n in newsletters]
+
+        publications_by_key: Dict[str, Dict[str, Any]] = {}
+        if keys:
+            try:
+                resp = await data_server.post('/api/storage/publications/lookup', {'keys': keys})
+                for item in (resp.get('data') or []):
+                    pub = item.get('publication')
+                    if pub:
+                        publications_by_key[item['key']] = pub
+            except Exception as e:
+                logger.warning("Publications lookup failed (continuing without suggestions) user=%s: %s", user_id, e)
+
+        # Enrich each NewsletterSender with the registry hit if any.
+        enriched = []
+        for n, key in zip(newsletters, keys):
+            pub = publications_by_key.get(key)
+            if pub:
+                n.publication_match = True
+                n.suggested_display_name = pub.get('displayName')
+                n.suggested_category_slug = pub.get('categorySlug')
+            enriched.append(asdict(n))
 
         return {
-            'newsletters': newsletters,
-            'count': len(newsletters),
-            'scanned_at': datetime.utcnow().isoformat()
+            'newsletters': enriched,
+            'count': len(enriched),
+            'scanned_at': datetime.utcnow().isoformat(),
         }
 
     except Exception as e:

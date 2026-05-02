@@ -59,6 +59,7 @@ export interface IStorage {
   getMonitoredEmails(userId: string): Promise<MonitoredEmail[]>;
   getMonitoredEmail(id: number): Promise<MonitoredEmail | undefined>;
   addMonitoredEmail(email: InsertMonitoredEmail): Promise<MonitoredEmail>;
+  bulkAddMonitoredEmails(userId: string, items: Array<{ email: string; active?: boolean; categoryId?: number | null }>): Promise<MonitoredEmail[]>;
   updateMonitoredEmail(userId: string, id: number, updates: Partial<Pick<MonitoredEmail, 'active' | 'categoryId'>>): Promise<MonitoredEmail | undefined>;
   removeMonitoredEmail(userId: string, id: number): Promise<void>;
   
@@ -290,6 +291,32 @@ export class DatabaseStorage implements IStorage {
     const database = this.ensureDb();
     const results = await database.insert(monitoredEmails).values(emailToInsert).onConflictDoNothing().returning();
     return results[0];
+  }
+
+  /**
+   * Bulk-insert monitored emails in a single statement. Used by the onboarding
+   * wizard (TEEPER-208). ON CONFLICT DO NOTHING so re-runs and senders the
+   * user already has are silently skipped — only newly-inserted rows come
+   * back. Caller is responsible for category-ownership validation.
+   */
+  async bulkAddMonitoredEmails(
+    userId: string,
+    items: Array<{ email: string; active?: boolean; categoryId?: number | null }>,
+  ): Promise<MonitoredEmail[]> {
+    if (items.length === 0) return [];
+    const database = this.ensureDb();
+    const values = items.map((i) => ({
+      userId,
+      email: i.email,
+      active: i.active !== undefined ? i.active : true,
+      categoryId: i.categoryId ?? null,
+    }));
+    const results = await database
+      .insert(monitoredEmails)
+      .values(values)
+      .onConflictDoNothing()
+      .returning();
+    return results;
   }
   
   async updateMonitoredEmail(
@@ -539,13 +566,21 @@ export class DatabaseStorage implements IStorage {
   async updateUserSettings(userId: string, settings: Partial<UserSettings>): Promise<UserSettings> {
     // Get current settings first
     const currentSettings = await this.getUserSettings(userId);
-    
+
     // Filter out undefined values and id field to avoid issues
-    const filteredSettings = Object.fromEntries(
-      Object.entries(settings).filter(([key, value]) => 
+    const filteredSettings: Record<string, unknown> = Object.fromEntries(
+      Object.entries(settings).filter(([key, value]) =>
         value !== undefined && key !== 'id' && key !== 'userId'
       )
     );
+
+    // Coerce ISO timestamp strings to Date for the timestamp columns. Mirrors
+    // the pattern in updateOAuthToken; without this, Drizzle barfs when the
+    // frontend or worker PATCHes onboardingCompletedAt as a string. (TEEPER-208)
+    for (const k of ['onboardingCompletedAt', 'onboardingDismissedAt'] as const) {
+      const v = filteredSettings[k];
+      if (typeof v === 'string') filteredSettings[k] = new Date(v);
+    }
     
     console.log('Updating user settings for userId:', userId);
     console.log('Current settings ID:', currentSettings.id);

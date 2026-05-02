@@ -45,6 +45,11 @@ class SettingsUpdateRequest(BaseModel):
     # One-time migration modal acknowledgement — set true once the user has seen
     # the "we switched default to DeepSeek" notice.
     llmMigrationNoticeSeen: Optional[bool] = None
+    # Onboarding wizard tracking (TEEPER-208). Either timestamp suppresses the
+    # modal on subsequent logins. Frontend sends ISO-8601; data-server coerces
+    # to Date for the timestamp column.
+    onboardingCompletedAt: Optional[str] = None
+    onboardingDismissedAt: Optional[str] = None
 
 
 # Keep in sync with:
