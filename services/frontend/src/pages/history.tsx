@@ -86,13 +86,16 @@ export default function History() {
     },
   });
 
+  // Compare UTC date strings (YYYY-MM-DD) rather than local-midnight timestamps.
+  // setHours(0,0,0,0) snaps to *local* midnight on both sides, which drifts
+  // from the UTC date encoded in `digest.date` near midnight in any non-UTC
+  // timezone — around 00:30 BST today's UTC digest got classified as
+  // yesterday's, breaking the Today highlight + Generate gating. (TEEPER-205)
   const todaysDigest = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayUtc = new Date().toISOString().split("T")[0];
     return digestHistory.find((digest) => {
-      const d = new Date(digest.date);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime() === today.getTime();
+      if (!digest.date) return false;
+      return String(digest.date).split("T")[0] === todayUtc;
     });
   }, [digestHistory]);
 
