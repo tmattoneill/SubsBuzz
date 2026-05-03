@@ -25,7 +25,13 @@ import { CheckCircle, Loader2, Search, Sparkles, ChevronDown, ChevronRight, Aler
  * so the modal stays away on subsequent logins.
  */
 
-type OnboardingStep = "scanning" | "suggestions" | "cleanup" | "confirming" | "done";
+type OnboardingStep =
+  | "scanning"
+  | "suggestions"
+  | "cleanup"
+  | "confirming"
+  | "first_digest" // NEW — offers an immediate digest run; user can accept or skip
+  | "done";
 
 interface ScanResult {
   scanned_at: string;
@@ -71,6 +77,10 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   const [cleanupAction, setCleanupAction] = useState<InboxCleanupAction>("mark_read_label_archive");
   const [labelName, setLabelName] = useState("SubsBuzz");
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
+  // True iff the user accepted the immediate-digest CTA on the first_digest
+  // step. Drives the copy on the done step ("we're generating now" vs
+  // "we'll send the first one at 03:00 UTC").
+  const [digestRunImmediate, setDigestRunImmediate] = useState(false);
 
   // Map category slug → id, derived from the user's categories (lazy-seeded
   // by useCategories on first read). Lets us resolve the worker's
@@ -205,11 +215,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/monitored-emails"] });
       qc.invalidateQueries({ queryKey: ["/api/settings"] });
-      setStep("done");
-      toast({
-        title: "You're all set",
-        description: `${selectedCount} sender${selectedCount === 1 ? "" : "s"} now monitored. Your first digest fires at 03:00 UTC.`,
-      });
+      // Hand off to the first-digest CTA — gives the user the choice to run
+      // a one-off digest now instead of waiting for the 03:00 UTC cron.
+      setStep("first_digest");
     },
     onError: (err: unknown) => {
       toast({
@@ -228,8 +236,44 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
     },
   });
 
-  const stepIndex = step === "scanning" ? 1 : step === "suggestions" ? 2 : step === "cleanup" ? 3 : 4;
-  const progress = (stepIndex / 4) * 100;
+  // First-digest CTA. Enqueues a one-off digest now so the user sees results
+  // immediately instead of waiting for 03:00 UTC. The data-server's
+  // POST /digest/generate path delegates to the email worker (process_user
+  // _emails) — same code path the daily cron uses, just kicked off ad hoc.
+  const runDigestMutation = useMutation({
+    mutationFn: () => api.post("/api/digest/generate", {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/digest"] });
+      setDigestRunImmediate(true);
+      setStep("done");
+      toast({
+        title: "Digest started",
+        description: "Generating now — this usually takes a minute or two.",
+      });
+    },
+    onError: (err: unknown) => {
+      // Don't block the wizard on a transient broker hiccup — fall through to
+      // done with the standard schedule copy. Toast surfaces the failure.
+      setStep("done");
+      toast({
+        title: "Couldn't start digest now",
+        description: (err as Error)?.message ?? "We'll send the first digest at 03:00 UTC instead.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const stepIndex =
+    step === "scanning"
+      ? 1
+      : step === "suggestions"
+      ? 2
+      : step === "cleanup"
+      ? 3
+      : step === "confirming"
+      ? 4
+      : 5; // first_digest + done both render at full progress
+  const progress = (stepIndex / 5) * 100;
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -512,13 +556,63 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
             </div>
           )}
 
+          {step === "first_digest" && (
+            <div className="space-y-6 py-4">
+              <div className="text-center">
+                <Sparkles className="mx-auto h-10 w-10 text-primary" />
+                <h3 className="mt-2 text-xl font-semibold">Want to see results now?</h3>
+                <p className="mt-2 max-w-md mx-auto text-sm text-muted-foreground">
+                  We can pull the last 3 days of mail from your selected senders and run a digest for you right
+                  now — usually finishes in a minute or two. Otherwise the regular run fires at{" "}
+                  <span className="font-medium">03:00 UTC</span> daily.
+                </p>
+              </div>
+
+              <div className="flex flex-col items-center gap-2 pt-2">
+                <Button
+                  size="lg"
+                  className="w-full max-w-xs"
+                  onClick={() => runDigestMutation.mutate()}
+                  disabled={runDigestMutation.isPending}
+                >
+                  {runDigestMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Starting digest…
+                    </>
+                  ) : (
+                    "Yes, run a digest now"
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full max-w-xs"
+                  onClick={() => setStep("done")}
+                  disabled={runDigestMutation.isPending}
+                >
+                  Skip — I'll wait for the 03:00 UTC run
+                </Button>
+              </div>
+            </div>
+          )}
+
           {step === "done" && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
               <CheckCircle className="h-12 w-12 text-green-500" />
               <h3 className="text-2xl font-semibold">You're all set</h3>
               <p className="max-w-sm text-sm text-muted-foreground">
-                Your first digest will be ready at 03:00 UTC. You can manage senders and categories any time in
-                Settings.
+                {digestRunImmediate ? (
+                  <>
+                    We've started generating your first digest — it'll appear on the dashboard shortly. After
+                    that, the regular run continues at <span className="font-medium">03:00 UTC</span> daily.
+                  </>
+                ) : (
+                  <>
+                    Your first digest will be ready at <span className="font-medium">03:00 UTC</span>. You can
+                    manage senders and categories any time in Settings.
+                  </>
+                )}
               </p>
               <Button onClick={onClose}>Go to dashboard</Button>
             </div>
