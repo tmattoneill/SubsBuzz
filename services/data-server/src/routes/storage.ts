@@ -7,6 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/error';
 import { storage } from '../services/storage';
+import { lookupPublication } from '../services/publications';
 
 const router = Router();
 
@@ -72,6 +73,61 @@ router.post('/monitored-emails', asyncHandler(async (req: Request, res: Response
   });
 
   return res.status(201).json(apiResponse(newMonitoredEmail, 'Monitored email added'));
+}));
+
+// Bulk-add monitored emails. Used by the onboarding wizard (TEEPER-208) when
+// the user picks N senders from the scan results in one go. Single-transaction
+// INSERT … ON CONFLICT DO NOTHING — any sender already in the user's list is
+// silently skipped, the rest are inserted.
+router.post('/monitored-emails/bulk', asyncHandler(async (req: Request, res: Response) => {
+  const { userId, items } = req.body as {
+    userId?: string;
+    items?: Array<{ email: string; active?: boolean; categoryId?: number | null }>;
+  };
+
+  if (!userId || !Array.isArray(items)) {
+    return res.status(400).json(apiError('userId and items[] are required', 'MISSING_FIELDS'));
+  }
+  if (items.length === 0) {
+    return res.status(201).json(apiResponse({ inserted: 0, items: [] }, 'No items'));
+  }
+  if (items.length > 200) {
+    return res.status(400).json(apiError('Too many items (max 200)', 'BATCH_TOO_LARGE'));
+  }
+
+  // Validate any provided categoryIds belong to this user. One round-trip
+  // per distinct id is fine at onboarding scale (≤30 senders typical).
+  const distinctCategoryIds = Array.from(
+    new Set(items.map((i) => i.categoryId).filter((c): c is number => c != null)),
+  );
+  for (const cid of distinctCategoryIds) {
+    const cat = await storage.getEmailCategory(userId, cid);
+    if (!cat) {
+      return res.status(400).json(apiError(`Invalid categoryId ${cid} for user`, 'INVALID_CATEGORY'));
+    }
+  }
+
+  const inserted = await storage.bulkAddMonitoredEmails(userId, items);
+  return res.status(201).json(apiResponse({ inserted: inserted.length, items: inserted }, 'Monitored emails added'));
+}));
+
+// Batch publications-registry lookup. The onboarding worker scans Gmail for
+// newsletter-shaped messages, then calls this with their subscription keys
+// (List-Id when present, else from-address) to enrich each row with a
+// suggested display name + category. (TEEPER-208)
+router.post('/publications/lookup', asyncHandler(async (req: Request, res: Response) => {
+  const { keys } = req.body as { keys?: string[] };
+  if (!Array.isArray(keys)) {
+    return res.status(400).json(apiError('keys must be an array', 'INVALID_BODY'));
+  }
+  if (keys.length > 500) {
+    return res.status(400).json(apiError('Too many keys (max 500)', 'BATCH_TOO_LARGE'));
+  }
+  const results = keys.map((k) => ({
+    key: k,
+    publication: lookupPublication(k) ?? null,
+  }));
+  return res.json(apiResponse(results));
 }));
 
 // Update monitored email (active toggle / category reassignment)
@@ -274,6 +330,8 @@ const ALLOWED_SETTINGS_FIELDS = new Set([
   'inboxCleanupLabelName',
   'llmProvider',
   'llmMigrationNoticeSeen',
+  'onboardingCompletedAt',     // TEEPER-208 — wizard finished
+  'onboardingDismissedAt',     // TEEPER-208 — user clicked "skip"
 ]);
 
 const VALID_LLM_PROVIDERS = new Set(['deepseek', 'openai']);

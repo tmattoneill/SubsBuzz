@@ -27,7 +27,7 @@ from auth import create_jwt_token, verify_jwt_token
 from middleware import LoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware, RequestIDMiddleware
 from config import settings
 from health import health_check, HealthResponse
-from routes import auth as auth_routes, digest, monitored_emails, settings as settings_routes, emails as email_routes, email_categories, subscriptions as subscriptions_routes
+from routes import auth as auth_routes, digest, monitored_emails, settings as settings_routes, emails as email_routes, email_categories, subscriptions as subscriptions_routes, onboarding as onboarding_routes
 
 # Configure logging
 logging.basicConfig(
@@ -166,6 +166,7 @@ app.include_router(email_categories.router, prefix="/api/email-categories", tags
 app.include_router(subscriptions_routes.router, prefix="/api/subscriptions", tags=["Subscriptions"])
 app.include_router(settings_routes.router, prefix="/api/settings", tags=["Settings"])
 app.include_router(email_routes.router, prefix="/api/emails", tags=["Email Actions"])
+app.include_router(onboarding_routes.router, prefix="/api/onboarding", tags=["Onboarding"])
 
 
 if __name__ == "__main__":

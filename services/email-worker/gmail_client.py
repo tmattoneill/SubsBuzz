@@ -10,7 +10,7 @@ import json
 import base64
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import asyncio
 import aiohttp
 
@@ -52,12 +52,22 @@ class ParsedEmail:
 
 @dataclass
 class NewsletterSender:
-    """Newsletter sender information"""
+    """Newsletter sender information surfaced by the onboarding scan (TEEPER-208).
+    `list_id` / `list_unsubscribe` are the strong RFC-2919/2369 signals; the
+    suggested_* fields are populated by tasks._scan_for_newsletters_async after
+    a publications-registry batch lookup. publication_match=True iff the registry
+    knew the sender."""
     email: str
     name: str
     count: int
     latest_subject: str
     has_unsubscribe: bool
+    sample_subjects: List[str] = field(default_factory=list)
+    list_id: Optional[str] = None
+    list_unsubscribe: Optional[str] = None
+    suggested_category_slug: Optional[str] = None
+    suggested_display_name: Optional[str] = None
+    publication_match: bool = False
 
 class GmailClient:
     """Gmail API client for email processing"""
@@ -518,104 +528,142 @@ class GmailClient:
             print(f"⚠️  Error extracting message content: {e}")
             return ''
     
+    # ESP from-domain heuristic for the onboarding scan: even without
+    # List-Id/List-Unsubscribe, mail from these platforms is almost always a
+    # newsletter. Lowercased; matched as suffix on the from-address.
+    _NEWSLETTER_ESP_DOMAINS = (
+        '@substack.com',
+        '@beehiiv.com',
+        '@mail.beehiiv.com',
+        '@buttondown.email',
+        '@convertkit.com',
+        '@mailchimp.com',
+        '@mailchimpapp.net',
+    )
+
     async def scan_for_newsletters(self, oauth_data: Dict[str, Any]) -> List[NewsletterSender]:
         """
-        Scan Gmail for potential newsletter senders
-        Extracted from server/gmail.ts scanForNewsletters function
+        Scan the user's Gmail for newsletter-shaped messages in the last 72h
+        (TEEPER-208). Detection is RFC-2919/2369 header-driven, with ESP-domain
+        and body-unsubscribe-link fallbacks. Returns NewsletterSender rows
+        carrying the raw signals; the data-server then enriches each with a
+        publications-registry suggestion.
         """
         try:
-            print(f"🔍 Scanning Gmail for newsletter senders")
-            
-            # Create credentials
+            print(f"🔍 Scanning Gmail for newsletter senders (72h, header-driven)")
+
             credentials = self._create_credentials(oauth_data)
-            
-            # Refresh token if needed
             if credentials.expired and credentials.refresh_token:
-                request = Request()
-                credentials.refresh(request)
-            
-            # Build Gmail service
+                try:
+                    credentials.refresh(Request())
+                except RefreshError as e:
+                    if 'invalid_grant' in str(e):
+                        raise OAuthRevokedError(uid=oauth_data.get('uid', ''), reason=str(e)) from e
+                    raise
+
             service = build('gmail', 'v1', credentials=credentials, cache_discovery=False)
-            
-            # Look back 3 days for emails with unsubscribe mentions
+
             three_days_ago = datetime.utcnow() - timedelta(days=3)
             after_date = three_days_ago.strftime('%Y/%m/%d')
-            search_query = f'after:{after_date} unsubscribe'
-            
+            # Drop the bare "unsubscribe" keyword: it misses messages where the
+            # only unsubscribe signal is the List-Unsubscribe header. -from:me
+            # excludes mail you sent yourself in the window.
+            search_query = f'after:{after_date} -from:me'
+
             print(f"🔍 Newsletter search query: {search_query}")
-            
-            # Search for messages
-            results = service.users().messages().list(
-                userId='me',
-                q=search_query,
-                maxResults=100  # Limit to avoid overwhelming API
-            ).execute()
-            
-            messages = results.get('messages', [])
-            print(f"📬 Found {len(messages)} potential newsletter emails")
-            
+
+            messages: List[Dict[str, Any]] = []
+            page_token = None
+            while True:
+                req = {'userId': 'me', 'q': search_query, 'maxResults': 200}
+                if page_token:
+                    req['pageToken'] = page_token
+                results = service.users().messages().list(**req).execute()
+                messages.extend(results.get('messages', []))
+                page_token = results.get('nextPageToken')
+                if not page_token or len(messages) >= 500:
+                    break
+
+            print(f"📬 Scanning {len(messages)} messages for newsletter signals")
             if not messages:
                 return []
-            
-            # Group emails by sender
-            sender_map = {}
-            
+
+            sender_map: Dict[str, Dict[str, Any]] = {}
+
             for message in messages:
                 try:
-                    message_data = service.users().messages().get(
-                        userId='me',
-                        id=message['id']
-                    ).execute()
-                    
-                    headers = message_data['payload'].get('headers', [])
-                    from_header = next((h['value'] for h in headers if h['name'].lower() == 'from'), '')
-                    subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), '')
-                    
-                    # Extract sender info
+                    msg = service.users().messages().get(userId='me', id=message['id']).execute()
+                    headers = msg['payload'].get('headers', [])
+
+                    def _h(name: str) -> Optional[str]:
+                        return next(
+                            (h['value'] for h in headers if h['name'].lower() == name.lower()),
+                            None,
+                        )
+
+                    from_header = _h('from') or ''
+                    subject = _h('subject') or ''
+                    list_id = _h('list-id')
+                    list_unsubscribe = _h('list-unsubscribe')
+
+                    # Parse "Display Name <addr@example.com>" → (name, email)
                     if '<' in from_header and '>' in from_header:
                         sender_name = from_header.split('<')[0].strip().replace('"', '')
-                        sender_email = from_header.split('<')[1].split('>')[0]
+                        sender_email = from_header.split('<')[1].split('>')[0].strip().lower()
                     else:
-                        sender_email = from_header.split()[-1] if from_header else ''
+                        sender_email = (from_header.split()[-1] if from_header else '').strip().lower()
                         sender_name = from_header.replace(sender_email, '').strip().replace('<>', '')
-                    
-                    if not sender_email:
+
+                    if not sender_email or '@' not in sender_email:
                         continue
-                    
-                    # Check if email has unsubscribe content
-                    has_unsubscribe = await self._check_for_unsubscribe_link(message_data['payload'])
-                    
-                    # Group by sender email
+
+                    matches_esp = any(sender_email.endswith(sfx) for sfx in self._NEWSLETTER_ESP_DOMAINS)
+                    has_unsubscribe = await self._check_for_unsubscribe_link(msg['payload'])
+
+                    # A sender qualifies on ANY of these signals.
+                    qualifies = bool(list_id) or bool(list_unsubscribe) or matches_esp or has_unsubscribe
+                    if not qualifies:
+                        continue
+
                     if sender_email in sender_map:
                         existing = sender_map[sender_email]
                         existing['count'] += 1
                         if has_unsubscribe:
                             existing['has_unsubscribe'] = True
-                        existing['latest_subject'] = subject
+                        if list_id and not existing.get('list_id'):
+                            existing['list_id'] = list_id
+                        if list_unsubscribe and not existing.get('list_unsubscribe'):
+                            existing['list_unsubscribe'] = list_unsubscribe
+                        # Keep up to 3 distinct subjects, newest-first.
+                        if subject and subject not in existing['sample_subjects']:
+                            existing['sample_subjects'].insert(0, subject)
+                            existing['sample_subjects'] = existing['sample_subjects'][:3]
+                            existing['latest_subject'] = existing['sample_subjects'][0]
                     else:
                         sender_map[sender_email] = {
                             'email': sender_email,
                             'name': sender_name or sender_email,
                             'count': 1,
                             'latest_subject': subject,
-                            'has_unsubscribe': has_unsubscribe
+                            'has_unsubscribe': has_unsubscribe,
+                            'sample_subjects': [subject] if subject else [],
+                            'list_id': list_id,
+                            'list_unsubscribe': list_unsubscribe,
                         }
-                
+
                 except Exception as e:
-                    print(f"⚠️  Error processing newsletter message {message.get('id', 'unknown')}: {e}")
+                    print(f"⚠️  Error processing scan message {message.get('id', 'unknown')}: {e}")
                     continue
-            
-            # Convert to list and filter for newsletters with unsubscribe links
-            newsletters = [
-                NewsletterSender(**sender_data)
-                for sender_data in sender_map.values()
-                if sender_data['has_unsubscribe']
-            ]
-            
-            # Sort by email count (most frequent first)
-            newsletters.sort(key=lambda x: x.count, reverse=True)
-            
-            print(f"📰 Found {len(newsletters)} potential newsletter senders")
+
+            # Sort by signal strength: registry hits handled later in tasks.py;
+            # here we sort by (has_list_id desc, has_list_unsubscribe desc, count desc).
+            newsletters = [NewsletterSender(**s) for s in sender_map.values()]
+            newsletters.sort(
+                key=lambda x: (bool(x.list_id), bool(x.list_unsubscribe), x.count),
+                reverse=True,
+            )
+
+            print(f"📰 Detected {len(newsletters)} candidate newsletter senders")
             return newsletters
             
         except Exception as e:

@@ -40,12 +40,20 @@ export interface EmailCategory {
   createdAt?: string;
 }
 
+// Onboarding scan result row (TEEPER-208). Worker emits these snake_case
+// from a Python dataclass; the frontend consumes them directly.
 export interface NewsletterSender {
   email: string;
   name: string;
   count: number;
-  latestSubject: string;
-  hasUnsubscribe: boolean;
+  latest_subject: string;
+  has_unsubscribe: boolean;
+  sample_subjects: string[];
+  list_id?: string | null;
+  list_unsubscribe?: string | null;
+  suggested_category_slug?: string | null;
+  suggested_display_name?: string | null;
+  publication_match: boolean;
 }
 
 export interface Topic {
@@ -126,6 +134,10 @@ export interface UserSettings {
   inboxCleanupLabelName?: string | null;
   llmProvider?: LlmProvider;
   llmMigrationNoticeSeen?: boolean;
+  // Onboarding wizard tracking (TEEPER-208). Either timestamp suppresses the
+  // modal on subsequent logins.
+  onboardingCompletedAt?: string | null;
+  onboardingDismissedAt?: string | null;
 }
 
 // Thematic digest types for new meta-summary system

@@ -37,6 +37,24 @@ class MonitoredEmailUpdate(BaseModel):
     categoryId: Optional[int] = None
 
 
+class BulkAddItem(BaseModel):
+    """One row in a bulk add of monitored emails (TEEPER-208 onboarding)."""
+    email: EmailStr
+    active: bool = True
+    categoryId: Optional[int] = None
+
+
+class BulkAddRequest(BaseModel):
+    """Bulk-add monitored emails — used by the onboarding wizard to commit
+    the user's full set of selected senders + suggested categories in one shot."""
+    items: List[BulkAddItem]
+
+
+class BulkAddResponse(BaseModel):
+    success: bool
+    data: Any
+
+
 # Helper function to proxy requests to Data Server
 async def proxy_to_data_server(
     method: str,
@@ -115,7 +133,7 @@ async def add_monitored_email(
     Add a new monitored email for the current user
     """
     user_id = current_user["uid"]
-    
+
     try:
         payload: Dict[str, Any] = {
             "userId": user_id,
@@ -143,6 +161,41 @@ async def add_monitored_email(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to add monitored email"
+        )
+
+
+@router.post("/bulk", response_model=BulkAddResponse)
+async def bulk_add_monitored_emails(
+    request: BulkAddRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Bulk-add monitored emails (TEEPER-208 onboarding wizard).
+    Senders that already exist for the user are silently skipped — only
+    newly-inserted rows are returned in `data.items`.
+    """
+    user_id = current_user["uid"]
+    try:
+        payload = {
+            "userId": user_id,
+            "items": [
+                {"email": str(i.email), "active": i.active, "categoryId": i.categoryId}
+                for i in request.items
+            ],
+        }
+        result = await proxy_to_data_server(
+            "POST",
+            "storage/monitored-emails/bulk",
+            json_data=payload,
+        )
+        return BulkAddResponse(success=True, data=result.get("data", {}))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error bulk-adding monitored emails: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to bulk-add monitored emails",
         )
 
 

@@ -188,6 +188,11 @@ export const userSettings = pgTable("user_settings", {
   // 'anthropic' | 'gemini' | 'grok' | 'ollama'.
   llmProvider: text("llm_provider").notNull().default("deepseek"),
   llmMigrationNoticeSeen: boolean("llm_migration_notice_seen").notNull().default(false),
+  // Onboarding wizard tracking (TEEPER-208). completedAt is set after the user
+  // finishes the suggest-newsletters wizard; dismissedAt when they skip. Either
+  // gate suppresses the modal on subsequent logins.
+  onboardingCompletedAt: timestamp("onboarding_completed_at"),
+  onboardingDismissedAt: timestamp("onboarding_dismissed_at"),
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
