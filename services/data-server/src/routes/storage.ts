@@ -332,6 +332,7 @@ const ALLOWED_SETTINGS_FIELDS = new Set([
   'llmMigrationNoticeSeen',
   'onboardingCompletedAt',     // TEEPER-208 — wizard finished
   'onboardingDismissedAt',     // TEEPER-208 — user clicked "skip"
+  'timezone',                  // IANA timezone string for per-user local digest cron
 ]);
 
 const VALID_LLM_PROVIDERS = new Set(['deepseek', 'openai']);
@@ -494,6 +495,21 @@ router.post('/session-validate', asyncHandler(async (req: Request, res: Response
   }
 
   return res.json(apiResponse(user));
+}));
+
+// ==================== ACCOUNT DELETION ====================
+
+// Hard-delete every row owned by `:userId` across the schema. Used by the
+// Delete Account flow. Caller (api-gateway) must already have authenticated
+// as that user and confirmed via the email-typed modal — this endpoint does
+// not re-check identity.
+router.delete('/account/:userId', asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  if (!userId) {
+    return res.status(400).json(apiError('userId is required', 'MISSING_FIELDS'));
+  }
+  const result = await storage.deleteUserAccount(userId);
+  return res.json(apiResponse(result, 'Account deleted'));
 }));
 
 // ==================== THEMATIC DIGESTS ====================

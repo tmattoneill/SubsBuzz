@@ -161,6 +161,14 @@ ALTER TABLE monitored_emails
 ALTER TABLE monitored_emails
   ADD COLUMN IF NOT EXISTS split_locked BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- ── 2026-Q2: user timezone storage (foundation for per-user local digest cron) ──
+-- IANA timezone string (e.g. "Europe/London"). Nullable — pre-feature rows
+-- stay NULL and the daily cron continues to fire at global 03:00 UTC for them.
+-- The settings UI picker auto-detects via Intl.DateTimeFormat().resolvedOptions()
+-- on first save.
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS timezone TEXT;
+
 -- ── 2026-Q2: onboarding wizard tracking (TEEPER-208) ──────────────────────────
 -- onboarding_completed_at: set when the user finishes the auto-scan wizard.
 -- onboarding_dismissed_at: set when the user explicitly skips. Either gate

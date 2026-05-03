@@ -50,6 +50,9 @@ class SettingsUpdateRequest(BaseModel):
     # to Date for the timestamp column.
     onboardingCompletedAt: Optional[str] = None
     onboardingDismissedAt: Optional[str] = None
+    # IANA timezone (e.g. "Europe/London"). Frontend auto-detects via
+    # Intl.DateTimeFormat().resolvedOptions().timeZone and sends on first save.
+    timezone: Optional[str] = None
 
 
 # Keep in sync with:

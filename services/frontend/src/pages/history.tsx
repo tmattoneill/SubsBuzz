@@ -99,12 +99,22 @@ export default function History() {
     });
   }, [digestHistory]);
 
-  // Clear pending state once the row has been replaced (id changes) or removed.
+  // Clear pending state once a different/new digest row lands. Two paths:
+  // - Regeneration: we stored the OLD id; clear when a row with a different id appears.
+  // - Fresh generate (TEEPER-114): we use 0 as a sentinel meaning "awaiting first
+  //   digest of the day"; clear as soon as ANY today's digest exists.
   useEffect(() => {
     if (pendingDigestId === null) return;
-    if (!todaysDigest || todaysDigest.id !== pendingDigestId) {
+    const replaced = pendingDigestId > 0 && (!todaysDigest || todaysDigest.id !== pendingDigestId);
+    const arrived = pendingDigestId === 0 && !!todaysDigest;
+    if (replaced || arrived) {
       setPendingDigestId(null);
-      toast({ title: "Digest regenerated", description: "Today's digest has been refreshed." });
+      toast({
+        title: arrived ? "Digest ready" : "Digest regenerated",
+        description: arrived
+          ? "Your first digest of the day is ready to view."
+          : "Today's digest has been refreshed.",
+      });
     }
   }, [pendingDigestId, todaysDigest, toast]);
 
@@ -130,6 +140,10 @@ export default function History() {
     if (todaysDigest) {
       setIsRerunConfirmOpen(true);
     } else {
+      // Sentinel 0 = "awaiting first digest of the day"; turns on the 3s
+      // polling above so the user sees auto-progress instead of a stale page
+      // while the worker processes 30-60s in the background. (TEEPER-114)
+      setPendingDigestId(0);
       generateDigestMutation.mutate(false);
     }
   };
@@ -209,11 +223,11 @@ export default function History() {
           </div>
           <Button
             onClick={handleGenerateDigestClick}
-            disabled={generateDigestMutation.isPending}
+            disabled={generateDigestMutation.isPending || pendingDigestId !== null}
             className="flex items-center gap-2"
           >
-            {generateDigestMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 animate-spin" />Generating…</>
+            {generateDigestMutation.isPending || pendingDigestId !== null ? (
+              <><Loader2 className="h-4 w-4 animate-spin" />Processing digest…</>
             ) : (
               <><RefreshCw className="h-4 w-4" />Generate digest</>
             )}
