@@ -15,6 +15,7 @@ import {
   thematicDigests,
   thematicSections,
   themeSourceEmails,
+  subscriptions,
   type MonitoredEmail,
   type InsertMonitoredEmail,
   type EmailDigest,
@@ -54,6 +55,9 @@ export interface IStorage {
   deleteEmailCategory(userId: string, id: number): Promise<boolean>;
   resolveCategorySnapshots(userId: string, categoryIds: number[]): Promise<Map<number, { name: string; slug: string }>>;
   getDigestEmailsByCategorySlug(userId: string, slug: string, limit: number, before?: Date): Promise<DigestEmail[]>;
+
+  // Account-wide cascade delete (used by Delete Account flow)
+  deleteUserAccount(userId: string): Promise<{ deleted: Record<string, number> }>;
 
   // Monitored emails
   getMonitoredEmails(userId: string): Promise<MonitoredEmail[]>;
@@ -319,6 +323,91 @@ export class DatabaseStorage implements IStorage {
     return results;
   }
   
+  /**
+   * Hard-delete every row owned by `userId` across the schema. Cascade order
+   * matters — child rows that FK-reference parents must die first. Wraps the
+   * lot in a single transaction so a partial failure aborts cleanly. Returns
+   * a per-table count for logging / UI confirmation.
+   *
+   * Used by the Delete Account flow. Caller must already have authenticated
+   * as `userId` and confirmed via the email-typed modal.
+   */
+  async deleteUserAccount(userId: string): Promise<{ deleted: Record<string, number> }> {
+    const database = this.ensureDb();
+    const counts: Record<string, number> = {};
+
+    await database.transaction(async (tx) => {
+      // 1. theme_source_emails — FK to thematic_sections (no userId column;
+      //    delete via ID-set match).
+      const sectionIds = await tx
+        .select({ id: thematicSections.id })
+        .from(thematicSections)
+        .innerJoin(thematicDigests, eq(thematicSections.thematicDigestId, thematicDigests.id))
+        .where(eq(thematicDigests.userId, userId));
+      const sectionIdList = sectionIds.map((s) => s.id);
+      if (sectionIdList.length > 0) {
+        const r = await tx.delete(themeSourceEmails)
+          .where(inArray(themeSourceEmails.thematicSectionId, sectionIdList));
+        counts.theme_source_emails = (r as { rowCount?: number }).rowCount ?? 0;
+      } else {
+        counts.theme_source_emails = 0;
+      }
+
+      // 2. thematic_sections
+      if (sectionIdList.length > 0) {
+        const r = await tx.delete(thematicSections)
+          .where(inArray(thematicSections.id, sectionIdList));
+        counts.thematic_sections = (r as { rowCount?: number }).rowCount ?? 0;
+      } else {
+        counts.thematic_sections = 0;
+      }
+
+      // 3. thematic_digests
+      const r3 = await tx.delete(thematicDigests).where(eq(thematicDigests.userId, userId));
+      counts.thematic_digests = (r3 as { rowCount?: number }).rowCount ?? 0;
+
+      // 4. digest_emails — child of email_digests; delete by digest_id IN (…)
+      const digestIds = await tx
+        .select({ id: emailDigests.id })
+        .from(emailDigests)
+        .where(eq(emailDigests.userId, userId));
+      const digestIdList = digestIds.map((d) => d.id);
+      if (digestIdList.length > 0) {
+        const r = await tx.delete(digestEmails)
+          .where(inArray(digestEmails.digestId, digestIdList));
+        counts.digest_emails = (r as { rowCount?: number }).rowCount ?? 0;
+      } else {
+        counts.digest_emails = 0;
+      }
+
+      // 5. email_digests
+      const r5 = await tx.delete(emailDigests).where(eq(emailDigests.userId, userId));
+      counts.email_digests = (r5 as { rowCount?: number }).rowCount ?? 0;
+
+      // 6. subscriptions
+      const r6 = await tx.delete(subscriptions).where(eq(subscriptions.userId, userId));
+      counts.subscriptions = (r6 as { rowCount?: number }).rowCount ?? 0;
+
+      // 7. monitored_emails
+      const r7 = await tx.delete(monitoredEmails).where(eq(monitoredEmails.userId, userId));
+      counts.monitored_emails = (r7 as { rowCount?: number }).rowCount ?? 0;
+
+      // 8. email_categories (FK targets above already cleared via ON DELETE SET NULL)
+      const r8 = await tx.delete(emailCategories).where(eq(emailCategories.userId, userId));
+      counts.email_categories = (r8 as { rowCount?: number }).rowCount ?? 0;
+
+      // 9. user_settings
+      const r9 = await tx.delete(userSettings).where(eq(userSettings.userId, userId));
+      counts.user_settings = (r9 as { rowCount?: number }).rowCount ?? 0;
+
+      // 10. oauth_tokens (keyed by uid, not user_id)
+      const r10 = await tx.delete(oauthTokens).where(eq(oauthTokens.uid, userId));
+      counts.oauth_tokens = (r10 as { rowCount?: number }).rowCount ?? 0;
+    });
+
+    return { deleted: counts };
+  }
+
   async updateMonitoredEmail(
     userId: string,
     id: number,

@@ -138,6 +138,9 @@ export interface UserSettings {
   // modal on subsequent logins.
   onboardingCompletedAt?: string | null;
   onboardingDismissedAt?: string | null;
+  // IANA timezone (e.g. "Europe/London"). NULL = fall back to UTC for the
+  // daily digest cron and date display.
+  timezone?: string | null;
 }
 
 // Thematic digest types for new meta-summary system

@@ -193,6 +193,11 @@ export const userSettings = pgTable("user_settings", {
   // gate suppresses the modal on subsequent logins.
   onboardingCompletedAt: timestamp("onboarding_completed_at"),
   onboardingDismissedAt: timestamp("onboarding_dismissed_at"),
+  // IANA timezone (e.g. "Europe/London", "America/New_York"). Foundation for
+  // per-user 03:00-local digest cron — until that lands, kept for display
+  // formatting and as a hint the user is non-UTC. Auto-detected by the
+  // settings UI via Intl.DateTimeFormat().resolvedOptions().timeZone.
+  timezone: text("timezone"),
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({

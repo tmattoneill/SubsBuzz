@@ -44,7 +44,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Mail, Key, RefreshCw, Plus, Palette, Trash2 } from "lucide-react";
+import { Mail, Key, RefreshCw, Plus, Palette, Trash2, Clock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { DashboardLayout } from "@/components/layout";
 
@@ -64,13 +64,18 @@ const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
 
 export default function Settings() {
   const { toast } = useToast();
-  const { user, isLoading: authLoading, reauthorize } = useAuth();
+  const { user, isLoading: authLoading, reauthorize, signOut } = useAuth();
   const [, setLocation] = useLocation();
   const [isAddSenderOpen, setIsAddSenderOpen] = useState(false);
   // Tracks the action the user has selected but not yet confirmed — used when
   // re-consent is required before persisting a non-'none' action.
   const [pendingCleanupAction, setPendingCleanupAction] =
     useState<InboxCleanupAction | null>(null);
+  // Delete-account flow state. Modal stays open until the user types their
+  // exact primary email, at which point the destructive button enables.
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -402,6 +407,56 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
+                <Clock className="mr-2 h-5 w-5 text-primary" />
+                Timezone
+              </CardTitle>
+              <CardDescription>
+                Used for displaying digest dates and (soon) scheduling your
+                daily digest at 03:00 in your local time instead of UTC.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4 rounded-md border p-4">
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-sm text-muted-foreground">Current timezone</p>
+                    <p className="font-medium font-mono text-sm truncate">
+                      {userSettings.timezone || (
+                        <span className="text-muted-foreground italic">Not set — using UTC</span>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                      updateSettingsMutation.mutate({ timezone: detected });
+                    }}
+                    disabled={updateSettingsMutation.isPending}
+                  >
+                    Use {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                  </Button>
+                </div>
+                {userSettings.timezone && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground"
+                    onClick={() => updateSettingsMutation.mutate({ timezone: null as unknown as string })}
+                    disabled={updateSettingsMutation.isPending}
+                  >
+                    Clear timezone (revert to UTC)
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
                 <Key className="mr-2 h-5 w-5 text-primary" />
                 AI Provider
               </CardTitle>
@@ -635,12 +690,126 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
+            </CardContent>
+          </Card>
+
+          {/* Danger zone — account deletion. Cascades through all user
+              data; modal forces the user to type their primary email back
+              before the destructive button enables. */}
+          <Card className="border-destructive/40">
+            <CardHeader>
+              <CardTitle className="flex items-center text-destructive">
+                <Trash2 className="mr-2 h-5 w-5" />
+                Danger zone
+              </CardTitle>
+              <CardDescription>
+                Permanently delete your account and every piece of data
+                associated with it (digests, sources, settings, OAuth
+                tokens). This cannot be undone.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setDeleteConfirmEmail("");
+                  setIsDeleteAccountOpen(true);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete account
+              </Button>
             </CardContent>
           </Card>
         </div>
 
         <AddSenderModal open={isAddSenderOpen} onOpenChange={setIsAddSenderOpen} />
+
+        {/* Delete-account confirmation modal. The destructive button is
+            disabled until the typed email matches the user's primary email
+            exactly (case-insensitive trim). */}
+        <Dialog
+          open={isDeleteAccountOpen}
+          onOpenChange={(open) => {
+            if (!open && !isDeleting) setIsDeleteAccountOpen(false);
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="h-5 w-5" />
+                Delete account
+              </DialogTitle>
+              <DialogDescription>
+                This permanently deletes your account, every digest you've
+                received, your monitored sources, your settings, and your
+                Gmail OAuth tokens. There is no recovery.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                To confirm, type your primary email{" "}
+                <span className="font-mono text-foreground">{user?.email ?? ""}</span> below.
+              </p>
+              <Input
+                value={deleteConfirmEmail}
+                onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                placeholder={user?.email ?? "your-email@example.com"}
+                disabled={isDeleting}
+                autoComplete="off"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setIsDeleteAccountOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={
+                  isDeleting ||
+                  !user?.email ||
+                  deleteConfirmEmail.trim().toLowerCase() !== user.email.trim().toLowerCase()
+                }
+                onClick={async () => {
+                  if (!user?.email) return;
+                  setIsDeleting(true);
+                  try {
+                    await apiRequest("DELETE", "/api/account");
+                    toast({
+                      title: "Account deleted",
+                      description: "Your account and all data have been removed.",
+                    });
+                    // Close modal, then sign out (clears tokens + redirects).
+                    setIsDeleteAccountOpen(false);
+                    await signOut();
+                    setLocation("/login");
+                  } catch (err: unknown) {
+                    setIsDeleting(false);
+                    toast({
+                      title: "Delete failed",
+                      description: (err as Error)?.message ?? "Try again or contact support.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  "Delete my account"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Re-consent gate: shown when the user picks a cleanup action that
             requires the gmail.modify scope they haven't granted yet. */}
