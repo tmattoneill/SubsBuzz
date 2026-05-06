@@ -795,20 +795,22 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 > **IMPORTANT:** When starting a new conversation, greet the user with a brief summary of the project context below — current focus, branch, and any active todos. Keep it to 2-3 sentences. Do not skip this greeting.
 
+**Current Focus:** Hero-image quality + digest_emails dedup shipped to dev + prod (commits c29cd13, c6655df). Watch dedup cron behaviour Wed-Fri; next pickable threads: subscriptions backfill on prod (TEEPER-186), per-user 03:00-local digest scheduling (TZ foundation already deployed), TEEPER-203 Ollama remote-box connection.
+
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 03/05/2026, 08:25:58
+**Last Updated:** 06/05/2026, 12:58:38
 
 ### Active Todos
 - [ ] [high] New Conversation starts every time the main screen is viewed. (`main`)
 - [ ] [high] Not connecting on remote box to Ollama (`main`)
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
-- [ ] [high] [TEEPER-199] Hero image: keep killing logos / mastheads / banner chrome — curate _PUBLISHER_PLACEHOLDER_HASHES + HERO_URL_REJECT from real samples https://linear.app/teemo-personal-projects/issue/TEEPER-199 (`main`)
 - [ ] [high] [TEEPER-206] Proxy + cache hero/article images locally instead of hot-linking publisher CDNs (architectural follow-up to 2026-04-26 SLI tracker incident) https://linear.app/teemo-personal-projects/issue/TEEPER-206 (`main`)
 - [ ] [high] Per-user 03:00 local digest scheduling: change Celery beat to hourly tick; generate_daily_digests filters to users where now-in-their-TZ ∈ [03:00, 04:00) and no digest yet today (idempotency cursor). Users with no TZ continue at global 03:00 UTC. Depends on the timezone-storage todo. (`main`)
 - [ ] [high] Investigate and resolve tsx-in-image blocking issues for TEEPER-186/190 sender-parse backfill (`main`)
 - [ ] [high] Implement per-user 03:00-local digest scheduling using the newly deployed timezone storage foundation (`main`)
+- [ ] [high] Execute the subscriptions backfill script on production environment as mentioned in TEEPER-186 (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
@@ -826,12 +828,13 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Update CLAUDE.md with a short "Smart sender parsing" section — describe the subscriptions table, subscription_key tier precedence (Tier 1 List-Id, Tier 5 from address), publications registry + heuristics, split_locked flag, and the backfill script. Stops next-session-Claude re-deriving it. (`feature/sender-parse`)
 - [ ] [medium] Ship backfill script in the production data-server Docker image. Currently Dockerfile strips src/ + devDeps (tsx), so `npm run backfill:subscriptions` fails in-container. Options: compile the script to dist/scripts/ and expose via `node dist/scripts/backfill-subscriptions.js`, OR keep tsx + src/scripts/ in the image. Without this, any future backfill has to run via raw SQL in the postgres container. (`feature/sender-parse`)
 - [ ] [medium] [TEEPER-106] UI cleanup pass — audit services/frontend for dead elements (no handler/route), placeholder elements (TODO/coming soon/lorem), and redundant elements (duplicated functionality). Delete, don't comment out. https://linear.app/teemo-personal-projects/issue/TEEPER-106 (`feature/sender-parse`)
+- [ ] [medium] [TEEPER-199] Hero quality — Path A (white-bg) + Path B (bimodal monochrome) byte-level reject + extended _HERO_ALT_BLACKLIST landed 2026-05-06. Remaining manual curation: seed _PUBLISHER_PLACEHOLDER_HASHES from any survivors that slip past Path A/B (e.g. saturated brand-color house ads, large publisher illustrations Path B can't catch). Re-run scripts/backfill_text_dominant_heroes.py periodically as the heuristic gets tuned. https://linear.app/teemo-personal-projects/issue/TEEPER-199 (`main`)
 - [ ] [medium] [TEEPER-200] Onboarding + first-digest-ready welcome emails (provider selection + transactional flow) https://linear.app/teemo-personal-projects/issue/TEEPER-200 (`main`)
 - [ ] [medium] [TEEPER-201] Outbound delivery of daily digest as email (per-user opt-in, suppression, unsubscribe). Blocked by TEEPER-200 https://linear.app/teemo-personal-projects/issue/TEEPER-201 (`main`)
 - [ ] [medium] [TEEPER-202] Anthropic key support in user-selectable LLM provider (extend provider.ts + settings UI + storage enum) https://linear.app/teemo-personal-projects/issue/TEEPER-202 (`main`)
 - [ ] [medium] [TEEPER-203] Local LLM support (Ollama / LM Studio) as user-selectable provider; diagnose remote-box → Ollama connection failure https://linear.app/teemo-personal-projects/issue/TEEPER-203 (`main`)
-- [ ] [medium] Commit the modified CLAUDE.md changes to document this session's work (`main`)
-- [ ] [medium] Manually review and flag low-res hero edge cases for TEEPER-169 (`main`)
+- [ ] [medium] Monitor digest_emails dedup in prod for the next few days — confirm the partial unique index isn't blocking legit inserts (look for "addDigestEmail: insert was skipped but no canonical row found" thrown from data-server logs). If the daily 03:00 UTC cron runs cleanly Wed–Fri without that error and category-collection pages stay duplicate-free, this fix is durable. (`main`)
+- [ ] [medium] Commit or revert the modified CLAUDE.md file to clean the working tree (`main`)
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
