@@ -14,6 +14,10 @@ pydantic==2.5.0
 python-dotenv==1.0.0
 lxml==5.3.0
 Pillow==10.4.0
+# Used only by services/email-worker/scripts/backfill_text_dominant_heroes.py
+# (operational tool that runs ad-hoc against dev/prod DBs). Worker runtime
+# never imports psycopg2 — DB access in tasks goes through the data-server.
+psycopg2-binary==2.9.10
 
 # Dev / test — harmless in prod but only exercised by pytest
 pytest==8.3.3
