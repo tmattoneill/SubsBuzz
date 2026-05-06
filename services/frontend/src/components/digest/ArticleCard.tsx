@@ -3,6 +3,10 @@ import { motion } from 'framer-motion';
 import { Clock, ArrowUpRight } from 'lucide-react';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { RecategoriseMenu } from '@/components/digest/RecategoriseMenu';
+import {
+  MIN_HERO_NATURAL_WIDTH,
+  HERO_BANNER_RATIO_THRESHOLD,
+} from '@/lib/article-heroes';
 
 export interface ArticleCardData {
   id: string;
@@ -26,9 +30,6 @@ interface ArticleCardProps {
   article: ArticleCardData;
   onRead?: () => void;
 }
-
-// Max width:height ratio before we treat an image as a newsletter banner.
-const BANNER_RATIO_THRESHOLD = 3.5;
 
 export function ArticleCard({ article, onRead }: ArticleCardProps) {
   const heightClass =
@@ -61,12 +62,11 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
-    if (
-      img.naturalWidth > 0 &&
-      img.naturalHeight > 0 &&
-      img.naturalWidth / img.naturalHeight > BANNER_RATIO_THRESHOLD
-    ) {
-      // Too wide to be a hero — treat as rejected and step down to fallback.
+    if (img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
+    const banner =
+      img.naturalWidth / img.naturalHeight > HERO_BANNER_RATIO_THRESHOLD;
+    const lowRes = img.naturalWidth < MIN_HERO_NATURAL_WIDTH;
+    if (banner || lowRes) {
       if (displaySrc) bumpError(displaySrc);
     }
   };

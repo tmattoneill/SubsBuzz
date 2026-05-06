@@ -272,8 +272,18 @@ router.post('/digest-emails', asyncHandler(async (req: Request, res: Response) =
     return res.status(400).json(apiError('Missing required fields', 'MISSING_FIELDS'));
   }
 
+  // Look up the parent digest's user_id so the dedup index has a value to
+  // scope on. This route has no direct caller in the worker pipeline today
+  // (worker → /api/digest/create → addDigestEmail) but the lookup keeps the
+  // route consistent with the partial unique index contract.
+  const parentUserId = await storage.getEmailDigestUserId(digestId);
+  if (!parentUserId) {
+    return res.status(404).json(apiError('Parent digest not found', 'DIGEST_NOT_FOUND'));
+  }
+
   const newEmail = await storage.addDigestEmail({
     digestId,
+    userId: parentUserId,
     sender,
     subject,
     receivedAt: new Date(receivedAt),

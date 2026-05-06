@@ -10,6 +10,17 @@ const MANIFEST_URL = "/article-heroes/manifest.json";
 const BASE_URL = "/article-heroes/";
 const FALLBACK_CATEGORY = "general-news";
 
+// Hero images upscaled past their native resolution pixelate badly (see Image
+// #3 / 2026-05-04). Below this natural width, we step down to manifest art.
+// 400 is empirically the boundary where common 320px masthead/illustration
+// assets get rejected without false-positiving editorial photos (which are
+// typically ≥600 native).
+export const MIN_HERO_NATURAL_WIDTH = 400;
+
+// Width:height ratio above which an image is treated as a banner / masthead
+// strip rather than an editorial hero. Mirrors the backend masthead filter.
+export const HERO_BANNER_RATIO_THRESHOLD = 3.5;
+
 // Mirror of the backend _HERO_URL_BLACKLIST — rejects tracking pixels, logos,
 // publisher banner assets, and known ad-network domains. Stored heroImageUrl
 // values pre-dating the backend filter may match these; treat them as null so

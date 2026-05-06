@@ -70,6 +70,7 @@ export interface IStorage {
   // Email digests
   getEmailDigests(userId: string): Promise<EmailDigest[]>;
   getEmailDigest(userId: string, id: number): Promise<EmailDigest | undefined>;
+  getEmailDigestUserId(id: number): Promise<string | null>;
   getLatestEmailDigest(userId: string): Promise<EmailDigest | undefined>;
   getDigestByDate(userId: string, date: string): Promise<EmailDigest | undefined>;
   getDigestByDateRange(userId: string, startDate: Date, endDate: Date): Promise<EmailDigest | undefined>;
@@ -448,6 +449,16 @@ export class DatabaseStorage implements IStorage {
     return results.length > 0 ? results[0] : undefined;
   }
 
+  async getEmailDigestUserId(id: number): Promise<string | null> {
+    const database = this.ensureDb();
+    const results = await database
+      .select({ userId: emailDigests.userId })
+      .from(emailDigests)
+      .where(eq(emailDigests.id, id))
+      .limit(1);
+    return results.length > 0 ? results[0].userId : null;
+  }
+
   async getLatestEmailDigest(userId: string): Promise<EmailDigest | undefined> {
     const database = this.ensureDb();
     const results = await database.select().from(emailDigests)
@@ -625,8 +636,40 @@ export class DatabaseStorage implements IStorage {
     };
 
     const database = this.ensureDb();
-    const results = await database.insert(digestEmails).values(emailToInsert).returning();
-    return results[0];
+    // Idempotent insert: the partial unique index
+    // (user_id, gmail_message_id) WHERE gmail_message_id IS NOT NULL prevents
+    // re-ingesting the same Gmail message on a subsequent digest run. On
+    // conflict we return the surviving canonical row so callers (theme
+    // linking, etc.) get a real id either way.
+    const inserted = await database
+      .insert(digestEmails)
+      .values(emailToInsert)
+      .onConflictDoNothing()
+      .returning();
+
+    if (inserted.length > 0) return inserted[0];
+
+    if (emailToInsert.userId && emailToInsert.gmailMessageId) {
+      const existing = await database
+        .select()
+        .from(digestEmails)
+        .where(
+          and(
+            eq(digestEmails.userId, emailToInsert.userId),
+            eq(digestEmails.gmailMessageId, emailToInsert.gmailMessageId),
+          ),
+        )
+        .limit(1);
+      if (existing.length > 0) return existing[0];
+    }
+
+    // Should be unreachable: if we hit this, the conflict came from something
+    // other than (user_id, gmail_message_id). Surface loudly so the caller
+    // doesn't silently drop the row.
+    throw new Error(
+      `addDigestEmail: insert was skipped but no canonical row found ` +
+      `(userId=${emailToInsert.userId ?? 'null'}, gmailMessageId=${emailToInsert.gmailMessageId ?? 'null'})`
+    );
   }
   
   // User settings methods

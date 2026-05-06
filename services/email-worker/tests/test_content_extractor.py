@@ -10,12 +10,31 @@ the wild — the fixture + targeted assertions become the regression alarm.
 """
 
 import asyncio
+import hashlib
+import io
 from typing import Optional
 
 import pytest
+from PIL import Image
 
 from content_extractor import ContentExtractor
 from tests.conftest import assert_snapshot, load_eml_html
+
+
+def _bytes_with_known_hash(seed: str) -> tuple[bytes, str]:
+    """Return (sentinel_bytes, sha256_hex). Used by hash-denylist tests so
+    they can monkeypatch _fetch_image_bytes with bytes whose hash matches a
+    seeded denylist entry."""
+    data = f"sentinel-{seed}-image-bytes".encode("utf-8")
+    return data, hashlib.sha256(data).hexdigest()
+
+
+def _png_bytes(mode: str, color, size: tuple[int, int] = (200, 200)) -> bytes:
+    """Encode a uniform colour image to PNG. Used by text-image detection
+    tests — Pillow handles the PNG decode in the system under test."""
+    buf = io.BytesIO()
+    Image.new(mode, size, color).save(buf, format="PNG")
+    return buf.getvalue()
 
 
 @pytest.fixture
@@ -198,38 +217,37 @@ def _run(coro):
 
 
 def test_verified_passes_through_when_no_sender_domain(extractor):
-    """Without sender_domain, the verified path must behave identically to
-    the pure heuristic path — no fetches, no hash checks. This is the
-    short-circuit that keeps the hot path cheap when we don't know who sent
-    the email."""
+    """Without sender_domain, hash + Phase-3 checks are skipped; only
+    text-dominant detection (which fail-opens on bad bytes) gates the
+    candidate. Sentinel bytes aren't a valid image, so the fail-open path
+    keeps the URL."""
+    async def fake_fetch_bytes(url):
+        return b'opaque-non-image-bytes'
+    extractor._fetch_image_bytes = fake_fetch_bytes
+
     html = '<html><body><img src="https://cdn.example.com/hero.jpg" width="1200" height="630"/></body></html>'
     assert _run(extractor.extract_hero_image_verified(html, sender_domain=None)) == \
         "https://cdn.example.com/hero.jpg"
 
 
-def test_verified_passes_through_when_domain_has_no_denylist(extractor):
-    """A sender_domain that has no entries in the hash denylist must not
-    trigger any network fetch. Caller passes sender_domain routinely; we
-    only want to pay the fetch cost when there's something to check."""
-    # AdExchanger etc. — no hash denylist configured
-    fetch_called = []
-
-    async def no_fetch(url):
-        fetch_called.append(url)
-        return None
-    extractor._fetch_and_hash_image = no_fetch
+def test_verified_keeps_candidate_when_domain_has_no_denylist(extractor):
+    """A sender_domain with no denylist entries and Phase 3 disabled passes
+    the candidate through. Text-detect runs but fail-opens on non-image
+    sentinel bytes."""
+    async def fake_fetch_bytes(url):
+        return b'opaque-non-image-bytes'
+    extractor._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://cdn.example.com/hero.jpg" width="1200" height="630"/></body></html>'
     result = _run(extractor.extract_hero_image_verified(html, sender_domain='adexchanger.com'))
     assert result == "https://cdn.example.com/hero.jpg"
-    assert fetch_called == [], "fetch must not run when denylist for domain is empty"
 
 
 def test_verified_rejects_known_placeholder_hash(extractor, monkeypatch):
     """When the candidate's SHA256 matches a known placeholder for the
     sender's domain, hero becomes None (fallback art wins). This is the
     core regression guard for the hash denylist path."""
-    known_hash = 'a' * 64
+    sentinel, known_hash = _bytes_with_known_hash('newyorker-placeholder')
 
     monkeypatch.setitem(
         ContentExtractor._PUBLISHER_PLACEHOLDER_HASHES,
@@ -237,9 +255,9 @@ def test_verified_rejects_known_placeholder_hash(extractor, monkeypatch):
         frozenset({known_hash}),
     )
 
-    async def fake_fetch(url):
-        return known_hash
-    extractor._fetch_and_hash_image = fake_fetch
+    async def fake_fetch_bytes(url):
+        return sentinel
+    extractor._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.newyorker.com/img/some-image.png" width="1200" height="630"/></body></html>'
     result = _run(extractor.extract_hero_image_verified(html, sender_domain='newyorker.com'))
@@ -249,18 +267,18 @@ def test_verified_rejects_known_placeholder_hash(extractor, monkeypatch):
 def test_verified_accepts_unknown_hash(extractor, monkeypatch):
     """A hash miss means the image is NOT a known placeholder — keep the
     candidate. This is the common case for genuine editorial photos."""
-    known_hash = 'a' * 64
-    candidate_hash = 'b' * 64
+    _, denylisted = _bytes_with_known_hash('newyorker-placeholder')
+    candidate_bytes, _ = _bytes_with_known_hash('newyorker-real-photo')
 
     monkeypatch.setitem(
         ContentExtractor._PUBLISHER_PLACEHOLDER_HASHES,
         'newyorker.com',
-        frozenset({known_hash}),
+        frozenset({denylisted}),
     )
 
-    async def fake_fetch(url):
-        return candidate_hash
-    extractor._fetch_and_hash_image = fake_fetch
+    async def fake_fetch_bytes(url):
+        return candidate_bytes
+    extractor._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.newyorker.com/photos/real-article-photo.jpg" width="1200" height="630"/></body></html>'
     result = _run(extractor.extract_hero_image_verified(html, sender_domain='newyorker.com'))
@@ -270,7 +288,7 @@ def test_verified_accepts_unknown_hash(extractor, monkeypatch):
 def test_verified_keeps_candidate_on_fetch_failure(extractor, monkeypatch):
     """Network errors must NOT blank the hero — we'd rather show a candidate
     that passed the cheap filters than show fallback art on a flaky CDN.
-    See _fetch_and_hash_image docstring."""
+    See _fetch_image_bytes docstring."""
     monkeypatch.setitem(
         ContentExtractor._PUBLISHER_PLACEHOLDER_HASHES,
         'newyorker.com',
@@ -279,7 +297,7 @@ def test_verified_keeps_candidate_on_fetch_failure(extractor, monkeypatch):
 
     async def broken_fetch(url):
         return None  # simulates timeout, 404, oversize, etc.
-    extractor._fetch_and_hash_image = broken_fetch
+    extractor._fetch_image_bytes = broken_fetch
 
     html = '<html><body><img src="https://media.newyorker.com/photos/x.jpg" width="1200" height="630"/></body></html>'
     result = _run(extractor.extract_hero_image_verified(html, sender_domain='newyorker.com'))
@@ -290,21 +308,144 @@ def test_denylist_matches_subdomain_senders(extractor, monkeypatch):
     """Publisher senders often come from a subdomain like e.newyorker.com
     or updates.economist.com. Denylist lookup must match on suffix so we
     don't need an entry per subdomain."""
-    known_hash = 'a' * 64
+    sentinel, known_hash = _bytes_with_known_hash('newyorker-subdomain')
     monkeypatch.setitem(
         ContentExtractor._PUBLISHER_PLACEHOLDER_HASHES,
         'newyorker.com',
         frozenset({known_hash}),
     )
 
-    async def fake_fetch(url):
-        return known_hash
-    extractor._fetch_and_hash_image = fake_fetch
+    async def fake_fetch_bytes(url):
+        return sentinel
+    extractor._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.newyorker.com/x.jpg" width="1200" height="630"/></body></html>'
     # Sender comes in as e.newyorker.com — must still match the newyorker.com key
     result = _run(extractor.extract_hero_image_verified(html, sender_domain='e.newyorker.com'))
     assert result is None
+
+
+# --- text-dominant image detection ----------------------------------------
+
+
+def test_is_text_dominant_flags_white_desaturated_image():
+    """A near-uniform white image (the reductive limit of a document
+    screenshot) trips both gates: high near-white pct + low mean saturation.
+    Documents/PDFs/screenshots-of-tweets are dominated by these properties."""
+    white = _png_bytes("L", 255)
+    assert ContentExtractor._is_text_dominant_image(white) is True
+
+
+def test_is_text_dominant_keeps_colorful_photo():
+    """A colourful image (saturated brand colour or photograph) must NOT
+    trip the detector — it's the dominant editorial-hero case."""
+    saturated_green = _png_bytes("RGB", (50, 200, 100))
+    assert ContentExtractor._is_text_dominant_image(saturated_green) is False
+
+
+def test_is_text_dominant_keeps_dark_photo():
+    """A dark image (night photo, navy abstract) has low near-white pct, so
+    we exit before evaluating saturation. Must not be flagged."""
+    dark = _png_bytes("RGB", (20, 30, 60))
+    assert ContentExtractor._is_text_dominant_image(dark) is False
+
+
+def test_is_text_dominant_flags_inverted_polarity_titlecard():
+    """A pure-black image stands in for the WP-Intelligence title card case
+    (white serif on black bg, 2026-05-06). Path B catches inverted polarity:
+    most pixels at the dark end of the histogram + low saturation."""
+    black = _png_bytes("L", 0)
+    assert ContentExtractor._is_text_dominant_image(black) is True
+
+
+def test_is_text_dominant_flags_pastel_band_layout():
+    """Pastel-banded code snippet (STAC example, 2026-05-06): light green and
+    light pink with black monospace text. Path B catches it because the
+    pastel bands sit above the LIGHT extremes threshold (220) and overall
+    saturation stays under the Path B sat gate."""
+    pastel_green = _png_bytes("RGB", (223, 252, 228))   # L ≈ 244, sat ≈ 0.05
+    assert ContentExtractor._is_text_dominant_image(pastel_green) is True
+
+
+def test_is_text_dominant_keeps_dark_coloured_photo():
+    """Dark navy (RGB 20,30,60). Path B's grayscale gate fires (everything is
+    in the dark extreme), but the saturation gate keeps it: real night photos
+    carry colour. Guards against rejecting moody editorial photography."""
+    dark_navy = _png_bytes("RGB", (20, 30, 60))
+    assert ContentExtractor._is_text_dominant_image(dark_navy) is False
+
+
+def test_is_text_dominant_returns_false_on_invalid_bytes():
+    """Decode failures fail-open (keep the candidate). Mirrors the rest of
+    the verifier's failure policy."""
+    assert ContentExtractor._is_text_dominant_image(b'not-an-image') is False
+    assert ContentExtractor._is_text_dominant_image(b'') is False
+
+
+# --- alt-text blacklist (text-image hints) --------------------------------
+
+
+def test_alt_blacklist_rejects_text_image_alt_strings():
+    """Alt strings that publishers add to forwarded screenshots must trigger
+    the static rejection before any byte fetch. Cheap and complementary to
+    the byte-level Path A/B detector."""
+    text_image_alts = [
+        "screenshot of a tweet by Gary Marcus",
+        "Screen-shot of court filing",
+        "tweet from @sama",
+        "PDF preview",
+        "title card for AI & Tech Brief",
+        "a quote from the article",
+        "court filing snapshot",
+        "document excerpt",
+    ]
+    for alt in text_image_alts:
+        assert ContentExtractor._HERO_ALT_BLACKLIST.search(alt), (
+            f"expected text-image alt to match: {alt!r}"
+        )
+
+
+def test_alt_blacklist_keeps_editorial_alt_strings():
+    """Editorial alt strings must NOT be caught — guards against over-rejection
+    of legitimate descriptive alt text."""
+    editorial_alts = [
+        "A grocery cart sits empty in a Whole Foods aisle",
+        "Workers protest outside the Capitol building",
+        "Sunrise over the Brooklyn Bridge",
+        "Portrait of the chef in his kitchen",
+    ]
+    for alt in editorial_alts:
+        assert not ContentExtractor._HERO_ALT_BLACKLIST.search(alt), (
+            f"editorial alt incorrectly matched: {alt!r}"
+        )
+
+
+def test_extract_hero_rejects_screenshot_alt_before_fetch(extractor):
+    """End-to-end: candidate with alt='tweet screenshot' is filtered by
+    _HERO_ALT_BLACKLIST inside extract_hero_image() — no fetch needed.
+    Demonstrates the cheap path for publisher-labelled text images."""
+    html = """
+    <html><body>
+      <img src="https://cdn.example.com/forwarded-tweet.png"
+           width="1200" height="630"
+           alt="screenshot of a tweet by Gary Marcus" />
+    </body></html>
+    """
+    assert extractor.extract_hero_image(html) is None
+
+
+def test_verified_rejects_text_dominant_image_regardless_of_domain(extractor):
+    """A text-dominant image (court filing screenshot, tweet image, doc
+    snapshot) must be rejected even when sender_domain is None and there's
+    no denylist entry. This is the primary defence against the Joyce Vance
+    PDF screenshot case (2026-05-04)."""
+    async def fake_fetch_bytes(url):
+        return _png_bytes("L", 255)  # uniform white — text-dominant proxy
+    extractor._fetch_image_bytes = fake_fetch_bytes
+
+    html = '<html><body><img src="https://cdn.example.com/court-filing.png" width="1200" height="630"/></body></html>'
+    assert _run(extractor.extract_hero_image_verified(html, sender_domain=None)) is None
+    assert _run(extractor.extract_hero_image_verified(html, sender_domain='whatever.com')) is None
 
 
 def test_domain_from_sender_parses_rfc5322_and_bare():
@@ -368,16 +509,17 @@ def test_counter_passes_below_threshold(monkeypatch):
     """Count starts at 0. First sighting increments to 1 (< 3), keep
     candidate. This is the normal path for a novel editorial image."""
     ex, fake = _make_extractor_with_fake_redis()
+    sentinel, digest = _bytes_with_known_hash('phase3-novel')
 
-    async def fake_fetch(url):
-        return 'b' * 64
-    ex._fetch_and_hash_image = fake_fetch
+    async def fake_fetch_bytes(url):
+        return sentinel
+    ex._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.example.com/x.jpg" width="1200" height="630"/></body></html>'
     result = _run(ex.extract_hero_image_verified(html, sender_domain='example.com'))
     assert result == "https://media.example.com/x.jpg"
     # Counter was written
-    key = ContentExtractor._HERO_COUNTER_KEY.format(domain='example.com', digest='b' * 64)
+    key = ContentExtractor._HERO_COUNTER_KEY.format(domain='example.com', digest=digest)
     assert fake._store[key] == 1
 
 
@@ -386,13 +528,13 @@ def test_counter_denies_at_threshold(monkeypatch):
     subsequent sightings are denied. Preseeding the counter to 2 simulates
     two prior sightings; this call is the 3rd."""
     threshold = ContentExtractor._HERO_COUNTER_THRESHOLD
-    digest = 'c' * 64
+    sentinel, digest = _bytes_with_known_hash('phase3-recurring')
     key = ContentExtractor._HERO_COUNTER_KEY.format(domain='example.com', digest=digest)
     ex, fake = _make_extractor_with_fake_redis(preset={key: threshold - 1})
 
-    async def fake_fetch(url):
-        return digest
-    ex._fetch_and_hash_image = fake_fetch
+    async def fake_fetch_bytes(url):
+        return sentinel
+    ex._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.example.com/recurring.jpg" width="1200" height="630"/></body></html>'
     result = _run(ex.extract_hero_image_verified(html, sender_domain='example.com'))
@@ -405,16 +547,16 @@ def test_counter_scopes_by_domain(monkeypatch):
     """Same hash under two different sender_domains must not cross-pollute.
     Global counter, but KEYED by domain — one publisher's recurring art
     doesn't deny another's."""
-    digest = 'd' * 64
+    sentinel, digest = _bytes_with_known_hash('phase3-cross-domain')
     key_a = ContentExtractor._HERO_COUNTER_KEY.format(domain='newyorker.com', digest=digest)
     # NYer has seen it threshold-1 times; economist has never seen it.
     ex, fake = _make_extractor_with_fake_redis(
         preset={key_a: ContentExtractor._HERO_COUNTER_THRESHOLD - 1}
     )
 
-    async def fake_fetch(url):
-        return digest
-    ex._fetch_and_hash_image = fake_fetch
+    async def fake_fetch_bytes(url):
+        return sentinel
+    ex._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.example.com/x.jpg" width="1200" height="630"/></body></html>'
 
@@ -440,9 +582,9 @@ def test_counter_redis_failure_keeps_candidate(monkeypatch):
 
     ex = ContentExtractor(redis_client=_BrokenRedis())
 
-    async def fake_fetch(url):
-        return 'e' * 64
-    ex._fetch_and_hash_image = fake_fetch
+    async def fake_fetch_bytes(url):
+        return b'opaque-non-image-bytes'
+    ex._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.example.com/x.jpg" width="1200" height="630"/></body></html>'
     result = _run(ex.extract_hero_image_verified(html, sender_domain='example.com'))
@@ -450,29 +592,29 @@ def test_counter_redis_failure_keeps_candidate(monkeypatch):
 
 
 def test_no_redis_client_disables_phase3(monkeypatch):
-    """ContentExtractor() with no redis_client arg must behave exactly as
-    before Phase 3 was added — no fetch unless there's a static denylist
-    entry for the domain. Protects tests + non-worker callers from silent
-    Phase 3 activation."""
+    """ContentExtractor() with no redis_client arg must NOT consult Phase 3.
+    Text-detect still runs (always-on), but Phase 3 INCR/EXPIRE is skipped
+    so non-worker callers don't silently spin a counter against a missing
+    Redis. Protects tests + ad-hoc scripts from silent Phase 3 activation."""
     ex = ContentExtractor()  # no redis_client
-    fetch_calls = []
+    sentinel, _ = _bytes_with_known_hash('no-phase3')
 
-    async def tracking_fetch(url):
-        fetch_calls.append(url)
-        return 'f' * 64
-    ex._fetch_and_hash_image = tracking_fetch
+    async def fake_fetch_bytes(url):
+        return sentinel
+    ex._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.example.com/x.jpg" width="1200" height="630"/></body></html>'
     result = _run(ex.extract_hero_image_verified(html, sender_domain='example.com'))
     assert result == "https://media.example.com/x.jpg"
-    assert fetch_calls == [], "Phase 3 off: no fetch when domain has no static denylist"
+    # No Redis client present means _counter_says_deny was never reached.
+    assert ex._redis is None
 
 
 def test_counter_coexists_with_static_denylist(monkeypatch):
     """Static denylist hit must win — no need to INCR the counter at all
     once we've already classified the image as known-bad. Avoids wasting
     a Redis round-trip on obvious cases."""
-    digest = 'g' * 64
+    sentinel, digest = _bytes_with_known_hash('static-and-phase3-coexist')
     monkeypatch.setitem(
         ContentExtractor._PUBLISHER_PLACEHOLDER_HASHES,
         'newyorker.com',
@@ -480,9 +622,9 @@ def test_counter_coexists_with_static_denylist(monkeypatch):
     )
     ex, fake = _make_extractor_with_fake_redis()
 
-    async def fake_fetch(url):
-        return digest
-    ex._fetch_and_hash_image = fake_fetch
+    async def fake_fetch_bytes(url):
+        return sentinel
+    ex._fetch_image_bytes = fake_fetch_bytes
 
     html = '<html><body><img src="https://media.newyorker.com/x.jpg" width="1200" height="630"/></body></html>'
     assert _run(ex.extract_hero_image_verified(html, sender_domain='newyorker.com')) is None

@@ -273,6 +273,7 @@ export async function processEmailsIntoThemes(
       for (const email of emails) {
         await storage.addDigestEmail({
           digestId: basicDigest.id,
+          userId,
           sender: email.sender,
           subject: email.subject,
           receivedAt: email.receivedAt instanceof Date
@@ -284,6 +285,7 @@ export async function processEmailsIntoThemes(
           topics: email.topics,
           keywords: email.keywords,
           originalLink: email.originalLink || null,
+          gmailMessageId: (email as any).gmailMessageId ?? null,
           heroImageUrl: (email as any).heroImageUrl ?? null
         });
       }

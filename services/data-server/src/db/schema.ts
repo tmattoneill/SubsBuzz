@@ -131,6 +131,11 @@ export type EmailDigest = typeof emailDigests.$inferSelect;
 export const digestEmails = pgTable("digest_emails", {
   id: serial("id").primaryKey(),
   digestId: integer("digest_id").notNull(),
+  // Denormalised from email_digests.user_id for the partial unique index
+  // UNIQUE (user_id, gmail_message_id) WHERE gmail_message_id IS NOT NULL.
+  // A direct unique on gmail_message_id alone would break for users sharing
+  // a sender. Nullable for pre-migration rows; new inserts always set it.
+  userId: text("user_id"),
   sender: text("sender").notNull(),
   source: text("source"),             // Display name of sender (e.g. "The Washington Post")
   subject: text("subject").notNull(),

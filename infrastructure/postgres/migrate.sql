@@ -189,3 +189,66 @@ ALTER TABLE oauth_tokens
   ADD COLUMN IF NOT EXISTS revocation_reason TEXT;
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_revoked_at
   ON oauth_tokens (revoked_at) WHERE revoked_at IS NOT NULL;
+
+-- ── 2026-Q2: digest_emails dedup (root-cause fix for category-collection dupes) ──
+-- Symptom: category collections (e.g. /category/business-leadership) showed
+-- the same article 2-3× because every digest run re-ingested the last 3 days
+-- of Gmail messages without any uniqueness check. Worker fetch is deliberately
+-- broad (3-day window, no since-cursor); the dedup belongs in the DB.
+--
+-- Strategy: denormalise user_id onto digest_emails (so the partial unique
+-- index can scope by user — same publisher across users must not collide),
+-- backfill from email_digests, remap any theme_source_emails links from
+-- soon-to-be-deleted duplicate rows onto the canonical (lowest-id) row,
+-- delete the duplicates, then create the partial unique index.
+ALTER TABLE digest_emails
+  ADD COLUMN IF NOT EXISTS user_id TEXT;
+
+UPDATE digest_emails de
+   SET user_id = ed.user_id
+  FROM email_digests ed
+ WHERE de.digest_id = ed.id
+   AND de.user_id IS NULL;
+
+-- Remap theme_source_emails away from the duplicates. Done before DELETE so
+-- any link pointing at a non-canonical row gets rewritten to the survivor.
+WITH ranked AS (
+  SELECT
+    id,
+    user_id,
+    gmail_message_id,
+    FIRST_VALUE(id) OVER (
+      PARTITION BY user_id, gmail_message_id
+      ORDER BY id ASC
+    ) AS canonical_id,
+    ROW_NUMBER() OVER (
+      PARTITION BY user_id, gmail_message_id
+      ORDER BY id ASC
+    ) AS rn
+  FROM digest_emails
+  WHERE gmail_message_id IS NOT NULL
+    AND user_id IS NOT NULL
+)
+UPDATE theme_source_emails tse
+   SET digest_email_id = r.canonical_id
+  FROM ranked r
+ WHERE tse.digest_email_id = r.id
+   AND r.rn > 1;
+
+WITH dups AS (
+  SELECT id,
+         ROW_NUMBER() OVER (
+           PARTITION BY user_id, gmail_message_id
+           ORDER BY id ASC
+         ) AS rn
+    FROM digest_emails
+   WHERE gmail_message_id IS NOT NULL
+     AND user_id IS NOT NULL
+)
+DELETE FROM digest_emails
+ WHERE id IN (SELECT id FROM dups WHERE rn > 1);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_digest_emails_user_gmail_uniq
+  ON digest_emails (user_id, gmail_message_id)
+  WHERE gmail_message_id IS NOT NULL
+    AND user_id IS NOT NULL;

@@ -115,14 +115,18 @@ function thematicToHero(
   manifest: HeroManifest | null,
 ): HeroArticleData | null {
   if (!d.dailySummary) return null;
+  // Pick the first email-supplied hero that survives the URL filter; the
+  // <img> onLoad in HeroArticle will further reject if it loads at low res
+  // or banner-shaped, falling back to manifest art in that case.
   const heroImage =
-    emails.find((e) => isGoodHeroUrl(e.heroImageUrl))?.heroImageUrl ??
-    getArticleHeroFallbackSync(manifest, "digest-cover", "16_9");
+    emails.find((e) => isGoodHeroUrl(e.heroImageUrl))?.heroImageUrl ?? null;
+  const fallbackImage = getArticleHeroFallbackSync(manifest, "digest-cover", "16_9");
   return {
     id: `thematic-${d.id}`,
     title: "Your Daily Intelligence Brief",
     summary: d.dailySummary,
     image: heroImage,
+    fallbackImage,
     topic: "Meta Summary",
     date: d.date,
     readTime: computeReadTime(d.dailySummary),

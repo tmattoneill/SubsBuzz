@@ -8,11 +8,13 @@ Extracted from server/gmail.ts with Python implementation using BeautifulSoup.
 import re
 import asyncio
 import hashlib
+import io
 import aiohttp
 from typing import Dict, FrozenSet, List, Optional
 from bs4 import BeautifulSoup, Comment
 import html2text
 import trafilatura
+from PIL import Image, UnidentifiedImageError
 
 class ContentExtractor:
     """Email content extraction and cleaning"""
@@ -458,8 +460,16 @@ class ContentExtractor:
     # editorial alt text ("app icons in a row", "cherry lemon slot machine")
     # doesn't trigger on the substring `icon`; likewise `headers`, `footers`,
     # `spacers` are legitimate editorial language that shouldn't match.
+    #
+    # Text/document hints added 2026-Q2 after seeing tweet screenshots,
+    # publisher title cards, and code snippets land as heroes (see
+    # devctx note 2026-05-06). These are publisher-supplied alt strings
+    # — labels like "screenshot of a tweet", "title card", "court filing",
+    # "PDF preview" appear on user-forwarded content embedded in newsletters.
     _HERO_ALT_BLACKLIST = re.compile(
-        r'\b(logo|icon|avatar|unsubscribe|masthead|footer|header|spacer)\b',
+        r'\b(logo|icon|avatar|unsubscribe|masthead|footer|header|spacer'
+        r'|screen[\s\-]?shot|screenshot|tweet|excerpt|quote|filing|pdf'
+        r'|snapshot|title[\s\-]?card|document)\b',
         re.I,
     )
     # Ancestor class/id patterns that unambiguously indicate chrome regions.
@@ -860,19 +870,21 @@ class ContentExtractor:
         raw_content: str,
         sender_domain: Optional[str] = None,
     ) -> Optional[str]:
-        """Full hero pipeline: static filters + content-hash verification.
+        """Full hero pipeline: static filters + byte-level content checks.
 
         Layered denials (first match wins):
           A. Static URL + dimension filters (in extract_hero_image).
-          B. Static SHA256 denylist (_PUBLISHER_PLACEHOLDER_HASHES) — cheap
+          B. Text-dominant image detection — rejects screenshots of
+             documents/PDFs/tweets where the picture is mostly text on a
+             white background. Always runs; no domain required.
+          C. Static SHA256 denylist (_PUBLISHER_PLACEHOLDER_HASHES) — cheap
              when seeded, requires a manual entry per publisher.
-          C. Phase 3 Redis counter — auto-learns recurring heroes. Any
+          D. Phase 3 Redis counter — auto-learns recurring heroes. Any
              (sender_domain, sha256) pair seen >= _HERO_COUNTER_THRESHOLD
              times gets denied. Runs only when a Redis client is injected.
 
-        Short-circuits without fetching when no sender_domain, no Phase 3
-        client, and no static entries exist for the domain — the hot path
-        stays cheap for senders we don't track.
+        A single fetch (bounded by _HASH_FETCH_MAX_BYTES /
+        _HASH_FETCH_TIMEOUT_SECONDS) services B/C/D.
 
         Failure policy: fetch errors and Redis errors KEEP the candidate.
         Better to ship a weak hero than blank the card on a transient
@@ -880,20 +892,26 @@ class ContentExtractor:
         is garbage", not "we don't know."
         """
         url = self.extract_hero_image(raw_content)
-        if not url or not sender_domain:
+        if not url:
+            return None
+
+        image_bytes = await self._fetch_image_bytes(url)
+        if image_bytes is None:
+            return url  # fetch failed — prefer candidate
+
+        if self._is_text_dominant_image(image_bytes):
+            print(f"⚠️  Hero rejected (text-dominant image): {url}")
+            return None
+
+        if not sender_domain:
             return url
 
         static_denylist = self._placeholder_hashes_for_domain(sender_domain)
         phase3_enabled = self._redis is not None
-
-        # Short-circuit when nothing would use the hash — saves the HTTP fetch
-        # on senders we have no data for.
         if not static_denylist and not phase3_enabled:
             return url
 
-        digest = await self._fetch_and_hash_image(url)
-        if digest is None:
-            return url  # fetch failed — prefer candidate
+        digest = self._sha256_bytes(image_bytes)
 
         if digest in static_denylist:
             print(f"⚠️  Hero rejected (static placeholder hash): {url}")
@@ -939,13 +957,13 @@ class ContentExtractor:
     def _sha256_bytes(data: bytes) -> str:
         return hashlib.sha256(data).hexdigest()
 
-    async def _fetch_and_hash_image(self, url: str) -> Optional[str]:
-        """Fetch `url` and return sha256 hex of the response body.
+    async def _fetch_image_bytes(self, url: str) -> Optional[bytes]:
+        """Fetch `url` and return the response body bytes, or None on failure.
 
         Bounded by _HASH_FETCH_MAX_BYTES and _HASH_FETCH_TIMEOUT_SECONDS to
-        avoid the worker blocking on a slow/malicious response. Returns None
-        on any failure — callers treat None as "couldn't verify" and keep the
-        candidate.
+        avoid the worker blocking on a slow/malicious response. Bytes are
+        reused for hashing AND text-dominant detection so we only pay one
+        fetch per candidate.
         """
         try:
             timeout = aiohttp.ClientTimeout(total=self._HASH_FETCH_TIMEOUT_SECONDS)
@@ -960,10 +978,113 @@ class ContentExtractor:
                     body = await resp.content.read(self._HASH_FETCH_MAX_BYTES + 1)
                     if len(body) > self._HASH_FETCH_MAX_BYTES:
                         return None  # too large — almost certainly not a recurring placeholder
-                    return self._sha256_bytes(body)
+                    return body
         except Exception as e:
-            print(f"⚠️  Hero hash fetch failed for {url}: {e}")
+            print(f"⚠️  Hero image fetch failed for {url}: {e}")
             return None
+
+    # Text-dominant detection thresholds. Tuned against:
+    #   Path A — white-bg documents:
+    #     - Joyce Vance court-filing screenshot (rejects: white_pct ~0.85, sat ~0.02)
+    #     - Editorial photos (keeps: white_pct < 0.4 OR sat > 0.10)
+    #   Path B — bimodal monochrome (any polarity):
+    #     - "WP Intelligence" white-on-black title card (rejects: extremes ~0.95)
+    #     - STAC code snippet on pastel green/red bands (rejects: extremes ~0.65)
+    #     - Tweet screenshot (rejects: extremes ~0.90 — also caught by Path A)
+    # Path B catches inverted/pastel layouts that Path A misses. Cost: high-
+    # contrast monochrome editorial photos (Cartier-Bresson etc.) would also
+    # be rejected. They're rare in newsletters; we accept the false-positive.
+    _TEXT_IMAGE_NEAR_WHITE_THRESHOLD = 240   # 8-bit grayscale value
+    _TEXT_IMAGE_MIN_WHITE_PCT = 0.55
+    _TEXT_IMAGE_MAX_MEAN_SATURATION = 0.10   # 0..1 normalised — Path A
+    # Path B: pixels ≤ 50 OR ≥ 220 cluster at the histogram extremes — the
+    # signature of text+background regardless of which is dark and which is
+    # light.
+    _TEXT_IMAGE_DARK_THRESHOLD = 50
+    _TEXT_IMAGE_LIGHT_THRESHOLD = 220
+    _TEXT_IMAGE_MIN_EXTREMES_PCT = 0.55
+    _TEXT_IMAGE_PATHB_MAX_MEAN_SATURATION = 0.15  # slightly looser — pastel bands carry mild colour
+
+    @classmethod
+    def _is_text_dominant_image(cls, image_bytes: bytes) -> bool:
+        """True when the image looks like a screenshot of a document, tweet,
+        PDF page, branded title card, or code snippet.
+
+        Two-path heuristic computed on a downscaled copy:
+
+          Path A — white-bg document/screenshot:
+            high near-white pixel ratio AND very low mean saturation.
+            Catches court filings, PDFs, white-bg tweet screenshots.
+
+          Path B — bimodal monochrome (any polarity):
+            high "near extremes" pixel ratio (most pixels ≤ 50 or ≥ 220)
+            AND low mean saturation. Catches dark-bg title cards, white-bg
+            documents, and pastel-band code snippets — text on any
+            uniform-ish background pushes the histogram to the extremes.
+
+        Editorial photos fail both paths: smooth gradients keep the histogram
+        from clustering at the extremes, and saturated subjects fail the
+        saturation gate.
+
+        Cheap-fail policy: any decode/processing exception returns False so
+        the candidate is kept (consistent with the rest of the verifier's
+        fail-open approach).
+        """
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as im:
+                # Downscale aggressively — aggregate stats survive, work is cheap.
+                im.thumbnail((128, 128))
+
+                gray = im.convert("L")
+                gray_pixels = list(gray.getdata())
+                total = len(gray_pixels)
+                if total == 0:
+                    return False
+
+                white_count = 0
+                dark_count = 0
+                light_count = 0
+                near_white = cls._TEXT_IMAGE_NEAR_WHITE_THRESHOLD
+                dark_t = cls._TEXT_IMAGE_DARK_THRESHOLD
+                light_t = cls._TEXT_IMAGE_LIGHT_THRESHOLD
+                for p in gray_pixels:
+                    if p >= near_white:
+                        white_count += 1
+                    if p <= dark_t:
+                        dark_count += 1
+                    elif p >= light_t:
+                        light_count += 1
+                white_pct = white_count / total
+                extremes_pct = (dark_count + light_count) / total
+
+                # Cheap exit if neither path's grayscale gate fires.
+                if (white_pct < cls._TEXT_IMAGE_MIN_WHITE_PCT
+                        and extremes_pct < cls._TEXT_IMAGE_MIN_EXTREMES_PCT):
+                    return False
+
+                hsv = im.convert("HSV")
+                # Channel index 1 = Saturation (0..255).
+                sat_band = hsv.getdata(band=1)
+                mean_sat = sum(sat_band) / total / 255.0
+
+                # Path A — white-bg documents. Stricter saturation gate.
+                if (white_pct >= cls._TEXT_IMAGE_MIN_WHITE_PCT
+                        and mean_sat < cls._TEXT_IMAGE_MAX_MEAN_SATURATION):
+                    return True
+
+                # Path B — bimodal monochrome (any polarity).
+                if (extremes_pct >= cls._TEXT_IMAGE_MIN_EXTREMES_PCT
+                        and mean_sat < cls._TEXT_IMAGE_PATHB_MAX_MEAN_SATURATION):
+                    return True
+
+                return False
+        except (UnidentifiedImageError, OSError, ValueError) as e:
+            # Unrecognised format / truncated bytes — keep the candidate.
+            print(f"⚠️  Text-image detect failed (bad image): {e}")
+            return False
+        except Exception as e:
+            print(f"⚠️  Text-image detect failed: {e}")
+            return False
 
     @staticmethod
     def domain_from_sender(sender: str) -> Optional[str]:

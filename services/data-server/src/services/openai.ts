@@ -230,6 +230,7 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
       const snap = email.categoryId != null ? snapshots.get(email.categoryId) : undefined;
       const digestEmailData: InsertDigestEmail = {
         digestId: digest.id,
+        userId,
         sender: email.sender,
         source: email.source || null,
         subject: email.subject,

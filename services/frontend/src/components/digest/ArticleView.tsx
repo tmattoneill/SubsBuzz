@@ -5,6 +5,10 @@ import { sanitizeHtml } from '@/lib/sanitize-html';
 import { getSenderFaviconUrl, getSenderInitials } from '@/lib/utils';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
 import { RecategoriseMenu } from '@/components/digest/RecategoriseMenu';
+import {
+  MIN_HERO_NATURAL_WIDTH,
+  HERO_BANNER_RATIO_THRESHOLD,
+} from '@/lib/article-heroes';
 
 export interface ArticleSource {
   name: string;
@@ -40,8 +44,6 @@ interface ArticleViewProps {
   article: ArticleViewData;
   onBack: () => void;
 }
-
-const BANNER_RATIO_THRESHOLD = 3.5;
 
 function splitContentAtFirstHeading(html: string): { deck: string; rest: string } {
   const match = html.match(/<h[23]\b/i);
@@ -128,11 +130,11 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
-    if (
-      img.naturalWidth > 0 &&
-      img.naturalHeight > 0 &&
-      img.naturalWidth / img.naturalHeight > BANNER_RATIO_THRESHOLD
-    ) {
+    if (img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
+    const banner =
+      img.naturalWidth / img.naturalHeight > HERO_BANNER_RATIO_THRESHOLD;
+    const lowRes = img.naturalWidth < MIN_HERO_NATURAL_WIDTH;
+    if (banner || lowRes) {
       if (displaySrc) bumpError(displaySrc);
     }
   };
