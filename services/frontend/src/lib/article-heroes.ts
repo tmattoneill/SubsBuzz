@@ -21,18 +21,26 @@ export const MIN_HERO_NATURAL_WIDTH = 400;
 // strip rather than an editorial hero. Mirrors the backend masthead filter.
 export const HERO_BANNER_RATIO_THRESHOLD = 3.5;
 
-// Mirror of the backend _HERO_URL_BLACKLIST — rejects tracking pixels, logos,
-// publisher banner assets, and known ad-network domains. Stored heroImageUrl
-// values pre-dating the backend filter may match these; treat them as null so
-// the manifest fallback is used instead.
+// Mirror of the backend _HERO_URL_BLACKLIST in services/email-worker/
+// content_extractor.py. Rejects tracking pixels, logos, publisher banner
+// assets, and known ad-network domains. Stored heroImageUrl values
+// pre-dating the backend filter may match these; treat them as null so the
+// manifest fallback is used instead. **Keep in sync with the backend** —
+// patterns added there but missed here mean old DB rows still render the
+// chrome (e.g. The Economist masthead from image.e.economist.com/lib/...
+// kept appearing on the dashboard until 2026-05-07 because the frontend
+// filter was a stale subset).
 //
 // Notes on impression-tracker patterns:
 //   - sli\.<publisher>\.com — "subscriber link insertion" tracker subdomain
 //     (e.g. sli.washingtonpost.com); always serves invisible 1x1 pixels.
 //   - \/imp\? — generic /imp? tracker endpoint regardless of query params.
 //     Earlier version required li= which missed WaPo's s=...&e=... shape.
+//   - image\.(?:nl|e)\.(?:npr|economist)\.(?:org|com)/lib/ — ESP-hosted
+//     publisher chrome (mastheads, section dividers). Editorial images live
+//     on the publisher's own CDN, never these /lib/ paths.
 const HERO_URL_REJECT =
-  /pixel|tracking|beacon|open\.gif|spacer|transparent|1x1|analytics|googletagmanager|doubleclick|\/logo|\/avatar|\/icon|\/unsub|\/footer|\/email-images\/[^?]*-(header|alert|banner|promo)-|link\.(cntraveler|wired|newyorker|vogue|vanityfair|gq|bonappetit|architecturaldigest|self|glamour|epicurious|teenvogue|allure|pitchfork|them|arstechnica)\.com\/img\/|liveintent\.|sli\.[a-z0-9-]+\.com|\/imp\?/i;
+  /pixel|tracking|beacon|open\.gif|spacer|transparent|1x1|analytics|googletagmanager|doubleclick|\/logo|\/avatar|\/icon|\/unsub|\/footer|\/email-images\/[^?]*-(header|alert|banner|promo)-|link\.(cntraveler|wired|newyorker|vogue|vanityfair|gq|bonappetit|architecturaldigest|self|glamour|epicurious|teenvogue|allure|pitchfork|them|arstechnica)\.com\/img\/|liveintent\.|sli\.[a-z0-9-]+\.com|\/imp\?|image\.(?:nl|e)\.(?:npr|economist)\.(?:org|com)\/lib\/|pas\.economist\.com|\/newsletters\/banners\/|sailthru\.com\/(?:fss|composer)\/|movable-ink-\d+\.|emltrk\.com|bounceexchange\.com\/tag\/|pippio\.com\/api\/sync|rs-stripe\.npr\.org\/stripe\/image/i;
 
 export function isGoodHeroUrl(url: string | null | undefined): boolean {
   if (!url) return false;
