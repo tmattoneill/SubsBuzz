@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, Mail, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { sanitizeHtml } from '@/lib/sanitize-html';
@@ -9,6 +10,7 @@ import {
   MIN_HERO_NATURAL_WIDTH,
   HERO_BANNER_RATIO_THRESHOLD,
 } from '@/lib/article-heroes';
+import { tagSlug } from '@/lib/tag-slug';
 
 export interface ArticleSource {
   name: string;
@@ -285,12 +287,13 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
           {article.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-8">
               {article.tags.map((tag) => (
-                <span
+                <Link
                   key={tag}
-                  className="font-body px-3 py-1 rounded-full bg-secondary text-sm text-secondary-foreground"
+                  href={`/tags/${tagSlug(tag)}`}
+                  className="font-body px-3 py-1 rounded-full bg-secondary text-sm text-secondary-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
                   {tag}
-                </span>
+                </Link>
               ))}
             </div>
           )}

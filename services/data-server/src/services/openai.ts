@@ -15,6 +15,9 @@ import {
   mergeCompletionParams,
   ProviderConfigError,
 } from './llm/provider';
+import { CANONICAL_TAGS, type CanonicalTag } from './tags/canonical';
+import { normalizeTagList, TAG_LIMITS, type NormalizedTag } from './tags/normalize';
+import { persistTagsForArticle } from './tags/storage';
 
 if (!process.env.DEEPSEEK_API_KEY && !process.env.OPENAI_API_KEY) {
   console.warn('⚠️  Neither DEEPSEEK_API_KEY nor OPENAI_API_KEY is set — AI summarisation will use fallback text');
@@ -29,6 +32,12 @@ export interface EmailInput {
   gmailMessageId?: string;  // Source Gmail message ID — used by the worker for post-digest cleanup
   heroImageUrl?: string | null;  // Hero image URL extracted from raw email HTML (worker-side)
   categoryId?: number | null;  // Resolved by resolveSubscription upstream; snapshotted at persist time
+  // Resolved category display name ("Technology", "Sports", "General News",
+  // …). Looked up once in generateDigest before the parallel LLM calls and
+  // injected into the per-article prompt as a tagging hint. Null when the
+  // article has no category, or when the caller is processEmailWithAI on a
+  // standalone path (no batch resolve happens).
+  categoryName?: string | null;
   subscriptionId?: number | null;  // Smart sender parsing: derived subscription id (nullable for pre-feature / unknown senders)
   signalsJson?: Record<string, unknown> | null;  // Raw parsed header signals (List-Id, from display name, subscription key/tier)
 }
@@ -42,8 +51,17 @@ export interface ProcessedEmail {
   summary: string;     // ≤100-word plain-text — used for cards and excerpts
   summaryHtml: string | null;  // ~300–400-word HTML body (h3/p/ul/li/strong/em) — rendered as the article body
   fullContent: string;
-  topics: string[];    // Other articles/topics referenced
-  keywords: string[];  // External links
+  // Normalized tags from the LLM after passing through services/tags/normalize.
+  // Persisted to digest_emails.topics (display names, denormalized cache for
+  // card render) and to article_tags via tags table (canonical join for the
+  // /tags/:slug page).
+  tags: NormalizedTag[];
+  // topics is `tags.map(t => t.displayName)` — kept on the type so the
+  // thematic clusterer (services/thematic-processor.ts) and the JSON-shape
+  // dispatcher in routes/digest.ts can read display names directly without
+  // touching the new tag pipeline. Derive once at construction time.
+  topics: string[];
+  keywords: string[];  // External links (unchanged — extracted from email body)
   originalLink?: string;
   gmailMessageId?: string;  // Persisted on digest_emails so cleanup tasks can target the source
   heroImageUrl?: string | null;  // Passthrough from EmailInput — AI does not touch this field
@@ -95,6 +113,15 @@ Processing rules:
 - IGNORE content containing words like "subscribe", "sign up", "preferences" and similar phrases
 - FOCUS solely on content and information
 
+TAG RULES (strict):
+- Return at most ${TAG_LIMITS.maxPerArticle} tags.
+- Each tag is 1 to ${TAG_LIMITS.maxWords} words, lowercase, no punctuation.${email.categoryName ? `
+- This article is from a "${email.categoryName}" newsletter. Prefer tags relevant to ${email.categoryName} when the content fits — but a tag can apply across many categories, so don't force a fit.` : ''}
+- Reuse a tag from this canonical list whenever the article fits:
+  ${formatCanonicalTagsForPrompt(CANONICAL_TAGS)}
+- Only invent a new tag if no canonical tag applies. New tags must still be 1–2 lowercase words and describe the subject (not the sender, not the medium).
+- Never use generic filler like "news", "update", "article", "newsletter", "today", "weekly".
+
 Return JSON with exactly these fields:
 {
   "source": "Sender display name (not the email address — e.g. 'The Washington Post', not 'info@e.mail.washingtonpost.com')",
@@ -102,7 +129,7 @@ Return JSON with exactly these fields:
   "snippet": "25 words or less — the single most important point",
   "summary": "The main point(s) in fewer than 100 words, plain text, focusing on content not promotional material. Used for card excerpts.",
   "summaryHtml": "300–400 words of valid HTML rendering the article as an editorial read. Structure: one short opening <p> paragraph (the lead), then 2–3 <h3> section headings each followed by a <p> body. Use <ul>/<li> for genuine lists only, <strong> and <em> sparingly for emphasis. No <h1>, no <h2>, no <h4>+, no <div>, no <span>, no <img>, no <script>, no <style>, no inline style attributes, no class attributes. Plain prose. Do not quote the email verbatim — summarise and synthesise.",
-  "otherTopics": ["other article or topic referenced in this email"],
+  "tags": ["1-2 word lowercase tags following the rules above"],
   "externalLinks": ["relevant external link or URL mentioned"]
 }`
         },
@@ -131,6 +158,7 @@ Content: ${truncatedContent}`
 
     const analysis = JSON.parse(cleanedResponse);
 
+    const normalizedTags = normalizeTagList(analysis.tags);
     return {
       sender: email.sender,
       source: analysis.source || email.sender,
@@ -142,7 +170,8 @@ Content: ${truncatedContent}`
         ? analysis.summaryHtml
         : null,
       fullContent: email.content,
-      topics: Array.isArray(analysis.otherTopics) ? analysis.otherTopics : [],
+      tags: normalizedTags,
+      topics: normalizedTags.map(t => t.displayName),
       keywords: Array.isArray(analysis.externalLinks) ? analysis.externalLinks : [],
       originalLink: email.originalLink,
       gmailMessageId: email.gmailMessageId,
@@ -170,6 +199,7 @@ Content: ${truncatedContent}`
       summary: `Email from ${email.sender} regarding ${email.subject}`,
       summaryHtml: null,
       fullContent: email.content,
+      tags: [],
       topics: [],
       keywords: [],
       originalLink: email.originalLink,
@@ -180,6 +210,13 @@ Content: ${truncatedContent}`
       signalsJson: email.signalsJson ?? null,
     };
   }
+}
+
+function formatCanonicalTagsForPrompt(canonical: ReadonlyArray<CanonicalTag>): string {
+  // Show display names in the prompt — humans-readable, and the slugifier in
+  // services/tags/normalize.ts converts whatever the LLM returns ("Machine
+  // Learning", "machine learning", "machine-learning") to the same slug.
+  return canonical.map(t => t.displayName).join(', ');
 }
 
 /**
@@ -193,11 +230,25 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
   }
 
   try {
+    // Bulk-resolve category snapshots once, BEFORE the parallel LLM calls,
+    // so the per-article prompt can include the category name as a tagging
+    // hint. The same snapshots are reused below for the persist-time
+    // categoryNameSnapshot/categorySlugSnapshot writes.
+    const categoryIds = Array.from(new Set(
+      emails.map(e => e.categoryId).filter((id): id is number => typeof id === 'number')
+    ));
+    const snapshots = await storage.resolveCategorySnapshots(userId, categoryIds);
+
+    const emailsWithCategory: EmailInput[] = emails.map(e => ({
+      ...e,
+      categoryName: e.categoryId != null ? snapshots.get(e.categoryId)?.name ?? null : null,
+    }));
+
     // Process all emails with AI (parallel; counter gives progress visibility in logs)
     let completed = 0;
-    const total = emails.length;
+    const total = emailsWithCategory.length;
     const processedEmails = await Promise.all(
-      emails.map(async email => {
+      emailsWithCategory.map(async email => {
         const result = await processEmailWithAI(email, settings);
         completed++;
         if (completed % 5 === 0 || completed === total) {
@@ -212,20 +263,14 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
       userId,
       date: new Date(),
       emailsProcessed: processedEmails.length,
-      topicsIdentified: processedEmails.reduce((acc, email) => acc + email.topics.length, 0)
+      topicsIdentified: processedEmails.reduce((acc, email) => acc + email.tags.length, 0),
     };
 
     const digest = await storage.createEmailDigest(digestData);
 
-    // Bulk-resolve category snapshots once per digest. Writing the name/slug
-    // into digest_emails at create time preserves historical attribution even
-    // if the category is later renamed or deleted.
-    const categoryIds = Array.from(new Set(
-      processedEmails.map(e => e.categoryId).filter((id): id is number => typeof id === 'number')
-    ));
-    const snapshots = await storage.resolveCategorySnapshots(userId, categoryIds);
-
-    // Add all processed emails to the digest
+    // Add all processed emails to the digest, then write tags to article_tags.
+    // digest_emails.topics is kept as a denormalized cache of display names so
+    // the card render doesn't need to join through article_tags on every read.
     for (const email of processedEmails) {
       const snap = email.categoryId != null ? snapshots.get(email.categoryId) : undefined;
       const digestEmailData: InsertDigestEmail = {
@@ -239,7 +284,7 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
         summary: email.summary,
         summaryHtml: email.summaryHtml ?? null,
         fullContent: email.fullContent,
-        topics: email.topics,
+        topics: email.tags.map(t => t.displayName),
         keywords: email.keywords,
         originalLink: email.originalLink || null,
         gmailMessageId: email.gmailMessageId || null,
@@ -251,7 +296,20 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
         signalsJson: email.signalsJson ?? null,
       };
 
-      await storage.addDigestEmail(digestEmailData);
+      const inserted = await storage.addDigestEmail(digestEmailData);
+
+      // Tag persistence is non-fatal — a tagging error must not lose the
+      // article. Log loudly so silent failures show up in the dashboard.
+      if (email.tags.length > 0 && inserted?.id) {
+        try {
+          await persistTagsForArticle(inserted.id, email.tags);
+        } catch (tagErr: any) {
+          console.error(
+            `[tags] FAILED digest_email_id=${inserted.id} tags=${email.tags.map(t => t.slug).join(',')} ` +
+            `message=${tagErr?.message ?? String(tagErr)}`,
+          );
+        }
+      }
     }
 
     console.log(`✅ Digest created with ID ${digest.id}`);
