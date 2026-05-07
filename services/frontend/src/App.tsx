@@ -23,7 +23,11 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      <Route path="/dashboard" component={History} />
+      {/* /dashboard is the post-login fallback target from landing.tsx and
+          post-login-route.ts. Route it through DigestLatestRedirect so the
+          latest digest is the landing page whenever one exists; only fall
+          back to /history when no digest has been generated yet. */}
+      <Route path="/dashboard" component={DigestLatestRedirect} />
       <Route path="/digest" component={DigestLatestRedirect} />
       <Route path="/digest/:date" component={DigestView} />
       <Route path="/history" component={History} />
