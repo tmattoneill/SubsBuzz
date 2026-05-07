@@ -13,6 +13,7 @@
  */
 
 import { lookupCanonical, type CanonicalTag } from './canonical';
+import { applyAlias } from './aliases';
 
 const MAX_TAGS_PER_ARTICLE = 5;
 const MAX_WORDS_PER_TAG = 2;
@@ -61,8 +62,14 @@ function toDisplayName(slug: string): string {
 
 export function normalizeTag(raw: unknown): NormalizedTag | null {
   if (typeof raw !== 'string') return null;
-  const slug = toSlug(raw);
-  if (!slug) return null;
+  const rawSlug = toSlug(raw);
+  if (!rawSlug) return null;
+
+  // Synonym collapse before any other validation: "artificial-intelligence"
+  // becomes "ai", "mergers" becomes "m-and-a". The post-alias slug is what
+  // gets length-checked and word-counted, so an alias mapping to a canonical
+  // 1-2 word tag is always accepted even if the raw input was longer.
+  const slug = applyAlias(rawSlug);
 
   // Word count is the hyphen-separated piece count, ignoring filler joiners
   // like "and" so "m-and-a" still counts as a single tag.

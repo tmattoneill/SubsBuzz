@@ -32,6 +32,12 @@ export interface EmailInput {
   gmailMessageId?: string;  // Source Gmail message ID — used by the worker for post-digest cleanup
   heroImageUrl?: string | null;  // Hero image URL extracted from raw email HTML (worker-side)
   categoryId?: number | null;  // Resolved by resolveSubscription upstream; snapshotted at persist time
+  // Resolved category display name ("Technology", "Sports", "General News",
+  // …). Looked up once in generateDigest before the parallel LLM calls and
+  // injected into the per-article prompt as a tagging hint. Null when the
+  // article has no category, or when the caller is processEmailWithAI on a
+  // standalone path (no batch resolve happens).
+  categoryName?: string | null;
   subscriptionId?: number | null;  // Smart sender parsing: derived subscription id (nullable for pre-feature / unknown senders)
   signalsJson?: Record<string, unknown> | null;  // Raw parsed header signals (List-Id, from display name, subscription key/tier)
 }
@@ -109,7 +115,8 @@ Processing rules:
 
 TAG RULES (strict):
 - Return at most ${TAG_LIMITS.maxPerArticle} tags.
-- Each tag is 1 to ${TAG_LIMITS.maxWords} words, lowercase, no punctuation.
+- Each tag is 1 to ${TAG_LIMITS.maxWords} words, lowercase, no punctuation.${email.categoryName ? `
+- This article is from a "${email.categoryName}" newsletter. Prefer tags relevant to ${email.categoryName} when the content fits — but a tag can apply across many categories, so don't force a fit.` : ''}
 - Reuse a tag from this canonical list whenever the article fits:
   ${formatCanonicalTagsForPrompt(CANONICAL_TAGS)}
 - Only invent a new tag if no canonical tag applies. New tags must still be 1–2 lowercase words and describe the subject (not the sender, not the medium).
@@ -223,11 +230,25 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
   }
 
   try {
+    // Bulk-resolve category snapshots once, BEFORE the parallel LLM calls,
+    // so the per-article prompt can include the category name as a tagging
+    // hint. The same snapshots are reused below for the persist-time
+    // categoryNameSnapshot/categorySlugSnapshot writes.
+    const categoryIds = Array.from(new Set(
+      emails.map(e => e.categoryId).filter((id): id is number => typeof id === 'number')
+    ));
+    const snapshots = await storage.resolveCategorySnapshots(userId, categoryIds);
+
+    const emailsWithCategory: EmailInput[] = emails.map(e => ({
+      ...e,
+      categoryName: e.categoryId != null ? snapshots.get(e.categoryId)?.name ?? null : null,
+    }));
+
     // Process all emails with AI (parallel; counter gives progress visibility in logs)
     let completed = 0;
-    const total = emails.length;
+    const total = emailsWithCategory.length;
     const processedEmails = await Promise.all(
-      emails.map(async email => {
+      emailsWithCategory.map(async email => {
         const result = await processEmailWithAI(email, settings);
         completed++;
         if (completed % 5 === 0 || completed === total) {
@@ -246,14 +267,6 @@ export async function generateDigest(userId: string, emails: EmailInput[], setti
     };
 
     const digest = await storage.createEmailDigest(digestData);
-
-    // Bulk-resolve category snapshots once per digest. Writing the name/slug
-    // into digest_emails at create time preserves historical attribution even
-    // if the category is later renamed or deleted.
-    const categoryIds = Array.from(new Set(
-      processedEmails.map(e => e.categoryId).filter((id): id is number => typeof id === 'number')
-    ));
-    const snapshots = await storage.resolveCategorySnapshots(userId, categoryIds);
 
     // Add all processed emails to the digest, then write tags to article_tags.
     // digest_emails.topics is kept as a denormalized cache of display names so
