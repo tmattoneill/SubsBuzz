@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { Clock, ArrowUpRight } from 'lucide-react';
 import { CategoryBadge } from '@/components/categories/CategoryBadge';
@@ -7,6 +8,7 @@ import {
   MIN_HERO_NATURAL_WIDTH,
   HERO_BANNER_RATIO_THRESHOLD,
 } from '@/lib/article-heroes';
+import { tagSlug } from '@/lib/tag-slug';
 
 export interface ArticleCardData {
   id: string;
@@ -153,12 +155,14 @@ export function ArticleCard({ article, onRead }: ArticleCardProps) {
 
         <div className="flex flex-wrap gap-1.5 mt-auto">
           {article.tags.slice(0, 2).map((tag) => (
-            <span
+            <Link
               key={tag}
-              className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-secondary-foreground"
+              href={`/tags/${tagSlug(tag)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-secondary-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               {tag}
-            </span>
+            </Link>
           ))}
           {article.tags.length > 2 && (
             <span className="font-body px-2 py-0.5 rounded-full bg-secondary text-xs text-secondary-foreground">

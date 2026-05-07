@@ -8,6 +8,7 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/error';
 import { storage } from '../services/storage';
 import { lookupPublication } from '../services/publications';
+import { getDigestEmailsByTagSlug, getTagBySlug } from '../services/tags/storage';
 
 const router = Router();
 
@@ -310,6 +311,23 @@ router.get('/digests/by-category/:userId/:slug', asyncHandler(async (req: Reques
 
   const emails = await storage.getDigestEmailsByCategorySlug(userId, slug, limit, before);
   return res.json(apiResponse(emails));
+}));
+
+// Get digest emails by tag slug (for /tags/:slug collection page).
+// Tag slugs are global; per-user filtering happens inside getDigestEmailsByTagSlug.
+router.get('/digests/by-tag/:userId/:slug', asyncHandler(async (req: Request, res: Response) => {
+  const { userId, slug } = req.params;
+  const limit = Math.min(parseInt(req.query.limit as string) || 100, 200);
+
+  const [tag, emails] = await Promise.all([
+    getTagBySlug(slug),
+    getDigestEmailsByTagSlug(userId, slug, limit),
+  ]);
+
+  return res.json(apiResponse({
+    tag: tag ? { slug: tag.slug, displayName: tag.displayName, usageCount: tag.usageCount } : null,
+    emails,
+  }));
 }));
 
 // ==================== USER SETTINGS ====================

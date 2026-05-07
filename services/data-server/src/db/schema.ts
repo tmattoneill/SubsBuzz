@@ -310,3 +310,35 @@ export type ThematicSectionWithSourceEmails = ThematicSection & {
 export type FullThematicDigest = ThematicDigest & {
   sections: ThematicSectionWithSourceEmails[];
 };
+
+// Tags: short, normalized topic labels per article. Slug is the canonical
+// lowercase form (e.g. "ai", "earnings"); displayName preserves casing for UI
+// ("AI", "Earnings"). Tags are global — every user shares the same dictionary,
+// but each user's tag-page query is scoped through digest_emails → email_digests.
+export const tags = pgTable("tags", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  usageCount: integer("usage_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertTagSchema = createInsertSchema(tags).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTag = z.infer<typeof insertTagSchema>;
+export type Tag = typeof tags.$inferSelect;
+
+// article_tags: M:N join between digest_emails and tags. Composite uniqueness
+// prevents duplicate (article, tag) pairs; tag_id index supports fast tag-page
+// lookups (WHERE tag_id = ? → join digest_emails).
+export const articleTags = pgTable("article_tags", {
+  digestEmailId: integer("digest_email_id").notNull().references(() => digestEmails.id, { onDelete: "cascade" }),
+  tagId: integer("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+}, (t) => [unique("article_tags_email_tag_unique").on(t.digestEmailId, t.tagId)]);
+
+export const insertArticleTagSchema = createInsertSchema(articleTags);
+export type InsertArticleTag = z.infer<typeof insertArticleTagSchema>;
+export type ArticleTag = typeof articleTags.$inferSelect;

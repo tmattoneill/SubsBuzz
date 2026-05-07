@@ -335,7 +335,9 @@ export async function processRawEmailsIntoThemes(
 ): Promise<ThematicProcessingResult> {
   console.log(`🔄 Processing ${rawEmails.length} raw emails into themes`);
   
-  // Convert raw emails to ProcessedEmail format
+  // Convert raw emails to ProcessedEmail format. tags is empty here — this
+  // path is /thematic/process which already-processed emails arrive on.
+  // Their topics array (display names) is the only signal the clusterer needs.
   const processedEmails: ProcessedEmail[] = rawEmails.map(email => ({
     sender: email.sender || 'Unknown',
     source: email.source || email.sender || 'Unknown',
@@ -345,6 +347,7 @@ export async function processRawEmailsIntoThemes(
     summary: email.summary || `Email from ${email.sender}`,
     summaryHtml: email.summaryHtml ?? null,
     fullContent: email.fullContent || email.content || '',
+    tags: [],
     topics: Array.isArray(email.topics) ? email.topics : [],
     keywords: Array.isArray(email.keywords) ? email.keywords : [],
     originalLink: email.originalLink

@@ -10,6 +10,7 @@ import History from "@/pages/history";
 import Settings from "@/pages/settings";
 import EmailHandling from "@/pages/email-handling";
 import CategoryCollection from "@/pages/category-collection";
+import TagCollection from "@/pages/tag-collection";
 import DigestView from "@/pages/digest";
 import DigestLatestRedirect from "@/pages/digest-latest-redirect";
 import NotFound from "@/pages/not-found";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/email-handling" component={EmailHandling} />
       <Route path="/email-handling/:tab" component={EmailHandling} />
       <Route path="/category/:slug" component={CategoryCollection} />
+      <Route path="/tags/:slug" component={TagCollection} />
       <Route path="/login" component={Login} />
       <Route path="/auth/callback" component={AuthCallback} />
       <Route component={NotFound} />

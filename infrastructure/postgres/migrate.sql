@@ -252,3 +252,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_digest_emails_user_gmail_uniq
   ON digest_emails (user_id, gmail_message_id)
   WHERE gmail_message_id IS NOT NULL
     AND user_id IS NOT NULL;
+
+-- tags + article_tags: short normalized article tags (1-2 words) replacing the
+-- noisy "topics" pills. Tags are global across users (shared dictionary);
+-- per-user filtering is enforced by joining article_tags → digest_emails →
+-- email_digests.user_id. Slugs are lowercase canonical (e.g. "ai", "earnings");
+-- display_name preserves casing for UI rendering.
+CREATE TABLE IF NOT EXISTS tags (
+  id           SERIAL PRIMARY KEY,
+  slug         TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  usage_count  INTEGER NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS article_tags (
+  digest_email_id INTEGER NOT NULL REFERENCES digest_emails(id) ON DELETE CASCADE,
+  tag_id          INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  CONSTRAINT article_tags_email_tag_unique UNIQUE (digest_email_id, tag_id)
+);
+CREATE INDEX IF NOT EXISTS idx_article_tags_tag ON article_tags (tag_id);
+CREATE INDEX IF NOT EXISTS idx_article_tags_email ON article_tags (digest_email_id);

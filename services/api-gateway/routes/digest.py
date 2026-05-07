@@ -420,3 +420,22 @@ async def get_digest_emails_by_category(
     # data is a list of digest_emails — JSONResponse avoids Pydantic rejecting
     # a list assigned to DigestResponse.data: Dict[str, Any]
     return JSONResponse({"success": True, "data": result.get("data", [])})
+
+
+@router.get("/by-tag/{slug}")
+async def get_digest_emails_by_tag(
+    slug: str,
+    limit: int = Query(100, ge=1, le=200),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """
+    Return every digest_email tagged with the given slug for the current user,
+    plus tag metadata (displayName, usageCount). Backs the /tags/:slug page.
+    """
+    user_id = current_user["uid"]
+    result = await proxy_to_data_server(
+        "GET",
+        f"storage/digests/by-tag/{user_id}/{slug}",
+        params={"limit": limit},
+    )
+    return JSONResponse({"success": True, "data": result.get("data", {})})
