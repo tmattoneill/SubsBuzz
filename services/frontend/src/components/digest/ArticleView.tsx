@@ -148,6 +148,19 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
   const rejectedRef = useRef(new Set<string>());
   const [, setErrorCount] = useState(0);
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  // Per-category collapse state for the grouped source list. Default empty
+  // (all groups visible when the parent "Sources" block is open). User can
+  // collapse noisy categories without losing the others.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
+
+  const toggleGroup = (slug: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  };
 
   // Reset scroll on mount + whenever the article changes. The parent pages
   // (digest, category-collection, tag-collection) toggle ArticleView via
@@ -391,18 +404,33 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
                   }
                   return (
                     <div className="space-y-6">
-                      {groups.map((group) => (
-                        <div key={group.slug}>
-                          <h4 className="font-body mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                            {group.name} · {group.sources.length}
-                          </h4>
-                          <div className="space-y-3">
-                            {group.sources.map((source, index) => (
-                              <SourceRow key={`${group.slug}-${source.name}-${index}`} source={source} />
-                            ))}
+                      {groups.map((group) => {
+                        const collapsed = collapsedGroups.has(group.slug);
+                        return (
+                          <div key={group.slug}>
+                            <button
+                              type="button"
+                              onClick={() => toggleGroup(group.slug)}
+                              className="font-body group flex w-full items-center justify-between mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors"
+                              aria-expanded={!collapsed}
+                            >
+                              <span>{group.name} · {group.sources.length}</span>
+                              {collapsed ? (
+                                <ChevronDown className="size-4" />
+                              ) : (
+                                <ChevronUp className="size-4" />
+                              )}
+                            </button>
+                            {!collapsed && (
+                              <div className="space-y-3">
+                                {group.sources.map((source, index) => (
+                                  <SourceRow key={`${group.slug}-${source.name}-${index}`} source={source} />
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })()}
