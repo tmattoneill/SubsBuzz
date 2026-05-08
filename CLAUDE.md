@@ -799,8 +799,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `main`
-**Last Updated:** 08/05/2026, 11:20:49
+**Branch:** `static/tos`
+**Last Updated:** 08/05/2026, 13:41:57
 
 ### Active Todos
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
@@ -808,6 +808,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] Per-user 03:00 local digest scheduling: change Celery beat to hourly tick; generate_daily_digests filters to users where now-in-their-TZ ∈ [03:00, 04:00) and no digest yet today (idempotency cursor). Users with no TZ continue at global 03:00 UTC. Depends on the timezone-storage todo. (`main`)
 - [ ] [high] Investigate and resolve tsx-in-image blocking issues for TEEPER-186/190 sender-parse backfill (`main`)
 - [ ] [high] Implement per-user 03:00-local digest scheduling using the newly deployed timezone storage foundation (`main`)
+- [ ] [high] Review and commit or discard the modified services/frontend/public/article-heroes/manifest.json file (`static/tos`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
@@ -829,10 +830,13 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Monitor digest_emails dedup in prod for the next few days — confirm the partial unique index isn't blocking legit inserts (look for "addDigestEmail: insert was skipped but no canonical row found" thrown from data-server logs). If the daily 03:00 UTC cron runs cleanly Wed–Fri without that error and category-collection pages stay duplicate-free, this fix is durable. (`main`)
 - [ ] [medium] Test the new meta-summary features across different digest sizes and categories (`main`)
 - [ ] [medium] Verify LLM-generated headlines are working correctly in production (`main`)
+- [ ] [medium] Push static/tos branch to remote repository (`static/tos`)
+- [ ] [medium] Merge static/tos branch to main after review (`static/tos`)
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
 - [ ] [low] Drop the 5 git stashes containing CLAUDE.md/manifest noise (`main`)
 - [ ] [low] Commit the CLAUDE.md documentation updates (`main`)
+- [ ] [low] Create a Privacy Policy page to complement the new Terms of Service (`static/tos`)
 
 <!-- DEVCTX:END -->
