@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, Mail, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
@@ -115,6 +115,15 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
   const rejectedRef = useRef(new Set<string>());
   const [, setErrorCount] = useState(0);
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
+
+  // Reset scroll on mount + whenever the article changes. The parent pages
+  // (digest, category-collection, tag-collection) toggle ArticleView via
+  // local state, not a route change — so the document scroll position is
+  // preserved from the grid view, landing the user mid-page on the hero
+  // image. Force the top of the article on every entry.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [article.id]);
 
   const bumpError = (url: string) => {
     rejectedRef.current.add(url);
