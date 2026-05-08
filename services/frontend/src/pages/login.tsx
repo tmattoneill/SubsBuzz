@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
@@ -31,7 +31,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 gap-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-6">
@@ -51,7 +51,7 @@ export default function Login() {
             )}
             <div className="bg-primary/10 p-4 rounded-md text-foreground text-sm">
               <p>
-                <strong>Note:</strong> This app will request read-only access to your Gmail inbox to monitor specified email senders and generate digests.
+                <strong>Note:</strong> This app requests Gmail access to read emails from senders you nominate, generate AI digests, and optionally label or archive those emails. No other inbox content is accessed.
               </p>
             </div>
           </div>
@@ -90,6 +90,10 @@ export default function Login() {
           </Button>
         </CardFooter>
       </Card>
+      <p className="text-xs text-gray-400">
+        By signing in you agree to our{' '}
+        <Link href="/tos" className="underline hover:text-gray-600">Terms of Service</Link>
+      </p>
     </div>
   );
 }

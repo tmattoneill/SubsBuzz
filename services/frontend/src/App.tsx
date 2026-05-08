@@ -17,6 +17,7 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import AuthCallback from "@/pages/auth-callback";
+import TermsOfService from "@/pages/tos";
 import { DeepSeekMigrationModal } from "@/components/settings/DeepSeekMigrationModal";
 
 function Router() {
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/tags/:slug" component={TagCollection} />
       <Route path="/login" component={Login} />
       <Route path="/auth/callback" component={AuthCallback} />
+      <Route path="/tos" component={TermsOfService} />
       <Route component={NotFound} />
     </Switch>
   );
