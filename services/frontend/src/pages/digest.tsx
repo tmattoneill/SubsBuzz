@@ -154,13 +154,15 @@ function thematicToView(
 
   const content = [deck, sections].filter(Boolean).join("\n\n") || `<p>${d.dailySummary ?? ""}</p>`;
 
-  const sources: ArticleSource[] = emails.slice(0, 10).map((e) => ({
+  const sources: ArticleSource[] = emails.map((e) => ({
     name: topicFor(e),
     date: e.receivedAt,
     excerpt: e.snippet || e.summary,
     senderEmail: e.sender,
     subject: e.subject,
     originalLink: e.originalLink,
+    categoryName: e.categoryNameSnapshot ?? null,
+    categorySlug: e.categorySlugSnapshot ?? null,
   }));
 
   const heroImage =

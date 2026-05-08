@@ -19,6 +19,11 @@ export interface ArticleSource {
   senderEmail?: string;
   subject?: string;
   originalLink?: string;
+  // Category snapshot fields used to group sources under the meta-summary's
+  // expanded "Source Emails" list. Null for sources without a resolved
+  // category — those surface in an "Uncategorized" group at the end.
+  categoryName?: string | null;
+  categorySlug?: string | null;
 }
 
 export interface ArticleViewData {
@@ -99,6 +104,34 @@ function SourceRow({ source }: { source: ArticleSource }) {
       <p className="font-body text-foreground/70 leading-relaxed break-words line-clamp-2">{source.excerpt}</p>
     </div>
   );
+}
+
+interface SourceGroup {
+  slug: string;
+  name: string;
+  sources: ArticleSource[];
+}
+
+const UNCATEGORIZED_SLUG = '__uncategorized__';
+
+function groupSourcesByCategory(sources: ArticleSource[]): SourceGroup[] {
+  const groups = new Map<string, SourceGroup>();
+  for (const s of sources) {
+    const slug = s.categorySlug ?? UNCATEGORIZED_SLUG;
+    const name = s.categoryName?.trim() || 'Uncategorized';
+    let group = groups.get(slug);
+    if (!group) {
+      group = { slug, name, sources: [] };
+      groups.set(slug, group);
+    }
+    group.sources.push(s);
+  }
+  // Most-covered first, but keep "Uncategorized" at the end regardless of count.
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.slug === UNCATEGORIZED_SLUG) return 1;
+    if (b.slug === UNCATEGORIZED_SLUG) return -1;
+    return b.sources.length - a.sources.length;
+  });
 }
 
 const SHORT_ARTICLE_WORD_THRESHOLD = 80;
@@ -340,14 +373,39 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
               </div>
               <div
                 className={`transition-all duration-300 overflow-hidden ${
-                  sourcesExpanded ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'
+                  sourcesExpanded ? 'max-h-[6000px] opacity-100' : 'max-h-0 opacity-0'
                 }`}
               >
-                <div className="space-y-3">
-                  {article.sources.map((source, index) => (
-                    <SourceRow key={`${source.name}-${index}`} source={source} />
-                  ))}
-                </div>
+                {(() => {
+                  const groups = groupSourcesByCategory(article.sources);
+                  // Single group: render flat (no headings — there's nothing
+                  // to cluster against). Matches the pre-2026-05-08 layout.
+                  if (groups.length <= 1) {
+                    return (
+                      <div className="space-y-3">
+                        {article.sources.map((source, index) => (
+                          <SourceRow key={`${source.name}-${index}`} source={source} />
+                        ))}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-6">
+                      {groups.map((group) => (
+                        <div key={group.slug}>
+                          <h4 className="font-body mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            {group.name} · {group.sources.length}
+                          </h4>
+                          <div className="space-y-3">
+                            {group.sources.map((source, index) => (
+                              <SourceRow key={`${group.slug}-${source.name}-${index}`} source={source} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
