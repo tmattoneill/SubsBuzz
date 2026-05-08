@@ -175,6 +175,7 @@ export interface ThematicDigest {
   totalSourceEmails: number;
   processingMethod: string;
   dailySummary?: string;
+  headline?: string | null;
   createdAt?: string;
 }
 

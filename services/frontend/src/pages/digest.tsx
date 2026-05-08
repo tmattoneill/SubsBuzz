@@ -109,6 +109,16 @@ function collectEmailsFromThematic(d: FullThematicDigest): DigestEmail[] {
   return Array.from(byId.values());
 }
 
+// Resolve the meta-summary headline: LLM-generated banner first, then the
+// first section theme name, then the static brand fallback. Centralised so
+// thematicToHero / thematicToView don't drift.
+function resolveMetaHeadline(d: FullThematicDigest): string {
+  if (d.headline && d.headline.trim()) return d.headline.trim();
+  const firstSection = (d.sections ?? []).slice().sort((a, b) => a.order - b.order)[0];
+  if (firstSection?.theme?.trim()) return firstSection.theme.trim();
+  return "Your Daily Intelligence Brief";
+}
+
 function thematicToHero(
   d: FullThematicDigest,
   emails: DigestEmail[],
@@ -123,7 +133,7 @@ function thematicToHero(
   const fallbackImage = getArticleHeroFallbackSync(manifest, "digest-cover", "16_9");
   return {
     id: `thematic-${d.id}`,
-    title: "Your Daily Intelligence Brief",
+    title: resolveMetaHeadline(d),
     summary: d.dailySummary,
     image: heroImage,
     fallbackImage,
@@ -171,7 +181,7 @@ function thematicToView(
 
   return {
     id: `thematic-${d.id}`,
-    title: "Your Daily Intelligence Brief",
+    title: resolveMetaHeadline(d),
     content,
     image: heroImage,
     topic: "Meta Summary",

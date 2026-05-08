@@ -143,12 +143,16 @@ async function stageThreeStorage(
   themes: ThematicTheme[],
   emails: ProcessedEmail[],
   processingMethod: string,
-  dailySummary: string
+  dailySummary: string,
+  headline: string,
 ): Promise<number> {
   console.log('💾 Stage 3: Database Storage and Source Linking');
-  
+
   try {
-    // Create the thematic digest record
+    // Create the thematic digest record. Headline falls back to the first
+    // theme name when the LLM didn't return one — keeps the card from
+    // showing the static "Your Daily Intelligence Brief" duplicate.
+    const resolvedHeadline = headline || themes[0]?.name || '';
     const thematicDigestData: InsertThematicDigest = {
       userId,
       date: new Date(),
@@ -156,7 +160,8 @@ async function stageThreeStorage(
       sectionsCount: themes.length,
       totalSourceEmails: emails.length,
       processingMethod,
-      dailySummary
+      dailySummary,
+      headline: resolvedHeadline || null,
     };
 
     const thematicDigest = await storage.createThematicDigest(thematicDigestData);
@@ -247,9 +252,12 @@ export async function processEmailsIntoThemes(
     const enhancedThemes = await stageTwoSynthesis(analysis.themes, emails);
     console.log(`📝 Stage 2 complete: Enhanced ${enhancedThemes.length} themes`);
 
-    // Stage 2.5: Generate overall daily synthesis paragraph
+    // Stage 2.5: Generate overall daily synthesis paragraph + banner headline
     currentStage = 'stage-2.5:daily-summary';
-    const dailySummary = await generateDailySummary(enhancedThemes, emails.length, settings);
+    const briefing = await generateDailySummary(enhancedThemes, emails.length, settings);
+    const dailySummary = briefing.summary;
+    const dailyHeadline = briefing.headline;
+    console.log(`📰 Daily headline: ${dailyHeadline || '(none)'}`);
     console.log(`📰 Daily summary: ${dailySummary ? dailySummary.slice(0, 80) + '...' : '(none)'}`);
 
     // If no emailDigestId provided, we need to create a basic digest first
@@ -299,7 +307,8 @@ export async function processEmailsIntoThemes(
       enhancedThemes,
       emails,
       analysis.processingMethod,
-      dailySummary
+      dailySummary,
+      dailyHeadline,
     );
 
     console.log(`💾 Stage 3 complete: Thematic digest stored with ID ${thematicDigestId}`);

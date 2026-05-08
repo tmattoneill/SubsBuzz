@@ -257,6 +257,11 @@ export const thematicDigests = pgTable("thematic_digests", {
   totalSourceEmails: integer("total_source_emails").notNull(),
   processingMethod: text("processing_method").notNull(), // "nlp", "llm", "hybrid"
   dailySummary: text("daily_summary"),  // Overall synthesis paragraph for the day
+  // LLM-generated newspaper-style banner (≤80 chars, sentence case, no
+  // trailing punctuation). Surfaces on the meta-summary card + ArticleView.
+  // Nullable for pre-feature rows; frontend falls back to the first
+  // section theme name, then to "Your Daily Intelligence Brief".
+  headline: text("headline"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

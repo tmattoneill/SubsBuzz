@@ -505,12 +505,17 @@ Return JSON: {"themes": [{"name": "...", "summary": "...", "confidence": 85, "ke
 /**
  * Generate an overall daily synthesis paragraph from themes
  */
+export interface DailyBriefing {
+  headline: string;  // ≤80-char newspaper-style banner; empty string if generation failed
+  summary: string;   // HTML body (h3/p/ul/li/strong/em)
+}
+
 export async function generateDailySummary(
   themes: { name: string; summary: string }[],
   totalEmails: number,
   settings: ProviderSelection
-): Promise<string> {
-  if (themes.length === 0) return '';
+): Promise<DailyBriefing> {
+  if (themes.length === 0) return { headline: '', summary: '' };
 
   try {
     const cfg = resolveProvider(settings);
@@ -526,9 +531,15 @@ export async function generateDailySummary(
           role: 'system',
           content: `You are a senior daily briefing analyst writing a morning intelligence summary for a busy professional. Your job is to synthesise newsletter themes into a rich, scannable briefing.
 
-Output format — return valid HTML using these tags only: <h3>, <p>, <ul>, <li>, <strong>, <em>. No wrapper div, no <h1>/<h2> (those are used by the page layout).
+Return JSON with exactly these fields:
+{
+  "headline": "Sharp, specific newspaper-style banner capturing today's dominant story. ≤80 characters. Sentence case. No trailing punctuation. No hype words ('shocking', 'massive'). Name a real subject — not 'Today's news' or 'Daily briefing'.",
+  "summary": "HTML body — see structure below."
+}
 
-Structure:
+The summary HTML uses these tags only: <h3>, <p>, <ul>, <li>, <strong>, <em>. No wrapper div, no <h1>/<h2> (those are used by the page layout).
+
+Summary structure:
 1. Open with a short <p> that captures the single most important thread running through today's coverage — one or two sentences, punchy and direct.
 2. For each theme, write an <h3> with the theme name, followed by a <p> that expands on the key stories, names specific sources or figures mentioned, and surfaces any emerging trends or counter-narratives. Aim for 2-4 sentences per theme.
 3. Close with an <h3>Worth watching</h3> section: a <ul> with 2-3 bullet points flagging developing stories, contrarian signals, or cross-theme patterns the reader should track.
@@ -541,17 +552,34 @@ Tone: Authoritative but conversational — like The Economist meets Morning Brew
         }
       ],
       temperature: 0.7,
-      max_completion_tokens: 1500,
+      max_completion_tokens: 1700,
     }, cfg) as any);
 
-    const content = completion.choices[0]?.message?.content?.trim() || '';
-    if (!content) {
+    const raw = completion.choices[0]?.message?.content?.trim() || '';
+    if (!raw) {
       console.warn('⚠️  Daily summary returned empty.', JSON.stringify({
         finishReason: completion.choices[0]?.finish_reason,
         usage: completion.usage
       }));
+      return { headline: '', summary: '' };
     }
-    return content;
+
+    const cleaned = raw
+      .replace(/^```json\s*\n?/i, '')
+      .replace(/\n?```\s*$/i, '')
+      .trim();
+
+    try {
+      const parsed = JSON.parse(cleaned);
+      const headline = typeof parsed.headline === 'string' ? parsed.headline.trim() : '';
+      const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
+      return { headline, summary };
+    } catch (parseErr: any) {
+      // Older prompt format returned bare HTML. If JSON.parse fails, treat
+      // the whole response as the summary body so we don't lose it.
+      console.warn(`Daily summary JSON parse failed (${parseErr?.message ?? 'unknown'}); falling back to raw HTML.`);
+      return { headline: '', summary: cleaned };
+    }
   } catch (error: any) {
     if (error instanceof ProviderConfigError) {
       console.error(`LLM provider config error (${error.code}): ${error.message}`);
@@ -559,7 +587,7 @@ Tone: Authoritative but conversational — like The Economist meets Morning Brew
       console.error(`Error generating daily summary: ${error?.message || error}`);
       if (error?.status) console.error(`LLM HTTP status: ${error.status}`);
     }
-    return '';
+    return { headline: '', summary: '' };
   }
 }
 

@@ -273,3 +273,10 @@ CREATE TABLE IF NOT EXISTS article_tags (
 );
 CREATE INDEX IF NOT EXISTS idx_article_tags_tag ON article_tags (tag_id);
 CREATE INDEX IF NOT EXISTS idx_article_tags_email ON article_tags (digest_email_id);
+
+-- thematic_digests.headline: LLM-generated newspaper-style banner for the
+-- daily meta-summary card + ArticleView. Sharp, focused, ≤80 chars. Replaces
+-- the static "Your Daily Intelligence Brief" duplicate. Nullable — pre-feature
+-- rows fall back to the first section theme name on render.
+ALTER TABLE thematic_digests
+  ADD COLUMN IF NOT EXISTS headline TEXT;
