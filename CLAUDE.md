@@ -800,27 +800,20 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 06/05/2026, 12:58:38
+**Last Updated:** 08/05/2026, 11:20:49
 
 ### Active Todos
-- [ ] [high] New Conversation starts every time the main screen is viewed. (`main`)
-- [ ] [high] Not connecting on remote box to Ollama (`main`)
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
 - [ ] [high] [TEEPER-206] Proxy + cache hero/article images locally instead of hot-linking publisher CDNs (architectural follow-up to 2026-04-26 SLI tracker incident) https://linear.app/teemo-personal-projects/issue/TEEPER-206 (`main`)
 - [ ] [high] Per-user 03:00 local digest scheduling: change Celery beat to hourly tick; generate_daily_digests filters to users where now-in-their-TZ ∈ [03:00, 04:00) and no digest yet today (idempotency cursor). Users with no TZ continue at global 03:00 UTC. Depends on the timezone-storage todo. (`main`)
 - [ ] [high] Investigate and resolve tsx-in-image blocking issues for TEEPER-186/190 sender-parse backfill (`main`)
 - [ ] [high] Implement per-user 03:00-local digest scheduling using the newly deployed timezone storage foundation (`main`)
-- [ ] [high] Execute the subscriptions backfill script on production environment as mentioned in TEEPER-186 (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
 - [ ] [medium] [TEEPER-49] Debug CSS specificity + next-themes integration timing issues (ui-overhaul branch — FOUC, theme flicker, Tailwind overrides). https://linear.app/teemo-personal-projects/issue/TEEPER-49 (`main`)
 - [ ] [medium] Monitor production performance after HTTP timeout increase to validate the 300s setting (`main`)
 - [ ] [medium] Wire up search bar — make Header search functional with results UI. Currently onSearch prop exists in Header.tsx but is never wired to a backend query. Needs: debounced search query against /api/digest or similar endpoint, results dropdown or page, navigation to matching article/digest. (`main`)
-- [ ] [medium] Improve keyword + tagging in articles — current topics/keywords are noisy or generic. Review AI prompt for keyword extraction in data-server, improve quality/relevance of tags shown on article cards and in ArticleView. (`main`)
-- [ ] [medium] Tag filtering — allow clicking a tag on an article card or in ArticleView to filter/search by that tag. Show all articles across history that share the tag. Related to search bar todo and keyword improvement todo. (`main`)
-- [ ] [medium] Add integration tests for MCP tool handlers and server startup (`main`)
-- [ ] [medium] Admin Management Clean Up (`main`)
 - [ ] [medium] Smart sender parsing v2: LLM Layer-3 classification — DeepSeek fallback when publications registry + keyword heuristics both miss. One API call per new subscription_key, cached forever on subscriptions.categorySource='llm' + categoryConfidence. Reuse services/data-server/src/services/llm/provider.ts. (`feature/sender-parse`)
 - [ ] [medium] Smart sender parsing v2: ESP-specific header parsers — Feedback-ID (SparkPost/Amazon SES), X-Mailgun-Variables (Mailgun/Substack), X-SG-EID + X-Campaign (SendGrid), BIMI-Selector, DKIM d=. Extends resolveSubscription to Tiers 2-4 alongside existing List-Id (Tier 1) + from address (Tier 5). (`feature/sender-parse`)
 - [ ] [medium] Smart sender parsing v2: subject-prefix learning (Tier 4) — detect stable subject prefixes (e.g. "DealBook:", "[Stratechery]", "NYT Cooking — ") after ≥3 messages from the same sender and elevate (from_address + prefix) to a subscription key. (`feature/sender-parse`)
@@ -834,10 +827,12 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] [TEEPER-202] Anthropic key support in user-selectable LLM provider (extend provider.ts + settings UI + storage enum) https://linear.app/teemo-personal-projects/issue/TEEPER-202 (`main`)
 - [ ] [medium] [TEEPER-203] Local LLM support (Ollama / LM Studio) as user-selectable provider; diagnose remote-box → Ollama connection failure https://linear.app/teemo-personal-projects/issue/TEEPER-203 (`main`)
 - [ ] [medium] Monitor digest_emails dedup in prod for the next few days — confirm the partial unique index isn't blocking legit inserts (look for "addDigestEmail: insert was skipped but no canonical row found" thrown from data-server logs). If the daily 03:00 UTC cron runs cleanly Wed–Fri without that error and category-collection pages stay duplicate-free, this fix is durable. (`main`)
-- [ ] [medium] Commit or revert the modified CLAUDE.md file to clean the working tree (`main`)
+- [ ] [medium] Test the new meta-summary features across different digest sizes and categories (`main`)
+- [ ] [medium] Verify LLM-generated headlines are working correctly in production (`main`)
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
 - [ ] [low] Drop the 5 git stashes containing CLAUDE.md/manifest noise (`main`)
+- [ ] [low] Commit the CLAUDE.md documentation updates (`main`)
 
 <!-- DEVCTX:END -->
