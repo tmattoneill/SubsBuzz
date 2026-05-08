@@ -175,15 +175,21 @@ function thematicToView(
     categorySlug: e.categorySlugSnapshot ?? null,
   }));
 
-  const heroImage =
-    emails.find((e) => isGoodHeroUrl(e.heroImageUrl))?.heroImageUrl ??
-    getArticleHeroFallbackSync(manifest, "digest-cover", "16_9");
+  // Mirror thematicToHero's image/fallbackImage split so ArticleView's
+  // step-down chain (primary → fallback → gradient) actually has a fallback
+  // to step to. Earlier inline `?? manifest` collapsed both into `image`,
+  // and once the onLoad guard rejected the picked URL the article rendered
+  // with no hero at all.
+  const primaryImage =
+    emails.find((e) => isGoodHeroUrl(e.heroImageUrl))?.heroImageUrl ?? null;
+  const fallbackImage = getArticleHeroFallbackSync(manifest, "digest-cover", "16_9");
 
   return {
     id: `thematic-${d.id}`,
     title: resolveMetaHeadline(d),
     content,
-    image: heroImage,
+    image: primaryImage,
+    fallbackImage,
     topic: "Meta Summary",
     date: d.date,
     readTime: computeReadTime(d.dailySummary),
