@@ -357,7 +357,34 @@ async def oauth_callback(request: OAuthCallbackRequest):
                 )
             
             tokens = token_response.json()
-            
+
+            # Reject if Gmail scope wasn't granted. Google's consent screen lets
+            # users uncheck individual permissions; without at least gmail.readonly
+            # the worker cannot read any email and the app is useless.
+            granted_scopes = set((tokens.get("scope") or "").split())
+            gmail_scopes = {
+                "https://www.googleapis.com/auth/gmail.readonly",
+                "https://www.googleapis.com/auth/gmail.modify",
+                "https://www.googleapis.com/auth/gmail.labels",
+                "https://mail.google.com/",
+            }
+            if not granted_scopes & gmail_scopes:
+                logger.warning(
+                    f"OAuth callback rejected: no Gmail scope granted. "
+                    f"Granted: {granted_scopes}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "code": "insufficient_gmail_scope",
+                        "message": (
+                            "Gmail access was not granted. SubsBuzz needs permission "
+                            "to read your emails. Please sign in again and accept all "
+                            "permissions when prompted."
+                        ),
+                    },
+                )
+
             # Get user info from Google
             user_info_response = await client.get(
                 "https://www.googleapis.com/oauth2/v2/userinfo",

@@ -147,11 +147,17 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // FastAPI wraps HTTPException detail as {"detail": ...}; it can be a string
+    // or an object with code/message when we raise with a dict detail.
+    const data = error.response?.data ?? {};
+    const detail = typeof data.detail === 'object' && data.detail !== null ? data.detail : {};
+    const detailMessage = typeof data.detail === 'string' ? data.detail : undefined;
+
     // Transform error for consistent handling
     const apiError: ApiError = {
-      code: error.response?.data?.code || 'UNKNOWN_ERROR',
-      message: error.response?.data?.message || error.message || 'An unexpected error occurred',
-      details: error.response?.data?.details,
+      code: data.code || detail.code || 'UNKNOWN_ERROR',
+      message: data.message || detail.message || detailMessage || error.message || 'An unexpected error occurred',
+      details: data.details,
       status: error.response?.status,
     };
 

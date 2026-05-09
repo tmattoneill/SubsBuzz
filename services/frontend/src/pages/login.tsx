@@ -1,13 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { resolvePostLoginRoute } from '@/lib/post-login-route';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { LegalModal } from '@/components/legal/LegalModal';
 
 export default function Login() {
   const { user, isLoading, error, signIn } = useAuth();
   const [, setLocation] = useLocation();
+  const isMobile = useIsMobile();
+  const [legalOpen, setLegalOpen] = useState<'tos' | 'privacy' | null>(null);
+
+  const urlError = new URLSearchParams(window.location.search).get('error');
+  const gmailScopeRequired = urlError === 'gmail_scope_required';
 
   // Already-authenticated revisit — route to the right place per post-login
   // rules (first login / no digests / has digest). Same logic as auth-callback.
@@ -44,6 +51,11 @@ export default function Login() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {gmailScopeRequired && (
+              <div className="bg-red-50 border border-red-200 p-4 rounded-md text-red-700 text-sm">
+                <strong>Gmail access not granted.</strong> SubsBuzz needs permission to read your nominated emails. Please sign in again and accept all permissions when Google asks.
+              </div>
+            )}
             {error && (
               <div className="bg-red-50 p-4 rounded-md text-red-500 text-sm">
                 {error}
@@ -92,10 +104,19 @@ export default function Login() {
       </Card>
       <p className="text-xs text-gray-400">
         By signing in you agree to our{' '}
-        <Link href="/tos" className="underline hover:text-gray-600">Terms of Service</Link>
+        {isMobile ? (
+          <Link href="/tos" className="underline hover:text-gray-600">Terms of Service</Link>
+        ) : (
+          <button onClick={() => setLegalOpen('tos')} className="underline hover:text-gray-600">Terms of Service</button>
+        )}
         {' '}and{' '}
-        <Link href="/privacy" className="underline hover:text-gray-600">Privacy Policy</Link>
+        {isMobile ? (
+          <Link href="/privacy" className="underline hover:text-gray-600">Privacy Policy</Link>
+        ) : (
+          <button onClick={() => setLegalOpen('privacy')} className="underline hover:text-gray-600">Privacy Policy</button>
+        )}
       </p>
+      <LegalModal type={legalOpen} onClose={() => setLegalOpen(null)} />
     </div>
   );
 }

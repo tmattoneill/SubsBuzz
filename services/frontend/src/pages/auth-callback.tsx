@@ -48,6 +48,12 @@ const AuthCallback: React.FC = () => {
 
       } catch (error: any) {
         console.error('OAuth callback error:', error);
+
+        if (error?.code === 'insufficient_gmail_scope') {
+          setLocation('/login?error=gmail_scope_required');
+          return;
+        }
+
         toast({
           title: "Authentication Failed",
           description: error.message || "Failed to complete authentication. Please try again.",
