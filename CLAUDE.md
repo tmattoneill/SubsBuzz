@@ -799,8 +799,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
-**Branch:** `static/tos`
-**Last Updated:** 08/05/2026, 13:41:57
+**Branch:** `main`
+**Last Updated:** 09/05/2026, 23:39:04
 
 ### Active Todos
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
@@ -809,6 +809,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] Investigate and resolve tsx-in-image blocking issues for TEEPER-186/190 sender-parse backfill (`main`)
 - [ ] [high] Implement per-user 03:00-local digest scheduling using the newly deployed timezone storage foundation (`main`)
 - [ ] [high] Review and commit or discard the modified services/frontend/public/article-heroes/manifest.json file (`static/tos`)
+- [ ] [high] Monitor Geoffrey Craig's and Bethan Crockett's digest generation over next 2-3 days to confirm auth fix is working (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
@@ -832,11 +833,15 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Verify LLM-generated headlines are working correctly in production (`main`)
 - [ ] [medium] Push static/tos branch to remote repository (`static/tos`)
 - [ ] [medium] Merge static/tos branch to main after review (`static/tos`)
+- [ ] [medium] Add unit tests for the OAuth scope validation logic in oauth_callback endpoint (`main`)
+- [ ] [medium] Check for other users who might have insufficient Gmail scopes and need token revocation (`main`)
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
 - [ ] [low] Drop the 5 git stashes containing CLAUDE.md/manifest noise (`main`)
 - [ ] [low] Commit the CLAUDE.md documentation updates (`main`)
 - [ ] [low] Create a Privacy Policy page to complement the new Terms of Service (`static/tos`)
+- [ ] [low] Clean up merged static/tos and static/privacy-policy branches (`main`)
+- [ ] [low] Document the OAuth scope validation fix in CLAUDE.md under authentication section (`main`)
 
 <!-- DEVCTX:END -->
