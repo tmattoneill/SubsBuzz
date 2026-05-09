@@ -93,6 +93,8 @@ export default function Login() {
       <p className="text-xs text-gray-400">
         By signing in you agree to our{' '}
         <Link href="/tos" className="underline hover:text-gray-600">Terms of Service</Link>
+        {' '}and{' '}
+        <Link href="/privacy" className="underline hover:text-gray-600">Privacy Policy</Link>
       </p>
     </div>
   );

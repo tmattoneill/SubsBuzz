@@ -130,9 +130,12 @@ export default function TermsOfService() {
             </p>
           </section>
 
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-800 flex gap-6">
             <Link href="/login" className="text-sm text-primary hover:underline">
               &larr; Back to sign in
+            </Link>
+            <Link href="/privacy" className="text-sm text-primary hover:underline">
+              Privacy Policy
             </Link>
           </div>
         </div>

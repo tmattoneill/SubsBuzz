@@ -18,6 +18,7 @@ import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import AuthCallback from "@/pages/auth-callback";
 import TermsOfService from "@/pages/tos";
+import PrivacyPolicy from "@/pages/privacy";
 import { DeepSeekMigrationModal } from "@/components/settings/DeepSeekMigrationModal";
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/auth/callback" component={AuthCallback} />
       <Route path="/tos" component={TermsOfService} />
+      <Route path="/privacy" component={PrivacyPolicy} />
       <Route component={NotFound} />
     </Switch>
   );
