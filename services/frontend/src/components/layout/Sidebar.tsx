@@ -26,6 +26,7 @@ import {
 import { useAuth } from "@/lib/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCategories } from "@/hooks/useCategories";
+import { LegalModal } from "@/components/legal/LegalModal";
 
 const navItems = [
   {
@@ -76,6 +77,7 @@ export function Sidebar() {
   const { user, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [legalOpen, setLegalOpen] = useState<'tos' | 'privacy' | null>(null);
   const { data: categories = [] } = useCategories();
 
   const { data: settingsData } = useQuery<any>({
@@ -174,6 +176,30 @@ export function Sidebar() {
           </Button>
         </div>
       </div>
+
+      <div className="mt-3 flex gap-3 px-1">
+        {isMobile ? (
+          <>
+            <Link href="/tos" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Terms
+            </Link>
+            <Link href="/privacy" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Privacy
+            </Link>
+          </>
+        ) : (
+          <>
+            <button onClick={() => setLegalOpen('tos')} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Terms
+            </button>
+            <button onClick={() => setLegalOpen('privacy')} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Privacy
+            </button>
+          </>
+        )}
+      </div>
+
+      <LegalModal type={legalOpen} onClose={() => setLegalOpen(null)} />
 
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <AlertDialogContent>
