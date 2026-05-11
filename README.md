@@ -11,7 +11,7 @@ SubsBuzz automatically processes emails from monitored senders, uses OpenAI to g
 - **Email Monitoring** — configure specific senders to watch
 - **AI-Powered Analysis** — OpenAI GPT-4o-mini summarization and topic extraction
 - **Thematic Digests** — 3-stage pipeline for narrative-style, theme-based summaries
-- **Daily Automation** — Celery workers generate digests on schedule
+- **Daily Automation** — Celery workers generate per-user digests at 03:00 in each user's local timezone
 - **Gmail OAuth 2.0** — multi-user support with per-user token management
 - **Modern UI** — React dashboard with light/dark theme, calendar history, responsive design
 
@@ -120,7 +120,7 @@ NO_CACHE=1 ./promote.sh
 ```
 Use only when a dependency has genuinely corrupted or a base image needs refreshing. Repeated `--no-cache` rebuilds are what filled the server disk in April 2026 (see commit history).
 
-**Dev email-worker runs continuously, but with Celery Beat disabled.** `docker-compose.dev.yml` overrides the Dockerfile CMD to run `celery worker` without `--beat`, so dev doesn't fire the 03:00 UTC daily-digest cron (prod's worker — always-on with `--beat` — handles that). Manual "Generate Digest" clicks from the dev UI are still consumed by the dev worker.
+**Dev email-worker runs continuously, but with Celery Beat disabled.** `docker-compose.dev.yml` overrides the Dockerfile CMD to run `celery worker` without `--beat`, so dev doesn't fire the daily-digest cron (prod's worker — always-on with `--beat` — handles that). Prod uses an **hourly tick + per-user timezone filter**: the task self-filters to users whose local time is in the 03:00 hour. Manual "Generate Digest" clicks from the dev UI are still consumed by the dev worker.
 
 Watch dev worker logs:
 ```bash

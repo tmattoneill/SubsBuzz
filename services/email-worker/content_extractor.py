@@ -985,14 +985,20 @@ class ContentExtractor:
             filename = f"{self._sha256_bytes(image_bytes)}{ext}"
             filepath = os.path.join(cache_dir, filename)
 
-            if not os.path.exists(filepath):
-                with open(filepath, 'wb') as f:
+            try:
+                # 'xb' is atomic-create: O_CREAT|O_EXCL. Avoids torn writes if
+                # the worker crashes mid-write, and avoids the TOCTOU window
+                # between os.path.exists and open(wb). sha256-named so a
+                # concurrent winner's contents are byte-identical to ours.
+                with open(filepath, 'xb') as f:
                     f.write(image_bytes)
                 os.chmod(filepath, 0o644)  # readable by nginx non-root user
                 print(f"✅ Hero cached: {filename} ({len(image_bytes)} bytes)")
+            except FileExistsError:
+                pass
 
             return f"/hero-cache/{filename}"
-        except Exception as e:
+        except (OSError, IOError) as e:
             print(f"⚠️  Hero cache write failed for {original_url}: {e}")
             return None
 

@@ -111,7 +111,7 @@ ssh subsbuzz "cd ~/sites/dev.subsbuzz.com && \
 
 **Manual browser test:** open https://dev.subsbuzz.com, exercise the feature end-to-end. Dev uses the same Google OAuth app as prod, so you can sign in as yourself and verify login, settings, monitored emails, etc.
 
-**Testing Celery tasks on dev.** The dev worker runs continuously but with `--beat` disabled (so it won't fire the 03:00 UTC daily cron). Manual "Generate Digest" clicks from the UI are consumed live:
+**Testing Celery tasks on dev.** The dev worker runs continuously but with `--beat` disabled (so it won't fire the hourly per-user-TZ digest cron). Manual "Generate Digest" clicks from the UI are consumed live:
 ```bash
 # Watch worker logs while clicking "Generate Digest" in the dev UI
 ssh subsbuzz "docker logs -f subsbuzz-dev-email-worker-1"
@@ -217,7 +217,7 @@ ssh subsbuzz "docker exec subsbuzz-postgres-1 pg_dump -U postgres subsbuzz" > pr
 - **Two stacks on one server.** Dev at `/home/webdev/sites/dev.subsbuzz.com`, prod at `/home/webdev/sites/subsbuzz.com`. Container name prefixes `subsbuzz-dev-*` vs `subsbuzz-*`. Ports disjoint (5501/8001/3002 dev, 3000/8000/3001 prod). They coexist — dev work doesn't affect prod.
 - **`.env` files never live in git.** Always drift between your laptop and server. Check sha256 before every deploy.
 - **Prod email-worker is always on.** Dev's is opt-in.
-- **Daily digest fires at 03:00 UTC** on prod only. If you add monitored emails at 02:55 UTC, they're in tonight's digest. Otherwise, tomorrow night's.
+- **Daily digest fires at 03:00 in each user's local timezone** on prod only. Celery beat ticks hourly and `tasks._user_is_in_digest_window()` filters to users whose local hour is 3 (UTC fallback for users with no TZ). If you add monitored emails before your local 03:00, they're in tonight's digest. Otherwise, tomorrow night's.
 - **Schema changes live in two places.** Drizzle (`schema.ts`) for local dev + type safety; `migrate.sql` (raw SQL) for production apply. Keep both in sync or the next `promote.sh` will fail a healthcheck.
 - **OAuth tokens persist** in the DB for 30 days (session) + refresh indefinitely. Users don't need to re-log-in after deploys.
 - **gpt-5.4-nano defaults to reasoning mode.** Every OpenAI call in `services/data-server/src/services/openai.ts` passes `reasoning_effort: 'none'`. Without it, the model burns all of `max_completion_tokens` on internal reasoning and returns empty content — symptom is blank digests, no error. Symptom is easy to miss because the HTTP call itself succeeds. When adding a new OpenAI call or swapping models, decide per model whether reasoning mode still needs to be explicitly disabled.
