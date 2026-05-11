@@ -807,8 +807,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] [TEEPER-206] Proxy + cache hero/article images locally instead of hot-linking publisher CDNs (architectural follow-up to 2026-04-26 SLI tracker incident) https://linear.app/teemo-personal-projects/issue/TEEPER-206 (`main`)
 - [ ] [high] Per-user 03:00 local digest scheduling: change Celery beat to hourly tick; generate_daily_digests filters to users where now-in-their-TZ ∈ [03:00, 04:00) and no digest yet today (idempotency cursor). Users with no TZ continue at global 03:00 UTC. Depends on the timezone-storage todo. (`main`)
 - [ ] [high] Investigate and resolve tsx-in-image blocking issues for TEEPER-186/190 sender-parse backfill (`main`)
-- [ ] [high] Implement per-user 03:00-local digest scheduling using the newly deployed timezone storage foundation (`main`)
 - [ ] [high] Monitor Geoffrey Craig's and Bethan Crockett's digest generation over next 2-3 days to confirm auth fix is working (`main`)
+- [ ] [high] Implement per-user 03:00-local digest scheduling using the newly deployed timezone storage foundation (`main`)
 - [ ] [high] New Conversation starts every time the main screen is viewed. (`main`)
 - [ ] [high] Not connecting on remote box to Ollama (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
@@ -845,7 +845,6 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
-- [ ] [low] Commit the CLAUDE.md documentation updates (`main`)
 - [ ] [low] Document the OAuth scope validation fix in CLAUDE.md under authentication section (`main`)
 
 <!-- DEVCTX:END -->
