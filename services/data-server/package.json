@@ -16,7 +16,8 @@
     "health": "curl -f http://localhost:3001/health || exit 1",
     "test:unit": "tsx src/services/llm/provider.test.ts && tsx src/services/subscriptions.test.ts",
     "test": "npm run test:unit",
-    "backfill:subscriptions": "tsx src/scripts/backfill-subscriptions.ts"
+    "backfill:subscriptions": "tsx src/scripts/backfill-subscriptions.ts",
+    "backfill:subscriptions:prod": "node dist/scripts/backfill-subscriptions.js"
   },
   "dependencies": {
     "celery-node": "^0.5.9",

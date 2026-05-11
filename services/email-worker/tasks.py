@@ -9,8 +9,9 @@ import asyncio
 import logging
 import httpx
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import List, Dict, Any, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from celery import Celery
 from dotenv import load_dotenv
 
@@ -140,6 +141,26 @@ def generate_daily_digests(self):
         logger.error("Daily digest generation failed: %s", exc, exc_info=True)
         raise self.retry(exc=exc)
 
+def _user_is_in_digest_window(user_timezone: str | None) -> tuple[bool, str]:
+    """
+    Returns (should_process, local_date_str).
+
+    Digest window: local hour == 3 (03:00–03:59).
+    - With a valid IANA timezone: process only when the user's local hour is 3.
+    - Without a timezone (or invalid): fall through only at UTC 03:00, preserving
+      the original behaviour for users who haven't set a timezone.
+    """
+    now_utc = datetime.now(tz=dt_timezone.utc)
+    if user_timezone:
+        try:
+            tz = ZoneInfo(user_timezone)
+            now_local = now_utc.astimezone(tz)
+            return now_local.hour == 3, now_local.strftime('%Y-%m-%d')
+        except (ZoneInfoNotFoundError, KeyError):
+            logger.warning("Unknown timezone '%s' for user — falling back to UTC", user_timezone)
+    return now_utc.hour == 3, now_utc.strftime('%Y-%m-%d')
+
+
 async def _generate_daily_digests_async():
     """Async implementation of daily digest generation"""
     try:
@@ -162,6 +183,15 @@ async def _generate_daily_digests_async():
                     logger.info("Skipping user=%s: daily digest disabled", user_id)
                     continue
 
+                # Per-user timezone window: only process when it is currently
+                # 03:xx in the user's local time. Users with no timezone are
+                # processed at UTC 03:00 (original behaviour preserved).
+                user_tz = settings.get('timezone')
+                in_window, local_date_str = _user_is_in_digest_window(user_tz)
+                if not in_window:
+                    logger.debug("Skipping user=%s: not in digest window (tz=%s)", user_id, user_tz)
+                    continue
+
                 # Skip users whose OAuth refresh token Google has revoked. They
                 # need to re-consent in the app — until they do, every fetch
                 # would just hit invalid_grant. The frontend banner prompts
@@ -173,7 +203,7 @@ async def _generate_daily_digests_async():
                     continue
 
                 # Process emails for this user
-                result = await process_user_emails_async(user_id)
+                result = await process_user_emails_async(user_id, local_date=local_date_str)
                 results.append({
                     'user_id': user_id,
                     'status': 'success',
@@ -222,7 +252,7 @@ def process_user_emails(self, user_id: str, force: bool = False):
         logger.error("Email processing failed user=%s: %s", user_id, exc, exc_info=True)
         raise self.retry(exc=exc)
 
-async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[str, Any]:
+async def process_user_emails_async(user_id: str, force: bool = False, local_date: str | None = None) -> Dict[str, Any]:
     """Async implementation of user email processing"""
     try:
         # Idempotency guard: skip if a digest already exists for today (UTC).
@@ -236,7 +266,7 @@ async def process_user_emails_async(user_id: str, force: bool = False) -> Dict[s
         # force=True bypasses this check — user explicitly confirmed a re-run
         # in the UI after being warned about additional token usage.
         if not force:
-            today_str = datetime.utcnow().strftime('%Y-%m-%d')
+            today_str = local_date if local_date else datetime.utcnow().strftime('%Y-%m-%d')
             try:
                 await data_server.get(f'/api/storage/email-digest/{user_id}/date/{today_str}')
                 logger.info("Digest already exists user=%s date=%s — skipping", user_id, today_str)

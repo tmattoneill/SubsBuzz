@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy email worker source code
 COPY services/email-worker/ .
 
+# Create cache directory for hero images (volume mount overlays at runtime)
+RUN mkdir -p /cache/heroes && chmod 777 /cache/heroes
+
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash worker
 USER worker

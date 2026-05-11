@@ -19,5 +19,9 @@ Pillow==10.4.0
 # never imports psycopg2 — DB access in tasks goes through the data-server.
 psycopg2-binary==2.9.10
 
+# IANA timezone database for zoneinfo (stdlib) on python:*-slim images where
+# /usr/share/zoneinfo is absent. Required for per-user local-time scheduling.
+tzdata==2024.1
+
 # Dev / test — harmless in prod but only exercised by pytest
 pytest==8.3.3

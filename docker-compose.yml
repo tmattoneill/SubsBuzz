@@ -12,6 +12,8 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+    volumes:
+      - hero_image_cache:/cache/heroes:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
@@ -85,6 +87,8 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+    volumes:
+      - hero_image_cache:/cache/heroes
     depends_on:
       redis:
         condition: service_healthy
@@ -127,6 +131,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  hero_image_cache:
     driver: local
 
 networks:

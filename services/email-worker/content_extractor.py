@@ -5,6 +5,7 @@ Handles email content extraction and preprocessing.
 Extracted from server/gmail.ts with Python implementation using BeautifulSoup.
 """
 
+import os
 import re
 import asyncio
 import hashlib
@@ -595,6 +596,10 @@ class ContentExtractor:
     _HERO_COUNTER_THRESHOLD = 3
     _HERO_COUNTER_TTL_SECONDS = 90 * 24 * 3600
 
+    # Local cache directory for hero images. Mounted as a Docker volume shared
+    # with the frontend nginx container, which serves /hero-cache/ from here.
+    HERO_CACHE_DIR = os.environ.get('HERO_CACHE_DIR', '/cache/heroes')
+
     # IAB standard banner-ad dimensions (w, h). Images declared at these exact
     # sizes are almost never editorial heroes — they're display-ad creative
     # slotted into the newsletter (T-Mobile 728x90, Paramount 728x90, etc.).
@@ -904,12 +909,12 @@ class ContentExtractor:
             return None
 
         if not sender_domain:
-            return url
+            return self._cache_hero_image(url, image_bytes) or url
 
         static_denylist = self._placeholder_hashes_for_domain(sender_domain)
         phase3_enabled = self._redis is not None
         if not static_denylist and not phase3_enabled:
-            return url
+            return self._cache_hero_image(url, image_bytes) or url
 
         digest = self._sha256_bytes(image_bytes)
 
@@ -921,7 +926,7 @@ class ContentExtractor:
             print(f"⚠️  Hero rejected (recurring across publisher): {url}")
             return None
 
-        return url
+        return self._cache_hero_image(url, image_bytes) or url
 
     async def _counter_says_deny(self, sender_domain: str, digest: str) -> bool:
         """Atomic INCR+EXPIRE for (sender_domain, sha256); returns True once
@@ -956,6 +961,40 @@ class ContentExtractor:
     @staticmethod
     def _sha256_bytes(data: bytes) -> str:
         return hashlib.sha256(data).hexdigest()
+
+    def _cache_hero_image(self, original_url: str, image_bytes: bytes) -> Optional[str]:
+        """Write image bytes to a content-addressed local cache and return the
+        local serving path (/hero-cache/<sha256>.<ext>).
+
+        Content-addressed by sha256 of the bytes, so duplicate images across
+        senders deduplicate automatically and re-fetching the same image is
+        idempotent. Returns None on any write failure — caller falls back to
+        the original CDN URL.
+        """
+        try:
+            cache_dir = self.HERO_CACHE_DIR
+            os.makedirs(cache_dir, exist_ok=True)
+
+            ext = '.jpg'
+            url_path = original_url.lower().split('?')[0]
+            for candidate in ('.webp', '.png', '.gif', '.jpg', '.jpeg'):
+                if url_path.endswith(candidate):
+                    ext = '.jpg' if candidate == '.jpeg' else candidate
+                    break
+
+            filename = f"{self._sha256_bytes(image_bytes)}{ext}"
+            filepath = os.path.join(cache_dir, filename)
+
+            if not os.path.exists(filepath):
+                with open(filepath, 'wb') as f:
+                    f.write(image_bytes)
+                os.chmod(filepath, 0o644)  # readable by nginx non-root user
+                print(f"✅ Hero cached: {filename} ({len(image_bytes)} bytes)")
+
+            return f"/hero-cache/{filename}"
+        except Exception as e:
+            print(f"⚠️  Hero cache write failed for {original_url}: {e}")
+            return None
 
     async def _fetch_image_bytes(self, url: str) -> Optional[bytes]:
         """Fetch `url` and return the response body bytes, or None on failure.

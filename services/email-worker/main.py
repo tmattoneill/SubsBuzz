@@ -41,7 +41,7 @@ app.config_from_object({
     'beat_schedule': {
         'daily-digest-generation': {
             'task': 'tasks.generate_daily_digests',
-            'schedule': crontab(hour=3, minute=0),  # Daily at 3 AM UTC
+            'schedule': crontab(minute=0),  # Hourly tick; per-user TZ filtering in task
         },
         'refresh-oauth-tokens': {
             'task': 'tasks.refresh_oauth_tokens',
@@ -55,7 +55,7 @@ from tasks import generate_daily_digests, refresh_oauth_tokens, process_user_ema
 
 if __name__ == '__main__':
     logger.info("Starting Email Worker Service")
-    logger.info("Beat schedule: digest=daily@03:00UTC, token-refresh=every-6h")
+    logger.info("Beat schedule: digest=hourly-tick-with-TZ-filter, token-refresh=every-6h")
     logger.info("Available tasks: generate_daily_digests, refresh_oauth_tokens, process_user_emails, archive_email, scan_for_newsletters")
 
     # Start worker
