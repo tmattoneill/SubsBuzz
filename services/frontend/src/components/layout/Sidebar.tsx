@@ -102,10 +102,10 @@ export function Sidebar() {
 
   const sidebarSurface = (
     <aside className="flex h-full w-72 flex-col border-r border-sidebar-border bg-sidebar p-6">
-      <div className="mb-6">
+      <Link href="/digest" className="mb-6 inline-block hover:opacity-80 transition-opacity" aria-label="Go to latest digest">
         <img src="/logo-banner-bk.png" alt="SubsBuzz" className="h-auto w-44 object-contain dark:hidden" />
         <img src="/logo-banner-wt.png" alt="SubsBuzz" className="h-auto w-44 object-contain hidden dark:block" />
-      </div>
+      </Link>
 
       <ScrollArea className="flex-1">
         <nav className="space-y-1">
@@ -225,11 +225,13 @@ export function Sidebar() {
   return (
     <>
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background px-4 py-3">
-        <img
-          src="/logo.png"
-          alt="SubsBuzz"
-          className="h-9 w-9 rounded-lg object-contain"
-        />
+        <Link href="/digest" aria-label="Go to latest digest" className="hover:opacity-80 transition-opacity">
+          <img
+            src="/logo.png"
+            alt="SubsBuzz"
+            className="h-9 w-9 rounded-lg object-contain"
+          />
+        </Link>
         <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)}>
           <Menu className="h-5 w-5" />
         </Button>
