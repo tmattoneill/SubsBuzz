@@ -1020,10 +1020,16 @@ class ContentExtractor:
                 async with session.get(url, headers=headers) as resp:
                     if resp.status != 200:
                         return None
-                    body = await resp.content.read(self._HASH_FETCH_MAX_BYTES + 1)
-                    if len(body) > self._HASH_FETCH_MAX_BYTES:
-                        return None  # too large — almost certainly not a recurring placeholder
-                    return body
+                    # aiohttp's StreamReader.read(n) returns after one buffer
+                    # fill (often 16-32KB), NOT after accumulating n bytes.
+                    # Loop until we've drained the body or exceeded the cap.
+                    body = bytearray()
+                    cap = self._HASH_FETCH_MAX_BYTES
+                    async for chunk in resp.content.iter_chunked(64 * 1024):
+                        body.extend(chunk)
+                        if len(body) > cap:
+                            return None  # too large — likely not a hero
+                    return bytes(body)
         except Exception as e:
             print(f"⚠️  Hero image fetch failed for {url}: {e}")
             return None
