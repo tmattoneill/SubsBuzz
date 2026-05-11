@@ -61,12 +61,14 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
     <motion.article
       className="relative overflow-hidden rounded-2xl bg-card border border-border group cursor-pointer hover:ring-2 hover:ring-primary/30 transition-shadow"
     >
-      <div className="grid md:grid-cols-2 gap-0">
-        <div className="relative h-[400px] md:h-[500px] overflow-hidden">
+      <div className="grid lg:grid-cols-2 gap-0">
+        <div className="relative min-w-0 h-[260px] sm:h-[340px] lg:h-[500px] overflow-hidden">
           {displaySrc ? (
             <motion.img
               src={displaySrc}
               alt={article.title}
+              loading="eager"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
@@ -92,7 +94,7 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
           </div>
         </div>
 
-        <div className="p-8 md:p-12 flex flex-col justify-center">
+        <div className="min-w-0 p-6 sm:p-8 lg:p-12 flex flex-col justify-center">
           <div className="flex items-center gap-3 mb-6 text-sm text-muted-foreground font-body">
             <time>
               {new Date(article.date).toLocaleDateString('en-GB', {
@@ -107,7 +109,7 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
             </div>
           </div>
 
-          <h3 className="font-display text-4xl md:text-5xl font-bold mb-6 leading-tight">
+          <h3 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight break-words">
             {article.title}
           </h3>
 
