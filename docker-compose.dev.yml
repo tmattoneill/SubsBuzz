@@ -26,10 +26,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    volumes:
+      - hero_image_cache_dev:/cache/heroes:ro
     depends_on:
       api-gateway:
         condition: service_healthy
-    
+
   # API Gateway (Development Port: 8001)
   api-gateway:
     build: 
@@ -99,7 +101,7 @@ services:
   # Email Worker
   email-worker:
     # Dev intentionally runs worker-only (no --beat), so:
-    #   (a) the 03:00 UTC daily-digest cron does NOT fire in dev — prod's worker handles that.
+    #   (a) the hourly per-user-TZ digest cron does NOT fire in dev — prod's worker handles that.
     #   (b) manual "Generate Digest" clicks from the UI still land in Celery and get consumed.
     # Prod keeps the Dockerfile CMD (with --beat) via docker-compose.yml for its scheduled run.
     build:
@@ -121,9 +123,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     command: ["celery", "-A", "main", "worker", "--loglevel=info", "--concurrency=2"]
+    volumes:
+      - hero_image_cache_dev:/cache/heroes
     networks:
       - subsbuzz-dev-network
-    
+
   # PostgreSQL Database (Development Port: 5433)
   postgres:
     image: postgres:15-alpine
@@ -189,6 +193,9 @@ volumes:
   redis_dev_data:
     driver: local
     name: subsbuzz_dev_redis_data
+  hero_image_cache_dev:
+    driver: local
+    name: subsbuzz_dev_hero_image_cache
 
 # Isolated development network
 networks:
