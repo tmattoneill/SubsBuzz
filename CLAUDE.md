@@ -814,7 +814,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 11/05/2026, 11:13:38
+**Last Updated:** 12/05/2026, 08:50:08
 
 ### Active Todos
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
@@ -822,9 +822,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] Per-user 03:00 local digest scheduling: change Celery beat to hourly tick; generate_daily_digests filters to users where now-in-their-TZ ∈ [03:00, 04:00) and no digest yet today (idempotency cursor). Users with no TZ continue at global 03:00 UTC. Depends on the timezone-storage todo. (`main`)
 - [ ] [high] Investigate and resolve tsx-in-image blocking issues for TEEPER-186/190 sender-parse backfill (`main`)
 - [ ] [high] Monitor Geoffrey Craig's and Bethan Crockett's digest generation over next 2-3 days to confirm auth fix is working (`main`)
-- [ ] [high] Implement per-user 03:00-local digest scheduling using the newly deployed timezone storage foundation (`main`)
-- [ ] [high] New Conversation starts every time the main screen is viewed. (`main`)
-- [ ] [high] Not connecting on remote box to Ollama (`main`)
+- [ ] [high] Monitor hero image cache performance in production over the next 24-48 hours to validate the aiohttp stream fix resolves truncation issues (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)
@@ -850,12 +848,8 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Check for other users who might have insufficient Gmail scopes and need token revocation (`main`)
 - [ ] [medium] Tag filtering — allow clicking a tag on an article card or in ArticleView to filter/search by that tag. Show all articles across history that share the tag. Related to search bar todo and keyword improvement todo. (`main`)
 - [ ] [medium] Improve keyword + tagging in articles — current topics/keywords are noisy or generic. Review AI prompt for keyword extraction in data-server, improve quality/relevance of tags shown on article cards and in ArticleView. (`main`)
-- [ ] [medium] Show modal when 'Generate Digest' is clicked without an active OpenAI API key (`main`)
-- [ ] [medium] Add unit tests for OpenAI reasoning_effort parameter handling (`main`)
-- [ ] [medium] Support Gmail labels in addition to sender addresses for email monitoring (`main`)
-- [ ] [medium] Debug CSS specificity and next-themes integration timing issues (`main`)
-- [ ] [medium] Add integration tests for MCP tool handlers and server startup (`main`)
-- [ ] [medium] Admin Management Clean Up (`main`)
+- [ ] [medium] Verify nginx /hero-cache/ location precedence is working correctly in production by checking image serve responses (`main`)
+- [ ] [medium] Test hero image display quality across different screen sizes to confirm the responsive design fixes are working (`main`)
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
