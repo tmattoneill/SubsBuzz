@@ -59,14 +59,12 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-subsbuzz}
+      - DATABASE_URL=${DATABASE_URL}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -96,24 +94,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  postgres:
-    # Not publishing 5432 to host — the host already runs a native postgresql cluster.
-    # Internal docker network access (postgres:5432) is all other containers need.
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=subsbuzz
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d subsbuzz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   redis:
     # Not publishing 6379 to host — only other containers use redis, via redis:6379 internal hostname.
     image: redis:7-alpine
@@ -128,8 +108,6 @@ services:
     command: redis-server --appendonly yes
 
 volumes:
-  postgres_data:
-    driver: local
   redis_data:
     driver: local
   hero_image_cache:
