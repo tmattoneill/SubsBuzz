@@ -809,12 +809,12 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 
 > **IMPORTANT:** When starting a new conversation, greet the user with a brief summary of the project context below — current focus, branch, and any active todos. Keep it to 2-3 sentences. Do not skip this greeting.
 
-**Current Focus:** Hero-image quality + digest_emails dedup shipped to dev + prod (commits c29cd13, c6655df). Watch dedup cron behaviour Wed-Fri; next pickable threads: subscriptions backfill on prod (TEEPER-186), per-user 03:00-local digest scheduling (TZ foundation already deployed), TEEPER-203 Ollama remote-box connection.
+**Current Focus:** Neon Phase 1 complete — both dev and prod running on Neon managed Postgres, postgres containers removed. Next: Phase 2 (Cloudflare R2 for hero images, TEEPER-206), or pick up any other active todo.
 
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 12/05/2026, 08:50:08
+**Last Updated:** 6/5/2026, 12:40:41 PM
 
 ### Active Todos
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
@@ -854,5 +854,6 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
 - [ ] [low] Document the OAuth scope validation fix in CLAUDE.md under authentication section (`main`)
+- [ ] [low] Nuke old postgres Docker volumes on server: `ssh subsbuzz "docker volume rm postgres_data subsbuzz_dev_postgres_data"` — safe to delete Tuesday 2026-06-10, Neon Phase 1 confirmed stable on both dev and prod (`main`)
 
 <!-- DEVCTX:END -->
