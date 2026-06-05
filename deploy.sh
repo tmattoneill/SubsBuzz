@@ -144,13 +144,8 @@ EOF
 
 # ── 9. DB migrations (idempotent — safe to re-run every deploy) ───────────────
 info "Running DB migrations..."
-ssh "$SSH_ALIAS" bash <<EOF
-    set -euo pipefail
-    cd "$REMOTE_DIR"
-    docker compose exec -T postgres psql -U postgres -d subsbuzz_dev \
-        < infrastructure/postgres/migrate.sql \
-        && echo "✓ Migrations applied"
-EOF
+MIGRATE_DB_URL=$(grep '^DATABASE_URL=' "$LOCAL_ENV_FILE" | cut -d= -f2-)
+psql "$MIGRATE_DB_URL" < infrastructure/postgres/migrate.sql && echo "✓ Migrations applied"
 
 # ── 10. Health checks ─────────────────────────────────────────────────────────
 info "Health checks (retrying up to 12 × 5s = 60s per service)..."
