@@ -13,6 +13,7 @@ services:
       args:
         - VITE_API_URL=https://dev.subsbuzz.com
         - VITE_APP_URL=https://dev.subsbuzz.com
+        - VITE_HERO_CDN_URL=${VITE_HERO_CDN_URL}
     ports:
       - "5501:3000"  # External 5501 -> Internal 3000
     environment:

@@ -47,6 +47,16 @@ export function isGoodHeroUrl(url: string | null | undefined): boolean {
   return !HERO_URL_REJECT.test(url);
 }
 
+const HERO_CDN = import.meta.env.VITE_HERO_CDN_URL ?? '';
+
+export function getHeroImageSrc(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (HERO_CDN && url.startsWith('/hero-cache/')) {
+    return `${HERO_CDN}${url}`;
+  }
+  return url;
+}
+
 let manifestPromise: Promise<HeroManifest | null> | null = null;
 
 function pickRandom<T>(arr: T[]): T | undefined {

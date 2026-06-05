@@ -5,6 +5,7 @@ import { sanitizeHtml } from '@/lib/sanitize-html';
 import {
   MIN_HERO_NATURAL_WIDTH,
   HERO_BANNER_RATIO_THRESHOLD,
+  getHeroImageSrc,
 } from '@/lib/article-heroes';
 
 export interface HeroArticleData {
@@ -40,10 +41,11 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
   const candidates = [article.image, article.fallbackImage].filter(
     (u): u is string => typeof u === 'string' && u.length > 0 && !rejectedRef.current.has(u),
   );
-  const displaySrc = candidates[0] ?? null;
+  const rawSrc = candidates[0] ?? null;
+  const displaySrc = getHeroImageSrc(rawSrc);
 
   const handleError = () => {
-    if (displaySrc) bumpError(displaySrc);
+    if (rawSrc) bumpError(rawSrc);
   };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -53,7 +55,7 @@ export function HeroArticle({ article, onRead }: HeroArticleProps) {
       img.naturalWidth / img.naturalHeight > HERO_BANNER_RATIO_THRESHOLD;
     const lowRes = img.naturalWidth < MIN_HERO_NATURAL_WIDTH;
     if (banner || lowRes) {
-      if (displaySrc) bumpError(displaySrc);
+      if (rawSrc) bumpError(rawSrc);
     }
   };
 

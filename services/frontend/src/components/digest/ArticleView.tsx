@@ -9,6 +9,7 @@ import { RecategoriseMenu } from '@/components/digest/RecategoriseMenu';
 import {
   MIN_HERO_NATURAL_WIDTH,
   HERO_BANNER_RATIO_THRESHOLD,
+  getHeroImageSrc,
 } from '@/lib/article-heroes';
 import { tagSlug } from '@/lib/tag-slug';
 
@@ -179,10 +180,11 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
   const candidates = [article.image, article.fallbackImage].filter(
     (u): u is string => Boolean(u) && !rejectedRef.current.has(u),
   );
-  const displaySrc = candidates[0] ?? null;
+  const rawSrc = candidates[0] ?? null;
+  const displaySrc = getHeroImageSrc(rawSrc);
 
   const handleError = () => {
-    if (displaySrc) bumpError(displaySrc);
+    if (rawSrc) bumpError(rawSrc);
   };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -192,7 +194,7 @@ export function ArticleView({ article, onBack }: ArticleViewProps) {
       img.naturalWidth / img.naturalHeight > HERO_BANNER_RATIO_THRESHOLD;
     const lowRes = img.naturalWidth < MIN_HERO_NATURAL_WIDTH;
     if (banner || lowRes) {
-      if (displaySrc) bumpError(displaySrc);
+      if (rawSrc) bumpError(rawSrc);
     }
   };
 
