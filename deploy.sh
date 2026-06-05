@@ -110,7 +110,8 @@ EOF
 
 # ── 5. rsync .env.dev → .env ─────────────────────────────────────────────────
 info "rsync $LOCAL_ENV_FILE → $REMOTE_DIR/$REMOTE_ENV_FILE"
-rsync -av --chmod=F600 "$LOCAL_ENV_FILE" "$SSH_ALIAS:$REMOTE_DIR/$REMOTE_ENV_FILE"
+rsync -av "$LOCAL_ENV_FILE" "$SSH_ALIAS:$REMOTE_DIR/$REMOTE_ENV_FILE"
+ssh "$SSH_ALIAS" "chmod 600 $REMOTE_DIR/$REMOTE_ENV_FILE"
 
 # ── 6. rsync docker-compose.dev.yml → docker-compose.yml ─────────────────────
 info "rsync $LOCAL_COMPOSE_FILE → $REMOTE_DIR/$REMOTE_COMPOSE_FILE"
