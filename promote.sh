@@ -107,7 +107,8 @@ EOF
 
 # ── 5. rsync .env.prod → .env ────────────────────────────────────────────────
 info "rsync $LOCAL_ENV_FILE → $REMOTE_DIR/$REMOTE_ENV_FILE"
-rsync -av --chmod=F600 "$LOCAL_ENV_FILE" "$SSH_ALIAS:$REMOTE_DIR/$REMOTE_ENV_FILE"
+rsync -av "$LOCAL_ENV_FILE" "$SSH_ALIAS:$REMOTE_DIR/$REMOTE_ENV_FILE"
+ssh "$SSH_ALIAS" "chmod 600 $REMOTE_DIR/$REMOTE_ENV_FILE"
 
 # ── 6. rsync docker-compose.yml → docker-compose.yml ─────────────────────────
 # (Same name, but rsync ensures the local version overwrites whatever git brought.)
@@ -141,13 +142,8 @@ EOF
 
 # ── 9. DB migrations (idempotent — safe to re-run every deploy) ───────────────
 info "Running DB migrations..."
-ssh "$SSH_ALIAS" bash <<EOF
-    set -euo pipefail
-    cd "$REMOTE_DIR"
-    docker compose exec -T postgres psql -U postgres -d subsbuzz \
-        < infrastructure/postgres/migrate.sql \
-        && echo "✓ Migrations applied"
-EOF
+MIGRATE_DB_URL=$(grep '^DATABASE_URL=' "$LOCAL_ENV_FILE" | cut -d= -f2-)
+psql "$MIGRATE_DB_URL" < infrastructure/postgres/migrate.sql && echo "✓ Migrations applied"
 
 # ── 10. Health checks ─────────────────────────────────────────────────────────
 info "Health checks (retrying up to 12 × 5s = 60s per service)..."
