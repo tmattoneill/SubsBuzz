@@ -9,6 +9,7 @@ import { asyncHandler } from '../middleware/error';
 import { storage } from '../services/storage';
 import { lookupPublication } from '../services/publications';
 import { getDigestEmailsByTagSlug, getTagBySlug } from '../services/tags/storage';
+import type { OAuthToken } from '../db/schema.js';
 
 const router = Router();
 
@@ -23,6 +24,25 @@ const apiError = (message: string, code?: string) => ({
   success: false,
   error: message,
   ...(code && { code })
+});
+
+// OAuth token rows are stored camelCase (Drizzle) but the Python email worker
+// reads them as snake_case (e.g. access_token). Every endpoint that hands a
+// token to the worker must emit this shape. Keep them sharing one helper so the
+// two can't drift — a missing transform on the expiring-tokens endpoint made the
+// 6-hourly refresh cron throw KeyError: 'access_token' and silently never run.
+const toWorkerOAuthToken = (token: OAuthToken) => ({
+  id: token.id,
+  uid: token.uid,
+  email: token.email,
+  access_token: token.accessToken,
+  refresh_token: token.refreshToken,
+  expires_at: token.expiresAt instanceof Date ? token.expiresAt.toISOString() : token.expiresAt,
+  scope: token.scope,
+  revoked_at: token.revokedAt instanceof Date ? token.revokedAt.toISOString() : token.revokedAt,
+  revocation_reason: token.revocationReason,
+  created_at: token.createdAt instanceof Date ? token.createdAt.toISOString() : token.createdAt,
+  updated_at: token.updatedAt instanceof Date ? token.updatedAt.toISOString() : token.updatedAt
 });
 
 // ==================== MONITORED EMAILS ====================
@@ -439,21 +459,7 @@ router.get('/oauth-token/:uid', asyncHandler(async (req: Request, res: Response)
   }
 
   // Transform to snake_case for Python email worker compatibility
-  const transformedToken = {
-    id: token.id,
-    uid: token.uid,
-    email: token.email,
-    access_token: token.accessToken,
-    refresh_token: token.refreshToken,
-    expires_at: token.expiresAt instanceof Date ? token.expiresAt.toISOString() : token.expiresAt,
-    scope: token.scope,
-    revoked_at: token.revokedAt instanceof Date ? token.revokedAt.toISOString() : token.revokedAt,
-    revocation_reason: token.revocationReason,
-    created_at: token.createdAt instanceof Date ? token.createdAt.toISOString() : token.createdAt,
-    updated_at: token.updatedAt instanceof Date ? token.updatedAt.toISOString() : token.updatedAt
-  };
-
-  return res.json(apiResponse(transformedToken));
+  return res.json(apiResponse(toWorkerOAuthToken(token)));
 }));
 
 // Get OAuth token by email
@@ -493,9 +499,10 @@ router.get('/oauth-tokens/expiring', asyncHandler(async (req: Request, res: Resp
   try {
     const beforeDate = new Date(before as string);
     const expiringTokens = await storage.getExpiringOAuthTokens(beforeDate);
-    
+
     console.log(`🔍 Found ${expiringTokens.length} tokens expiring before ${beforeDate.toISOString()}`);
-    return res.json(apiResponse(expiringTokens));
+    // Same snake_case shape as /oauth-token/:uid — the email worker reads access_token, revoked_at, etc.
+    return res.json(apiResponse(expiringTokens.map(toWorkerOAuthToken)));
   } catch (error: any) {
     console.error('Error getting expiring tokens:', error);
     return res.status(500).json(apiError(`Failed to get expiring tokens: ${error.message}`, 'EXPIRING_TOKENS_FAILED'));
