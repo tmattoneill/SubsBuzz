@@ -8,6 +8,18 @@ import { Request, Response } from 'express';
 import { sql } from 'drizzle-orm';
 import { getDatabase } from '../db.js';
 
+/**
+ * Shallow liveness check — confirms the process is up WITHOUT touching Postgres.
+ *
+ * Used by the Docker healthcheck (every 30s). The deep `healthCheck` below runs
+ * `SELECT 1`, and at 30s intervals that query never lets Neon's compute reach the
+ * ~5min idle window it needs to scale to zero — which kept the DB awake 24/7 and
+ * burned the whole free-tier compute allowance. Liveness must stay DB-free.
+ */
+export const livenessCheck = (_req: Request, res: Response) => {
+  res.status(200).json({ status: 'alive', service: 'data-server' });
+};
+
 export const healthCheck = async (req: Request, res: Response) => {
   const healthStatus = {
     status: 'healthy',

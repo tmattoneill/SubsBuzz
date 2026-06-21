@@ -138,6 +138,16 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # ==================== HEALTH & STATUS ====================
 
+@app.get("/health/live", tags=["Health"])
+async def liveness_endpoint():
+    """Shallow liveness check — confirms the process is up without touching downstream
+    services. Used by the Docker healthcheck (every 30s). The deep /health below fans out
+    to the data-server's /health, which runs SELECT 1; at 30s intervals that kept Neon's
+    compute awake 24/7 and exhausted the free-tier allowance. Liveness must stay DB-free.
+    """
+    return {"status": "alive", "service": "api-gateway"}
+
+
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_endpoint():
     """API Gateway health check"""

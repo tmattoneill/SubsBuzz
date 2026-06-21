@@ -19,7 +19,7 @@ import { digestRoutes } from './routes/digest';
 import { thematicRoutes } from './routes/thematic';
 import { emailCategoriesRoutes } from './routes/email-categories';
 import { subscriptionsRoutes } from './routes/subscriptions';
-import { healthCheck } from './middleware/health';
+import { healthCheck, livenessCheck } from './middleware/health';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 import { initializeDatabase } from './db';
@@ -58,7 +58,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logging
 app.use(morgan('combined'));
 
-// Health check endpoint (no auth required)
+// Health check endpoints (no auth required)
+// /health/live — shallow liveness for the Docker healthcheck (no DB, lets Neon suspend)
+// /health      — deep readiness (probes DB + Redis) for manual use / external monitoring
+app.get('/health/live', livenessCheck);
 app.get('/health', healthCheck);
 
 // Internal API authentication middleware
