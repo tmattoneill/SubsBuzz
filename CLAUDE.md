@@ -678,6 +678,15 @@ npm run db:studio
 - Schema location: `services/data-server/src/db/schema.ts`
 - Migrations managed via `npm run db:generate` and `npm run db:migrate`
 
+#### ⚠️ Neon: pooler vs direct host
+Runtime services connect via the **pooler** host (`DATABASE_URL`, hostname ends in `-pooler` — Neon's PgBouncer). Migrations must NOT use the pooler: drizzle-kit needs session-level features PgBouncer transaction-pooling breaks. `drizzle.config.ts` handles this — it prefers `DATABASE_DIRECT_URL`, else derives the direct host by stripping `-pooler` from `DATABASE_URL`. The deploy scripts' raw `infrastructure/postgres/migrate.sql` path is safe through the pooler (all statements are standalone + idempotent, no transactions).
+
+#### ⚠️ Neon cold-start (since scale-to-zero was enabled)
+Once the compute suspends after idle, the **first** query after a quiet period pays Neon resume latency (~sub-second to ~3s). Nothing times out at current settings (db.ts `connect_timeout` 10s, login 10s, digest 30s), but a slow first-of-the-day request is expected behaviour, not a bug. See the healthcheck `/health/live` split that lets the compute suspend.
+
+#### ⚠️ schema.ts ↔ migrate.sql sync (manual)
+`schema.ts` is the Drizzle/TypeScript truth; `infrastructure/postgres/migrate.sql` is what prod actually applies on deploy. They are kept in sync **by hand** — there is no automation. When you add/change a column in `schema.ts`, append the matching idempotent `ALTER TABLE ... IF NOT EXISTS` to `migrate.sql` in the same commit. Skip it and local dev passes while prod errors at runtime on first use of the missing column.
+
 ### Authentication Flow
 - **Public API:** API Gateway handles JWT authentication
 - **Internal API:** Data Server requires `INTERNAL_API_SECRET` header
@@ -712,6 +721,11 @@ Hero images are cached locally instead of hot-linked from publisher CDNs. The em
 - **DB:** `digest_emails.hero_image_url` stores `/hero-cache/<filename>` for new rows. Old rows with absolute CDN URLs keep working — frontend renders both.
 - **Nginx:** `services/frontend/nginx.conf` has `location /hero-cache/ { alias /cache/heroes/; ... }` with `Cache-Control: public, immutable` and a 365-day expiry. Filenames are pure hex (sha256) so the alias has no path-traversal surface.
 - **Dockerfile:** `services/email-worker/Dockerfile` creates `/cache/heroes` with mode `777` so the non-root `worker` user can write and nginx (different container, different UID) can read across the volume; individual files are written `0o644`.
+
+#### Bunny CDN (Phase 2) — pull zone in front of the hero cache
+- **Frontend rewrite:** `getHeroImageSrc()` in `services/frontend/src/lib/article-heroes.ts` prepends `VITE_HERO_CDN_URL` to any stored `/hero-cache/...` path; legacy absolute URLs pass through unchanged. The CDN host is **baked into the Vite build** (`VITE_HERO_CDN_URL` build arg in `services/frontend/Dockerfile`, fed from `.env` via compose). If it's empty at build time the frontend silently serves origin paths — the Dockerfile now warns loudly when it's unset.
+- **Pull zone:** `subsbuzz-hero-images.b-cdn.net` (set in `.env.dev` / `.env.prod`). Its **origin** points at the public site's `/hero-cache/` (nginx `alias /cache/heroes/`). The pull-zone name + origin live ONLY in the Bunny dashboard — there is no repo config for them.
+- **Volume-loss trap:** the `hero_image_cache` volume survives normal deploys (`docker compose down` without `-v`), but a fresh server, `down -v`, or a volume prune empties it. Bunny then pulls 404s from the empty origin and may cache them. There is **no backfill** — old digests' heroes stay missing until those digests are re-processed. Keep Bunny's pull-zone error-TTL short/zero so transient 404s aren't cached.
 
 ### Communication Patterns
 - **Synchronous:** HTTP REST APIs between services
@@ -814,7 +828,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 6/5/2026, 4:05:33 PM
+**Last Updated:** 21/06/2026, 21:40:30
 
 ### Active Todos
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
@@ -823,6 +837,7 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [high] Monitor Geoffrey Craig's and Bethan Crockett's digest generation over next 2-3 days to confirm auth fix is working (`main`)
 - [ ] [high] Implement per-user timezone-aware digest scheduling (03:00 local time) as mentioned in your next priorities (`main`)
 - [ ] [high] Work on TEEPER-201 outbound digest email delivery system (`main`)
+- [ ] [high] On/after Jul 5 2026 (Neon free-tier reset un-pauses subsbuzz project): run ./deploy.sh then ./promote.sh to ship the healthcheck fix (commit 1ade471, already on main). Both were blocked while Neon was paused (psql migrations + deep /health check fail against a dead DB). After deploy, confirm via Neon dashboard that subsbuzz compute suspends (ENDPOINT INACTIVE band appears) and daily CU-hr accrual drops to fractions, not ~6. (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
 - [ ] [medium] [TEEPER-80] Support Gmail labels in addition to sender addresses — users choose label(s) to monitor and all emails in those labels are pulled in for analysis https://linear.app/teemo-personal-projects/issue/TEEPER-80 (`main`)
 - [ ] [medium] [TEEPER-104] Generate Digest — show informative modal when no active OpenAI API key (instead of silent failure / generic 500). Needs typed error code from data-server openai.ts + frontend handler in digest.tsx / dashboard. https://linear.app/teemo-personal-projects/issue/TEEPER-104 (`main`)

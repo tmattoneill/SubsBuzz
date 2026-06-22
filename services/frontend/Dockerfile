@@ -20,6 +20,16 @@ RUN npm install
 # Copy frontend source code
 COPY services/frontend/ .
 
+# Guard: VITE_HERO_CDN_URL is baked in at build time. If it's empty the frontend
+# silently serves origin /hero-cache/ paths and bypasses Bunny CDN entirely. Warn
+# loudly in the build log rather than shipping a CDN-less bundle unnoticed.
+RUN if [ -z "$VITE_HERO_CDN_URL" ]; then \
+      echo "⚠️  WARNING: VITE_HERO_CDN_URL is empty — hero images will be served from origin, NOT Bunny CDN."; \
+      echo "⚠️  If this is a dev/prod build, pass it as a build arg (it comes from .env via docker-compose)."; \
+    else \
+      echo "✓ VITE_HERO_CDN_URL set to $VITE_HERO_CDN_URL"; \
+    fi
+
 # Build the application
 RUN npm run build
 
