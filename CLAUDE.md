@@ -863,11 +863,13 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [medium] Improve keyword + tagging in articles — current topics/keywords are noisy or generic. Review AI prompt for keyword extraction in data-server, improve quality/relevance of tags shown on article cards and in ArticleView. (`main`)
 - [ ] [medium] Implement TEEPER-104 error modal for missing OpenAI API key scenarios (`main`)
 - [ ] [medium] Monitor Neon and Bunny CDN performance in production to validate the infrastructure changes (`main`)
+- [ ] [medium] Security: dev and prod Neon use the SAME role/password (neondb_owner:npg_...) — a dev leak compromises prod. Create a separate role (or rotate password) for the dev database so dev != prod credentials, then update DATABASE_URL in .env.dev (local + server). Needs Neon dashboard. From the Bunny/Neon gotcha audit. (`main`)
 - [ ] [low] Smart sender parsing v2: remote / user-contributable publications registry. Serve publications.json from an endpoint so registry updates don't need a deploy; support user-submitted entries via a moderated PR/approval flow. (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: per-row "Merge into…" action on subscription children. Lets user collapse any two children into one without locking the whole sender against future splits (complement to the parent-level "Keep as one"). (`feature/sender-parse`)
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
 - [ ] [low] Nuke old postgres Docker volumes on server: `ssh subsbuzz "docker volume rm postgres_data subsbuzz_dev_postgres_data"` — safe to delete Tuesday 2026-06-10, Neon Phase 1 confirmed stable on both dev and prod (`main`)
 - [ ] [low] Celery task checkpointing for spot-instance resilience: write each email's summary to DB as it completes rather than batching at the end, so a mid-task interruption (spot eviction) allows clean re-queue and resume rather than full restart. Idempotency cursor already handles duplicate-digest protection — the gap is mid-task partial writes. Pre-requisite for running workers on spot instances at scale. (`main`)
 - [ ] [low] Commit the modified CLAUDE.md file to close out the infrastructure session (`main`)
+- [ ] [low] Bunny CDN: set the subsbuzz-hero-images pull-zone error-TTL to 0/short so transient origin 404s aren't cached. Matters because the hero_image_cache volume has no backfill — if it's ever emptied (fresh server / down -v / prune), Bunny would otherwise cache 404s for old digests' heroes. Needs Bunny dashboard. From the gotcha audit. (`main`)
 
 <!-- DEVCTX:END -->
