@@ -828,14 +828,11 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 **Project:** SubsBuzz - AI-powered email digest application with microservices architecture
 
 **Branch:** `main`
-**Last Updated:** 21/06/2026, 21:40:30
+**Last Updated:** 29/06/2026, 11:41:31
 
 ### Active Todos
 - [ ] [high] Run the subscriptions backfill on prod after ./promote.sh. Same SQL as dev backfill (or use npm run backfill:subscriptions if tsx makes it into the prod image). Check sender count matches subscription count and that no digest_emails remain orphaned. (`feature/sender-parse`)
-- [ ] [high] Per-user 03:00 local digest scheduling: change Celery beat to hourly tick; generate_daily_digests filters to users where now-in-their-TZ ∈ [03:00, 04:00) and no digest yet today (idempotency cursor). Users with no TZ continue at global 03:00 UTC. Depends on the timezone-storage todo. (`main`)
 - [ ] [high] Investigate and resolve tsx-in-image blocking issues for TEEPER-186/190 sender-parse backfill (`main`)
-- [ ] [high] Monitor Geoffrey Craig's and Bethan Crockett's digest generation over next 2-3 days to confirm auth fix is working (`main`)
-- [ ] [high] Implement per-user timezone-aware digest scheduling (03:00 local time) as mentioned in your next priorities (`main`)
 - [ ] [high] Work on TEEPER-201 outbound digest email delivery system (`main`)
 - [ ] [high] On/after Jul 5 2026 (Neon free-tier reset un-pauses subsbuzz project): run ./deploy.sh then ./promote.sh to ship the healthcheck fix (commit 1ade471, already on main). Both were blocked while Neon was paused (psql migrations + deep /health check fail against a dead DB). After deploy, confirm via Neon dashboard that subsbuzz compute suspends (ENDPOINT INACTIVE band appears) and daily CU-hr accrual drops to fractions, not ~6. (`main`)
 - [ ] [medium] [TEEPER-82] Add unit tests for OpenAI reasoning_effort parameter handling https://linear.app/teemo-personal-projects/issue/TEEPER-82 (`main`)
@@ -869,7 +866,6 @@ The canonical schema lives at `services/data-server/src/db/schema.ts` and is ref
 - [ ] [low] Smart sender parsing v2: expand publications.ts seed registry from ~70 → ~200 entries. Driven by real coverage gaps seen in dev/prod — don't pad speculatively. (`feature/sender-parse`)
 - [ ] [low] Nuke old postgres Docker volumes on server: `ssh subsbuzz "docker volume rm postgres_data subsbuzz_dev_postgres_data"` — safe to delete Tuesday 2026-06-10, Neon Phase 1 confirmed stable on both dev and prod (`main`)
 - [ ] [low] Celery task checkpointing for spot-instance resilience: write each email's summary to DB as it completes rather than batching at the end, so a mid-task interruption (spot eviction) allows clean re-queue and resume rather than full restart. Idempotency cursor already handles duplicate-digest protection — the gap is mid-task partial writes. Pre-requisite for running workers on spot instances at scale. (`main`)
-- [ ] [low] Commit the modified CLAUDE.md file to close out the infrastructure session (`main`)
 - [ ] [low] Bunny CDN: set the subsbuzz-hero-images pull-zone error-TTL to 0/short so transient origin 404s aren't cached. Matters because the hero_image_cache volume has no backfill — if it's ever emptied (fresh server / down -v / prune), Bunny would otherwise cache 404s for old digests' heroes. Needs Bunny dashboard. From the gotcha audit. (`main`)
 
 <!-- DEVCTX:END -->
